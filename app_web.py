@@ -256,13 +256,8 @@ def api_convert():
 # --- Romaji (Phase 1 MVP) -----------------------------------------------
 from pykakasi import kakasi  # noqa: E402
 
+# pykakasi v3 API (setMode/getConverter deprecated)
 _kks = kakasi()
-_kks.setMode("J", "a")  # Kanji -> romaji
-_kks.setMode("H", "a")  # Hiragana -> romaji
-_kks.setMode("K", "a")  # Katakana -> romaji
-_kks.setMode("r", "Hepburn")
-_kks.setMode("s", True)  # add spaces (roughly)
-_romaji_converter = _kks.getConverter()
 
 def to_romaji(text: str) -> str:
     """Convert Japanese text to romaji while preserving line breaks."""
@@ -272,7 +267,12 @@ def to_romaji(text: str) -> str:
         if not line.strip():
             out.append("")
             continue
-        out.append(_romaji_converter.do(line).strip())
+        # v3 API: convert() returns List[Dict[str, str]]
+        # Each dict contains 'orig', 'hira', 'kana', 'hepburn', etc.
+        result = _kks.convert(line)
+        # Join hepburn values, preserving spaces from original text
+        romaji = ''.join(r.get('hepburn', r.get('orig', '')) for r in result)
+        out.append(romaji.strip())
     return "\n".join(out)
 
 @app.route("/api/romaji", methods=["POST"])
