@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Flask (DEV)",
+      "type": "shell",
+      "command": ".\\\\.venv\\Scripts\\Activate.ps1; $env:FLASK_APP='app_web:app'; $env:FLASK_ENV='development'; python -m flask run",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always"
+      }
+    }
+  ]
+}

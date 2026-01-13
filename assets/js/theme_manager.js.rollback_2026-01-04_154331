@@ -1,0 +1,35 @@
+/* SingKANA Theme Manager v3
+   - Source of truth: <html class="THEME">
+   - Mirrors: body[data-theme] (compat)
+   - Does NOT clobber body.className (keeps tailwind 'antialiased' etc)
+*/
+(() => {
+  const KEY = "sk_theme";
+  const DEFAULT = "kdesign_bright";
+
+  function applyTheme(name){
+    const theme = (name || DEFAULT).trim();
+    document.documentElement.className = theme; // html class
+    try { document.body.setAttribute("data-theme", theme); } catch {}
+    try { localStorage.setItem(KEY, theme); } catch {}
+  }
+
+  function boot(){
+    let saved = null;
+    try { saved = localStorage.getItem(KEY); } catch {}
+    applyTheme(saved || DEFAULT);
+
+    document.addEventListener("click", (e) => {
+      const el = e.target?.closest?.("[data-set-theme]");
+      if (!el) return;
+      e.preventDefault();
+      applyTheme(el.getAttribute("data-set-theme"));
+    }, { passive:false });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot, { once:true });
+  } else {
+    boot();
+  }
+})();

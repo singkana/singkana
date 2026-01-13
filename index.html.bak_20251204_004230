@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>SingKANA β – 英語歌詞かな変換スタジオ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: light;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, #f7f5ff, #fdfbff 40%, #ffffff 80%);
+      color: #222;
+    }
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo-mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #8f7bf5, #f58fdc);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #fff;
+      font-weight: 700;
+    }
+    .logo-text-main {
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      font-size: 18px;
+    }
+    .logo-text-sub {
+      font-size: 11px;
+      color: #666;
+    }
+    .badge-beta {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: #fff;
+      border: 1px solid #e0ddff;
+      color: #7b6cf0;
+    }
+
+    .hero {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 20px;
+      padding: 20px 18px;
+      border: 1px solid #eee7ff;
+      box-shadow: 0 18px 45px rgba(143, 123, 245, 0.12);
+      margin-bottom: 20px;
+    }
+    .hero-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .hero-sub {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 16px;
+    }
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: #f4f0ff;
+      color: #6b5ad8;
+      margin-bottom: 8px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 5fr 4fr;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    @media (max-width: 700px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 14px 14px 16px;
+      border: 1px solid #eee7ff;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.02);
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .card-sub {
+      font-size: 11px;
+      color: #777;
+      margin-bottom: 10px;
+    }
+
+    textarea {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #ddd5ff;
+      padding: 10px 11px;
+      font-family: inherit;
+      font-size: 13px;
+      resize: vertical;
+      min-height: 140px;
+      outline: none;
+      background: #faf8ff;
+    }
+    textarea:focus {
+      border-color: #8f7bf5;
+      box-shadow: 0 0 0 1px rgba(143, 123, 245, 0.2);
+      background: #ffffff;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      align-items: center;
+    }
+    .input-row label {
+      font-size: 11px;
+      color: #555;
+      min-width: 52px;
+    }
+    .input-row input {
+      flex: 1;
+      border-radius: 999px;
+      border: 1px solid #ddd5ff;
+      padding: 7px 9px;
+      font-size: 12px;
+      outline: none;
+      background: #faf8ff;
+    }
+    .input-row input:focus {
+      border-color: #8f7bf5;
+      background: #fff;
+    }
+
+    .btn {
+      border-radius: 999px;
+      border: none;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: transform 0.05s ease-out, box-shadow 0.05s ease-out, background 0.1s;
+      user-select: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #8f7bf5, #f58fdc);
+      color: #fff;
+      box-shadow: 0 10px 22px rgba(143, 123, 245, 0.35);
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 26px rgba(143, 123, 245, 0.45);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 12px rgba(143, 123, 245, 0.35);
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+      transform: none;
+      box-shadow: none;
+    }
+    .btn-mini {
+      font-size: 11px;
+      padding: 6px 10px;
+      background: #f4f0ff;
+      color: #6b5ad8;
+      box-shadow: none;
+    }
+
+    .badge-note {
+      font-size: 10px;
+      color: #999;
+      margin-top: 6px;
+    }
+    .error {
+      font-size: 11px;
+      color: #d13b3b;
+      margin-top: 6px;
+    }
+
+    .preview {
+      font-size: 12px;
+      max-height: 260px;
+      overflow: auto;
+      border-radius: 10px;
+      border: 1px solid #f0ecff;
+      padding: 10px 11px;
+      background: #faf8ff;
+    }
+    .preview-line {
+      margin-bottom: 4px;
+    }
+    .tag {
+      display: inline-block;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      margin-right: 5px;
+      background: #eee7ff;
+      color: #6555d0;
+    }
+    .tag-info {
+      background: #f1f5ff;
+      color: #5b6bb5;
+    }
+    .ghost {
+      color: #aaa;
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
+    .feedback-area {
+      width: 100%;
+      min-height: 90px;
+      font-size: 12px;
+      padding: 9px 10px;
+      border-radius: 10px;
+      border: 1px solid #e0ddff;
+      resize: vertical;
+      font-family: inherit;
+      background: #faf9ff;
+    }
+    .feedback-area:focus {
+      outline: none;
+      border-color: #8f7bf5;
+      background: #fff;
+    }
+    .footer-note {
+      font-size: 10px;
+      color: #888;
+      margin-top: 16px;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="logo">
+        <div class="logo-mark">♪</div>
+        <div>
+          <div class="logo-text-main">SingKANA</div>
+          <div class="logo-text-sub">英語歌詞 › 日本語かな｜βテスト版</div>
+        </div>
+      </div>
+      <div class="badge-beta">FOR BETA TESTERS</div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-pill">英語歌詞を「歌えるかな」に変換するスタジオ</div>
+      <div class="hero-title">英語のまま歌いたい人のための「かな変換」実験版</div>
+      <div class="hero-sub">
+        英語歌詞をここに貼り付けると、日本語話者がカラオケで歌いやすい「かな表記」に変換します。<br />
+        このページは <b>クローズドβテスト</b> 用です。気づいたことを下のフィードバック欄から教えてもらえると、とても助かります。
+      </div>
+      <button id="btn-scroll" class="btn btn-mini">スタジオへスクロール</button>
+    </section>
+
+    <section class="layout" id="studio">
+      <!-- 左：入力 & 変換 -->
+      <div class="card">
+        <div class="card-title">歌詞入力</div>
+        <div class="card-sub">
+          1. 曲名（任意）を入れる → 2. 英語歌詞を丸ごと貼り付け → 3. 「この歌詞で変換する」
+        </div>
+
+        <div class="input-row">
+          <label for="song-title">曲名</label>
+          <input
+            id="song-title"
+            type="text"
+            placeholder="例: Sparkle / RADWIMPS (任意)"
+          />
+        </div>
+
+        <textarea
+          id="lyrics"
+          placeholder="ここに英語歌詞を貼り付けてください。&#10;※曲名だけでは歌詞は自動取得されません。"
+        ></textarea>
+
+        <div id="lyrics-error" class="error" style="display:none;"></div>
+        <div class="badge-note">
+          ※ 最大 2000文字まで。長い曲は複数回に分けて試してもらえると助かります。
+        </div>
+
+        <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+          <button id="btn-convert" class="btn btn-primary">
+            <span>▶</span> この歌詞で変換する
+          </button>
+        </div>
+      </div>
+
+      <!-- 右：結果 & 設定 -->
+      <div class="card">
+        <div class="card-title">変換結果プレビュー</div>
+        <div class="card-sub">
+          左で変換した結果がここに表示されます。<br />
+          β版では「かなの読みやすさ」「リズム感」のフィードバックに集中してもらえればOKです。
+        </div>
+        <div id="preview" class="preview">
+          <div class="preview-line">
+            <span class="tag tag-info">INFO</span>
+            ここに「英語 + かな」のペアが行ごとに表示されます。
+          </div>
+          <div class="ghost">
+            例）EN: Take me higher, through the night<br />
+            　　 KA: ていく みー はいやー、するー ざ ないっ
+          </div>
+        </div>
+
+        <div class="badge-note">
+          ※ STR / VIB / BELT といった歌い方マークは、現在は画面上には表示していません（内部のみで計算中）。<br />
+          将来的に、アニメーションやアイコンとして反映予定です。
+        </div>
+      </div>
+    </section>
+
+    <section class="layout" style="margin-top: 4px;">
+      <div class="card">
+        <div class="card-title">使い方（かんたん3ステップ）</div>
+        <div class="card-sub">
+          βテストでは、以下の流れで1〜3曲ほど試してもらえると嬉しいです。
+        </div>
+        <ul style="padding-left:18px; margin:0; font-size:12px; line-height:1.5;">
+          <li>1. 曲名（任意）と英語歌詞を貼り付ける</li>
+          <li>2. 「この歌詞で変換する」を押す</li>
+          <li>3. 出てきた「かな」を見ながら、歌えそうかをイメージする</li>
+          <li>4. 下のフィードバック欄から、気になった点を送信</li>
+        </ul>
+        <div class="ghost" style="margin-top:6px;">
+          例）「サビのこの行だけ読みづらい」「語尾が伸びすぎてリズムが取りづらい」など、主観でOKです。
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">フィードバック</div>
+        <div class="card-sub">
+          気づいたこと・良かった点・直してほしい点など、なんでも書いてもらえると開発の参考になります。
+        </div>
+        <textarea
+          id="feedback"
+          class="feedback-area"
+          placeholder="例）サビの「higher」のところ、もっと伸ばした表記だと歌いやすいかも…&#10;例）全体的にいい感じだけど、早口の部分はもう少し英語寄りでもいいかも。"
+        ></textarea>
+        <div id="feedback-error" class="error" style="display:none;"></div>
+        <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
+          <button id="btn-feedback" class="btn btn-mini">
+            📝 フィードバックを送信
+          </button>
+          <div id="feedback-status" class="badge-note"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer-note">
+      SingKANA β – このページはテスト目的のため予告なく停止・仕様変更される可能性があります。
+    </div>
+  </div>
+
+  <script>
+    const btnScroll = document.getElementById("btn-scroll");
+    const studio = document.getElementById("studio");
+    const lyricsInput = document.getElementById("lyrics");
+    const lyricsError = document.getElementById("lyrics-error");
+    const btnConvert = document.getElementById("btn-convert");
+    const preview = document.getElementById("preview");
+
+    const feedbackInput = document.getElementById("feedback");
+    const feedbackError = document.getElementById("feedback-error");
+    const btnFeedback = document.getElementById("btn-feedback");
+    const feedbackStatus = document.getElementById("feedback-status");
+
+    const MAX_CHARS = 2000;
+
+    if (btnScroll && studio) {
+      btnScroll.addEventListener("click", () => {
+        studio.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
+    async function convertLyrics() {
+      const text = (lyricsInput.value || "").trim();
+      const songTitle = (document.getElementById("song-title").value || "").trim();
+
+      if (!text) {
+        lyricsError.style.display = "block";
+        lyricsError.textContent = "英語歌詞を入力してください。";
+        return;
+      }
+      if (text.length > MAX_CHARS) {
+        lyricsError.style.display = "block";
+        lyricsError.textContent =
+          "2000文字を超えています。英語歌詞を複数回に分けて変換してください。";
+        return;
+      }
+
+      lyricsError.style.display = "none";
+      lyricsError.textContent = "";
+
+      const originalText = btnConvert.innerHTML;
+      btnConvert.disabled = true;
+      btnConvert.innerHTML = "<span>…</span> 変換中";
+
+      preview.innerHTML =
+        '<div class="preview-line"><span class="tag tag-info">INFO</span> 変換中です…</div>';
+
+      try {
+        const res = await fetch("/api/convert", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lyrics: text })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          const msg = data && data.error ? data.error : "変換APIの呼び出しに失敗しました。";
+          throw new Error(msg);
+        }
+
+        const lines = Array.isArray(data.lines) ? data.lines : [];
+        if (!lines.length) {
+          throw new Error("変換結果が空でした。");
+        }
+
+        const items = lines
+          .map((line) => {
+            const en = line.en || "";
+            const kana = line.kana || "";
+            return (
+              `<div class="preview-line"><span class="tag">EN</span>${en}</div>` +
+              `<div class="preview-line"><span class="tag">KA</span>${kana}</div>`
+            );
+          })
+          .join("");
+
+        let header = "";
+        if (songTitle) {
+          header =
+            `<div class="preview-line"><span class="tag tag-info">SONG</span>${songTitle}</div>` +
+            `<div class="ghost">※ 曲名はフィードバック分析のみに使用されます。</div><hr style="border:none;border-top:1px dashed #e0ddff;margin:6px 0;" />`;
+        }
+
+        preview.innerHTML = header + items;
+      } catch (err) {
+        console.error(err);
+        lyricsError.style.display = "block";
+        lyricsError.textContent = err.message || "変換に失敗しました。";
+        preview.innerHTML =
+          '<div class="preview-line"><span class="tag">ERR</span> 変換に失敗しました。時間をおいて再度お試しください。</div>';
+      } finally {
+        btnConvert.disabled = false;
+        btnConvert.innerHTML = originalText;
+      }
+    }
+
+    async function sendFeedback() {
+      const text = (feedbackInput.value || "").trim();
+      if (!text) {
+        feedbackError.style.display = "block";
+        feedbackError.textContent = "フィードバック内容を入力してください。";
+        return;
+      }
+      feedbackError.style.display = "none";
+      feedbackError.textContent = "";
+      feedbackStatus.textContent = "送信中…";
+
+      try {
+        const res = await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ feedback: text })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || "送信に失敗しました。");
+        }
+        feedbackStatus.textContent = "送信しました。ありがとうございます！";
+        feedbackInput.value = "";
+      } catch (err) {
+        console.error(err);
+        feedbackStatus.textContent = "";
+        feedbackError.style.display = "block";
+        feedbackError.textContent = err.message || "送信に失敗しました。";
+      }
+    }
+
+    btnConvert.addEventListener("click", convertLyrics);
+    btnFeedback.addEventListener("click", sendFeedback);
+  </script>
+</body>
+</html>
+

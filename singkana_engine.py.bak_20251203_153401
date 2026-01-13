@@ -1,0 +1,76 @@
+"""SingKANA β 用のシンプルなスタブエンジン。"""
+
+import datetime
+from pathlib import Path
+from typing import Any, Dict, List  # ←★ これを必ず追加
+
+# ログ出力先
+LOG_DIR = Path("Logs")
+LOG_DIR.mkdir(exist_ok=True)
+CONVERT_LOG = LOG_DIR / "convert.log"
+FEEDBACK_LOG = LOG_DIR / "feedback.log"
+
+
+def _safe_log(path: Path, text: str) -> None:
+    """ログ書き込みで例外が出てもサービスは落とさないためのラッパー。"""
+    try:
+        ts = datetime.datetime.now().isoformat(timespec="seconds")
+        with path.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {text}\n")
+    except Exception:
+        # ログ周りで死んでも本体は落とさない
+        pass
+
+
+# ==== 初期フック ====
+
+def init_engine() -> None:
+    """
+    本番では、本物のモデルや外部 API を初期化するためのフック。
+    今はログに一行書くだけの no-op。
+    """
+    _safe_log(CONVERT_LOG, "init_engine called (stub)")
+
+
+# ==== なんちゃって変換ロジック ====
+
+def convert_lyrics(*args: Any, **kwargs: Any) -> List[Dict[str, str]]:
+    """
+    どんな呼び出し方をされても落ちないように、
+    引数は *args / **kwargs でゆるく受ける。
+
+    返り値: EN/KA ペアのダミー配列。
+    """
+    # 歌詞テキストは kwargs か args のどこかに入っている想定
+    lyrics = ""
+    if "lyrics" in kwargs and isinstance(kwargs["lyrics"], str):
+        lyrics = kwargs["lyrics"]
+    elif args and isinstance(args[0], str):
+        lyrics = args[0]
+
+    # ごく簡単なダミー変換：行ごとにスペース整形＋小文字化
+    lines: List[Dict[str, str]] = []
+    for raw in lyrics.splitlines():
+        text = raw.strip()
+        if not text:
+            continue
+        kana = " ".join(text.split()).lower()
+        lines.append({"en": text, "kana": kana})
+
+    snippet = lyrics[:50].replace("\n", " ")
+    _safe_log(CONVERT_LOG, f"convert_lyrics called snippet='{snippet}' len(lines)={len(lines)}")
+
+    return lines
+
+
+# ==== フィードバック保存 ====
+
+def save_feedback(text: str = "", **kwargs: Any) -> None:
+    """
+    フィードバックも、どんな形で来ても落とさずログに書くだけ。
+    """
+    if not text and "feedback" in kwargs:
+        text = str(kwargs["feedback"])
+
+    snippet = (text or "").replace("\n", " ")[:200]
+    _safe_log(FEEDBACK_LOG, f"feedback: {snippet}")

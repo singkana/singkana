@@ -1,0 +1,21 @@
+[Unit]
+Description=SingKANA Gunicorn Service
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/singkana
+
+ExecStart=/var/www/singkana/venv/bin/gunicorn \
+    --bind 127.0.0.1:5000 \
+    --workers 3 \
+    app_web:app
+
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

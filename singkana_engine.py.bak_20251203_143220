@@ -1,0 +1,99 @@
+"""
+SingKANA β 用のシンプルなスタブエンジン。
+絶対に落ちないことだけを最優先にした「なんちゃって変換」版。
+"""
+
+from __future__ import annotations
+
+import datetime
+from pathlib import Path
+from typing import Any, Dict, List
+
+# ==== ログの場所 ====
+BASE_DIR = Path(__file__).resolve().parent
+LOG_DIR = BASE_DIR / "Logs"
+LOG_DIR.mkdir(exist_ok=True)
+
+CONVERT_LOG = LOG_DIR / "convert.log"
+FEEDBACK_LOG = LOG_DIR / "feedback.log"
+
+
+def _safe_log(path: Path, text: str) -> None:
+    """ログ周りで失敗してもサービスを落とさないセーフティログ"""
+    try:
+        ts = datetime.datetime.now().isoformat(timespec="seconds")
+        with path.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {text}\n")
+    except Exception:
+        # ここで例外を握り潰すことで、本体ロジックには絶対に波及させない
+        pass
+
+
+# ==== 初期化フック ====
+
+def init_engine() -> None:
+    """
+    本番では、本物のモデルや外部 API を初期化するためのフック。
+    今はログに一行書くだけの no-op。
+    """
+    _safe_log(CONVERT_LOG, "init_engine called (stub)")
+
+
+# ==== なんちゃって変換ロジック ====
+
+def convert_lyrics(*args: Any, **kwargs: Any) -> List[Dict[str, str]]:
+    """
+    どんな呼び出し方をされても落ちないように、
+    引数は *args / **kwargs でゆるく受ける。
+
+    - lyrics があればそれを使う
+    - なければ空文字列
+    - 1行ずつ「英語そのまま」と「小文字+スペース整形」でペアを返す
+    """
+    # 1) 歌詞テキストの取り出し
+    lyrics: str = ""
+
+    if args and isinstance(args[0], str):
+        lyrics = args[0]
+    elif "lyrics" in kwargs and isinstance(kwargs["lyrics"], str):
+        lyrics = kwargs["lyrics"]
+    else:
+        # 念のため全部文字列化しておく
+        if args:
+            lyrics = str(args[0])
+        elif "lyrics" in kwargs:
+            lyrics = str(kwargs["lyrics"])
+
+    # 2) 1行ずつ EN / KA ペア化
+    lines: List[Dict[str, str]] = []
+
+    for raw in str(lyrics).splitlines():
+        text = raw.strip()
+        if not text:
+            continue
+
+        # 「それっぽく」するために：連続スペースを1個にして小文字化
+        kana = " ".join(text.split()).lower()
+
+        lines.append(
+            {
+                "en": text,
+                "kana": kana,
+            }
+        )
+
+    _safe_log(CONVERT_LOG, f"convert_lyrics called, lines={len(lines)}")
+    return lines
+
+
+# ==== フィードバック保存 ====
+
+def save_feedback(text: str = "", **kwargs: Any) -> None:
+    """
+    フィードバックも、どんな形で来ても落とさずログに書くだけ。
+    """
+    if not text and "feedback" in kwargs:
+        text = str(kwargs["feedback"])
+
+    snippet = (text or "").replace("\n", " ")[:200]
+    _safe_log(FEEDBACK_LOG, f"feedback: {snippet}")

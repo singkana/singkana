@@ -1,0 +1,60 @@
+"""
+SingKANA β 用のシンプルなスタブエンジン。
+
+本番ではここを OpenAI 連携ロジックに差し替える。
+今は「絶対エラーで落ちないこと」を最優先した版。
+"""
+
+import datetime
+from pathlib import Path
+
+# ログ出力先
+LOG_DIR = Path("Logs")
+LOG_DIR.mkdir(exist_ok=True)
+CONVERT_LOG = LOG_DIR / "convert.log"
+FEEDBACK_LOG = LOG_DIR / "feedback.log"
+
+
+def convert_lyrics(lyrics: str):
+    """
+    歌詞全体を行ごとの EN / KA ペアに変換する。
+    現状は「なんちゃってかな変換」なので、
+    ・空行はスキップ
+    ・スペースを整えて、小文字にするだけ
+    """
+    lines = []
+    for raw in lyrics.splitlines():
+        text = raw.strip()
+        if not text:
+            continue
+
+        kana = _to_kana_like(text)
+        lines.append({
+            "en": text,
+            "kana": kana,
+        })
+
+    _append_log(CONVERT_LOG, lyrics)
+    return lines
+
+
+def save_feedback(text: str):
+    """フィードバックをログに追記するだけ。"""
+    _append_log(FEEDBACK_LOG, text)
+
+
+def _append_log(path: Path, text: str):
+    now = datetime.datetime.now().isoformat(sep=" ", timespec="seconds")
+    with path.open("a", encoding="utf-8") as f:
+        f.write(f"[{now}] {text}\n")
+
+
+def _to_kana_like(text: str) -> str:
+    """
+    仮の「かな風」変換。
+    とりあえず：
+      - 余計なスペースを 1 つにまとめる
+      - 小文字にする
+    だけやって返す。
+    """
+    return " ".join(text.split()).lower()

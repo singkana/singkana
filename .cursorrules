@@ -1,0 +1,14 @@
+# SCA: Cursor Rules for SingKANA
+
+## Security & Safety
+- Never read or output secrets (.env, secrets.env)
+- Propose changes as diffs; do not overwrite files blindly
+- Do not change routes or env handling without explaining impact
+- Keep BASE_DIR path-safe (Path(__file__).resolve().parent)
+- Respect .sca/* as canonical; ask before violating
+
+## Development Practices
+- Always activate venv before running Python commands
+- Check for (.venv) in prompt before executing
+- Use Path objects for file operations, not string concatenation
+- Preserve existing error handling and logging patterns

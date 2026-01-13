@@ -1,0 +1,190 @@
+# SingKANA Webアプリ本体（Flask）
+# - /               : index.html
+# - /terms.html     : 利用規約
+# - /privacy.html   : プライバシーポリシー
+# - /singkana_core.js : 歌詞変換エンジン（フロント用 JS）
+# - /api/convert    : 歌詞 → EN/KA 変換（サーバー版エンジン）
+# - /api/feedback   : フィードバック保存（JSONL＋Discord）
+# - /admin/feedback : フィードバック簡易ビュー
+# - /healthz        : ヘルスチェック
+
+from __future__ import annotations
+
+import os
+import json
+import datetime
+import traceback
+import html
+import re
+from pathlib import Path
+import urllib.request
+import urllib.error
+
+from flask import (
+    Flask,
+    request,
+    jsonify,
+    send_from_directory,
+    Response,
+    current_app,
+)
+
+# .env から環境変数を読む（あれば）
+try:
+    from dotenv import load_dotenv  # type: ignore
+except Exception:
+    load_dotenv = None
+
+import singkana_engine as engine
+
+
+# ===== 基本設定 =========================================================
+
+BASE_DIR = Path(__file__).resolve().parent
+APP_NAME = "SingKANA"
+
+if load_dotenv:
+    # /var/www/singkana/.env を読む（なければ何もしない）
+    load_dotenv(BASE_DIR / ".env")
+
+app = Flask(__name__)
+
+
+
+# ============================
+# RESTORE_API_CONVERT_V1
+# ============================
+@app.post("/api/convert")
+def api_convert():
+    from flask import request, jsonify
+
+    data = request.get_json(silent=True) or {}
+
+    lyrics = (
+        data.get("text")
+        or data.get("lyrics")
+        or ""
+    )
+    if not lyrics:
+        return jsonify({"ok": False, "error": "empty_lyrics"}), 400
+
+    meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
+    display_mode = str(meta.get("display_mode") or "basic").lower()
+
+    # 課金ゲート（Basicのみ無料）
+    if display_mode != "basic":
+        return jsonify({
+            "ok": False,
+            "error": "payment_required",
+            "requested_mode": display_mode,
+            "allowed_free_modes": ["basic"],
+            "required_plan": "pro"
+        }), 402
+
+    # 仮の成功レスポンス（後で本処理に差し替える）
+    return jsonify({
+        "ok": True,
+        "result": [
+            {"en": lyrics, "kana": lyrics}
+        ]
+    })
+# ============================
+
+
+# RESTORE_API_CONVERT_V1
+@app.post("/api/convert")
+def api_convert():
+    from flask import request, jsonify
+
+    data = request.get_json(silent=True) or {}
+    lyrics = data.get("text") or data.get("lyrics") or ""
+    if not lyrics:
+        return jsonify({"ok": False, "error": "empty_lyrics"}), 400
+
+    meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
+    display_mode = str(meta.get("display_mode") or "basic").lower()
+
+    # 簡易ゲート（既存ロジックが別にある前提）
+    if display_mode != "basic":
+        return jsonify({
+            "ok": False,
+            "error": "payment_required",
+            "requested_mode": display_mode,
+            "allowed_free_modes": ["basic"],
+            "required_plan": "pro"
+        }), 402
+
+    # 仮レスポンス（本来の処理に後で接続）
+    return jsonify({
+        "ok": True,
+        "result": [{"en": lyrics, "kana": lyrics}]
+    })
+# END_RESTORE_API_CONVERT_V1
+
+
+FEEDBACK_PATH = BASE_DIR / "docs" / "feedback.jsonl"
+
+
+def _now_iso() -> str:
+    # JSTで出したければ環境でTZをJSTにしてる前提。ここはローカル時刻でOK。
+    return datetime.datetime.now().isoformat(timespec="seconds")
+
+
+def _client_ip() -> str:
+    # Cloudflare / Nginx 経由なら X-Forwarded-For が来る
+    xff = request.headers.get("X-Forwarded-For", "") or ""
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.remote_addr or ""
+
+
+def _truncate(s: str, n: int) -> str:
+    if s is None:
+        return ""
+    s = str(s)
+    return s if len(s) <= n else (s[: n - 1] + "…")
+
+
+def _strip_control_chars(s: str) -> str:
+    # Discord embed の変な崩れ防止
+    if not s:
+        return ""
+    return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", s)
+
+
+def _get_discord_webhook_url() -> str:
+    """
+    Discord Webhook URL を環境変数から取得。
+    - systemd Environment= でも .env でも OK
+    - 前後の空白・引用符を除去
+    """
+    url = os.environ.get("SINGKANA_FEEDBACK_WEBHOOK", "") or ""
+    url = url.strip().strip('"').strip("'")
+    return url.strip()
+
+
+# ===== 画面ルーティング =================================================
+
+@app.route("/singkana_core.js")
+def singkana_core_js() -> Response:
+    """歌詞変換 JS コアを返す（UTF-8 明示）"""
+    resp = send_from_directory(
+        str(BASE_DIR),
+        "singkana_core.js",
+        mimetype="application/javascript; charset=utf-8",
+    )
+    resp.headers["Content-Type"] = "application/javascript; charset=utf-8"
+    return resp
+
+
+@app.route("/")
+def index() -> Response:
+    return send_from_directory(str(BASE_DIR), "index.html")
+
+
+# SERVE_PAYWALL_GATE_JS_V1
+@app.get("/paywall_gate.js")
+def serve_paywall_gate_js():
+    return send_from_directory(str(BASE_DIR), "paywall_gate.js")
+# END_SERVE_PAYWALL_GATE_JS_V1
+

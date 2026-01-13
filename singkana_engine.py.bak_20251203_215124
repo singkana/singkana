@@ -1,0 +1,163 @@
+"""
+SingKANA β 用のシンプル & フェイルセーフなスタブエンジン。
+
+- 本番ではここを OpenAI などの本物モデル / 外部API に差し替える。
+- いまは「絶対に落ちない」「ローマ字を画面に残さない」が最優先。
+"""
+
+from __future__ import annotations
+
+import datetime as _dt
+import re
+from pathlib import Path
+from typing import Any, Dict, List
+
+# ==== ログ出力先 ==========================================================
+
+LOG_DIR = Path("Logs")
+LOG_DIR.mkdir(exist_ok=True)
+
+CONVERT_LOG = LOG_DIR / "convert.log"
+FEEDBACK_LOG = LOG_DIR / "feedback.log"
+
+
+def _safe_log(path: Path, message: str) -> None:
+    """ログ周りで失敗してもサービスは落とさない用のユーティリティ。"""
+    ts = _dt.datetime.now().isoformat(timespec="seconds")
+    try:
+        with path.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {message}\n")
+    except Exception:
+        # ログ失敗は握りつぶす（本体処理には波及させない）
+        pass
+
+
+# ==== 例外クラス ==========================================================
+
+
+class SingKanaError(Exception):
+    """シンカナ専用の業務エラー。app_web.py 側でハンドリングされる想定。"""
+    pass
+
+
+# ==== 初期化フック ========================================================
+
+
+def init_engine() -> None:
+    """
+    将来、本物のモデルや外部 API を初期化するためのフック。
+    現状はログに 1 行書くだけの no-op。
+    """
+    _safe_log(CONVERT_LOG, "init_engine called (stub)")
+
+
+# ==== かなスタブ変換ロジック ==============================================
+
+# かな生成に使うパターン（とにかく「かな」っぽく見えればOK）
+_KANA_SEQ = ["ら", "り", "る", "れ", "ろ"]
+
+# 日本語が含まれているかどうか（既にかな/漢字ならそのまま返す）
+_JP_RE = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]")
+
+
+def _has_japanese(text: str) -> bool:
+    return bool(_JP_RE.search(text))
+
+
+_VOWEL_RE = re.compile(r"[aeiou]+", re.IGNORECASE)
+_WORD_RE = re.compile(r"([A-Za-z']+)([^A-Za-z']*)")
+
+
+def _kana_stub(text: str) -> str:
+    """
+    英字ベースの歌詞を「かなっぽい」文字列に置き換えるだけの簡易スタブ。
+
+    - 画面にローマ字が残らないことを保証
+    - 発音の正確さは一切追わない（βでは“リズムの雰囲気”だけ見る用途）
+    - すでに日本語が入っている行は、そのまま返す
+    """
+    if not text:
+        return ""
+
+    # 既に日本語が含まれていれば、そのまま返す（ハングル等も維持）
+    if _has_japanese(text):
+        return text
+
+    words: List[str] = text.split()
+    if not words:
+        return ""
+
+    out_words: List[str] = []
+    idx = 0  # 全体でのシーケンスずらし用
+
+    for w in words:
+        m = _WORD_RE.match(w)
+        if not m:
+            # 記号だけ等はそのまま
+            out_words.append(w)
+            continue
+
+        letters, punct = m.groups()
+        # 母音のまとまり数を“なんちゃって音節数”として使う
+        syllables = len(_VOWEL_RE.findall(letters)) or 1
+
+        kana = ""
+        for s in range(syllables):
+            kana += _KANA_SEQ[(idx + s) % len(_KANA_SEQ)]
+        idx += syllables
+
+        out_words.append(kana + punct)
+
+    return " ".join(out_words)
+
+
+# ==== 公開API：歌詞変換 ====================================================
+
+
+def convert_lyrics(lyrics: str) -> Dict[str, Any]:
+    """
+    歌詞テキストを EN / KA ペア配列に変換して返す。
+    戻り値の形: {"lines": [{"en": ..., "kana": ...}, ...]}
+
+    ※ ここは絶対に例外を外へ漏らさず、SingKanaError にラップして投げる。
+    """
+    raw = lyrics or ""
+
+    lines: List[Dict[str, str]] = []
+    src_lines = raw.splitlines()
+
+    try:
+        for raw_line in src_lines:
+            text = raw_line.rstrip("\n\r")
+            if not text.strip():
+                # 空行はスキップ（将来必要なら保持する実装に変える）
+                continue
+
+            kana = _kana_stub(text)
+
+            lines.append(
+                {
+                    "en": text,
+                    "kana": kana,
+                }
+            )
+
+        _safe_log(
+            CONVERT_LOG,
+            f"convert_lyrics ok: lines={len(lines)}",
+        )
+        return {"lines": lines}
+
+    except Exception as e:
+        # ここでまとめてログ & ラップ
+        _safe_log(CONVERT_LOG, f"convert_lyrics error: {e!r}")
+        raise SingKanaError("convert_lyrics failed") from e
+
+
+# ==== 公開API：フィードバック保存 =========================================
+
+
+def save_feedback(text: str) -> None:
+    """フィードバック文面を素直にログへ残すだけ。"""
+    snippet = (text or "").replace("\n", " ")[:200]
+    _safe_log(FEEDBACK_LOG, f"feedback: {snippet!r}")

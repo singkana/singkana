@@ -1,0 +1,99 @@
+"""
+SingKANA β 用のシンプルなスタブエンジン。
+本番ではここを OpenAI 連携や本物モデルに差し替える。
+
+ポイント：
+- どんな入力でも絶対に例外で落ちないことを最優先
+- フロントエンドからは「それっぽく動く」ように見えること
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+from pathlib import Path
+from typing import Any, Dict, List
+
+
+# ==== ログ出力先 ==========================================================
+
+LOG_DIR = Path("Logs")
+LOG_DIR.mkdir(exist_ok=True)
+
+CONVERT_LOG = LOG_DIR / "convert.log"
+FEEDBACK_LOG = LOG_DIR / "feedback.log"
+
+
+def _safe_log(path: Path, message: str) -> None:
+    """ログ書き込みで絶対に例外を飛ばさないヘルパ。"""
+    try:
+        ts = dt.datetime.now().isoformat(timespec="seconds")
+        with path.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {message}\n")
+    except Exception:
+        # ログ周りで何が起きてもサービス本体は落とさない
+        pass
+
+
+# ==== ドメイン例外 ========================================================
+
+class SingKanaError(Exception):
+    """シンカナ専用の業務エラー。app_web 側でハンドリングされる。"""
+    pass
+
+
+# ==== 初期化フック ========================================================
+
+def init_engine() -> None:
+    """
+    本番では、外部 API やモデルを初期化するためのフック。
+    今はログに 1 行書くだけの no-op。
+    """
+    _safe_log(CONVERT_LOG, "init_engine called (stub)")
+
+
+# ==== なんちゃって変換ロジック ==========================================
+
+def convert_lyrics(lyrics: str, *args: Any, **kwargs: Any) -> List[Dict[str, str]]:
+    """
+    歌詞テキストを行ごとの EN / KA ペア配列にするスタブ実装。
+
+    期待される戻り値フォーマット：
+        [
+            {"en": "元の英語行", "kana": "かな行（もどき）"},
+            ...
+        ]
+    """
+    lines: List[Dict[str, str]] = []
+
+    for raw in lyrics.splitlines():
+        text = raw.strip()
+        if not text:
+            # 空行はスキップ
+            continue
+
+        # 「それっぽいかな」スタブ：
+        # - 余分なスペースを削除
+        # - 小文字化
+        #   （本番ではここを本物のかな変換ロジックに差し替える）
+        kana_stub = " ".join(text.split()).lower()
+
+        lines.append(
+            {
+                "en": text,
+                "kana": kana_stub,
+            }
+        )
+
+    _safe_log(CONVERT_LOG, f"convert_lyrics ok: lines={len(lines)}")
+
+    return lines
+
+
+# ==== フィードバック保存 ==================================================
+
+def save_feedback(text: str) -> None:
+    """
+    フィードバックフォームから送られてきたテキストを
+    ログに追記するだけのシンプル実装。
+    """
+    _safe_log(FEEDBACK_LOG, f"feedback: {text}")

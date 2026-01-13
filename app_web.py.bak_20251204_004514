@@ -1,0 +1,104 @@
+# SingKANA Webアプリ本体（Flask）
+# - /        : index.html
+# - /terms   : 利用規約
+# - /privacy : プライバシーポリシー
+# - /api/convert  : 歌詞 → EN/KA 変換
+# - /api/feedback : フィードバック保存
+
+from __future__ import annotations
+
+import os
+import traceback
+from flask import Flask, request, jsonify, send_from_directory
+
+import singkana_engine as engine
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(__name__)
+
+
+# ===== 画面ルーティング ================================================
+
+@app.route("/")
+def index() -> object:
+    return send_from_directory(BASE_DIR, "index.html")
+
+
+@app.route("/terms.html")
+def terms() -> object:
+    return send_from_directory(BASE_DIR, "terms.html")
+
+
+@app.route("/privacy.html")
+def privacy() -> object:
+    return send_from_directory(BASE_DIR, "privacy.html")
+
+
+# ===== API: 歌詞変換 ====================================================
+
+@app.post("/api/convert")
+def api_convert() -> object:
+    """
+    歌詞テキストを受け取り、SingKANA エンジンで EN/KA 配列に変換して返す。
+    戻り値: {"ok": True, "lines": [...]} もしくは {"ok": False, "error": "..."}
+    """
+    try:
+        data = request.get_json(force=True, silent=False)
+    except Exception:
+        return jsonify({
+            "ok": False,
+            "error": "リクエスト形式が不正です。（JSONを送信してください）",
+        }), 400
+
+    lyrics = (data or {}).get("lyrics", "")
+    if not isinstance(lyrics, str) or not lyrics.strip():
+        return jsonify({
+            "ok": False,
+            "error": "歌詞が空です。歌詞欄にテキストを入力してください。",
+        }), 400
+
+    try:
+        lines = engine.convert_lyrics(lyrics=lyrics)
+        return jsonify({"ok": True, "lines": lines})
+    except Exception as e:
+        # サーバ内部ログには詳細を残す
+        engine._safe_log(engine.CONVERT_LOG, f"ERROR api_convert: {e}\n{traceback.format_exc()}")
+        return jsonify({
+            "ok": False,
+            "error": "変換中にエラーが発生しました。時間をおいて再度お試しください。",
+        }), 500
+
+
+# ===== API: フィードバック保存 ==========================================
+
+@app.post("/api/feedback")
+def api_feedback() -> object:
+    """
+    フロントから送られてくるフィードバックをログに保存するだけ。
+    """
+    try:
+        data = request.get_json(force=True, silent=False)
+    except Exception:
+        return jsonify({"ok": False}), 400
+
+    text = (data or {}).get("text", "")
+    meta = (data or {}).get("meta", {})
+
+    payload = f"text={text!r} meta={meta!r}"
+    try:
+        engine.save_feedback(payload)
+        return jsonify({"ok": True})
+    except Exception as e:
+        engine._safe_log(engine.FEEDBACK_LOG, f"ERROR api_feedback: {e}\n{traceback.format_exc()}")
+        return jsonify({"ok": False}), 500
+
+
+# ===== アプリ起動フック ================================================
+
+# Gunicorn からは app だけ import される想定。
+engine.init_engine()
+
+if __name__ == "__main__":
+    # ローカルデバッグ用（VPS運用時は gunicorn + systemd）
+    app.run(host="127.0.0.1", port=5000, debug=True)

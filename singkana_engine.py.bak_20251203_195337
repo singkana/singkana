@@ -1,0 +1,108 @@
+"""
+SingKANA β 用のシンプルなスタブエンジン。
+本番ではここを本物のモデル / 外部API に差し替える。
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Dict, List
+import datetime as _dt
+
+# ログ出力先
+LOG_DIR = Path("Logs")
+LOG_DIR.mkdir(exist_ok=True)
+
+CONVERT_LOG = LOG_DIR / "convert.log"
+FEEDBACK_LOG = LOG_DIR / "feedback.log"
+
+
+def _safe_log(path: Path, message: str) -> None:
+    """ログ周りで失敗してもサービスは落とさない用のユーティリティ。"""
+    ts = _dt.datetime.now().isoformat(timespec="seconds")
+    try:
+        with path.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {message}\n")
+    except Exception:
+        # ここで例外を投げると本体まで巻き込まれるので黙殺
+        pass
+
+
+class SingKanaError(Exception):
+    """シンカナ専用の業務エラー。app_web.py 側でハンドリングする想定。"""
+    pass
+
+
+def init_engine() -> None:
+    """
+    将来、本物のモデルや外部 API を初期化するためのフック。
+    いまはログに 1 行書くだけの no-op。
+    """
+    _safe_log(CONVERT_LOG, "init_engine called (stub)")
+
+
+def _normalize_input(*args: Any, **kwargs: Any) -> str:
+    """
+    どんな呼び出し方をされてもここで 1 本のテキストに正規化する。
+    - kwargs["lyrics"] があればそれを最優先
+    - args の中の最初の str を fallback として採用
+    """
+    if isinstance(kwargs.get("lyrics"), str):
+        return kwargs["lyrics"]
+
+    for v in args:
+        if isinstance(v, str):
+            return v
+
+    return ""
+
+
+def convert_lyrics(*args: Any, **kwargs: Any) -> List[Dict[str, str]]:
+    """
+    超・安全運転の「なんちゃって変換」ロジック。
+
+    - 入力テキストを行ごとに分割
+    - 空行はスキップ
+    - スペースを 1 つに整形 → 小文字化したものを「かな」側として返す
+    - 返り値: [{"en": 元の行, "kana": かなもどき}, ...]
+    """
+    text = _normalize_input(*args, **kwargs)
+    if not text.strip():
+        # 空文字だけ来たときは業務エラー扱い（app_web 側でキャッチされる想定）
+        raise SingKanaError("EMPTY_LYRICS")
+
+    lines: List[Dict[str, str]] = []
+
+    for raw in text.splitlines():
+        original = raw.strip()
+        if not original:
+            continue
+
+        # ここが「かな変換もどき」
+        kana_like = " ".join(original.split()).lower()
+
+        lines.append(
+            {
+                "en": original,
+                "kana": kana_like,
+            }
+        )
+
+    # ログには件数と先頭 1 行くらいだけ残しておく
+    snippet = text.replace("\n", " ")[:80]
+    if len(text) > 80:
+        snippet += "…"
+
+    _safe_log(CONVERT_LOG, f"lines={len(lines)} sample='{snippet}'")
+
+    return lines
+
+
+def save_feedback(text: str) -> None:
+    """
+    フィードバックテキストをそのままログに流すだけの stub。
+    """
+    if not text or not text.strip():
+        return
+
+    _safe_log(FEEDBACK_LOG, f"feedback: {text.strip()}")

@@ -1,0 +1,132 @@
+"""
+SingKANA β 用のシンプルなスタブエンジン（OpenAI 非依存版）。
+
+- フロントエンド / app_web.py からは
+    convert_lyrics(title, lyrics)
+    save_feedback(text)
+  を呼び出す前提になっているので、そのインターフェイスを完全維持したまま、
+  中身だけ「なんちゃって変換」に差し替えた安全版。
+
+※ ここでは本物のかな変換は行わず、
+   - 行ごとに EN / KA のペアを作る
+   - KA は「スペース整形＋英字小文字化」だけ
+   というダミー処理にしている。
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List
+import datetime
+
+# ログ出力先
+LOG_DIR = Path("Logs")
+LOG_DIR.mkdir(exist_ok=True)
+CONVERT_LOG = LOG_DIR / "convert.log"
+FEEDBACK_LOG = LOG_DIR / "feedback.log"
+
+
+class SingKanaError(Exception):
+    """シンカナ専用の業務エラー。app_web.py 側でハンドリングされる。"""
+
+
+def init_engine() -> None:
+    """
+    将来、本物のモデルや外部 API を初期化するためのフック。
+    現状はログに一行書くだけの no-op。
+    """
+    ts = datetime.datetime.now().isoformat(timespec="seconds")
+    try:
+        with CONVERT_LOG.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] engine initialized (stub)\n")
+    except Exception:
+        # ログ周りで失敗してもサービス自体は落とさない
+        pass
+
+
+def _kana_stub(text: str) -> str:
+    """
+    仮の「かな」生成：
+      - 連続スペースを 1 個にまとめる
+      - 全部小文字にする
+    実際のかな変換ロジックを入れるときはここを差し替えればOK。
+    """
+    return " ".join(text.split()).lower()
+
+
+def convert_lyrics(title: str, lyrics: str) -> Dict[str, Any]:
+    """
+    歌詞テキストを行ごとに EN / KA ペアへ変換し、
+    app_web.py が期待している dict 形式で返す。
+
+    戻り値の形：
+        {
+            "title": str,
+            "original_lyrics": str,
+            "kana_lines": [
+                {"en": str, "kana": str, "notes": str},
+                ...
+            ],
+            "notes": str,
+            "debug": {...},
+        }
+    """
+    if not lyrics or not lyrics.strip():
+        raise SingKanaError("歌詞が空です。英語歌詞を貼り付けてください。")
+
+    lines: List[Dict[str, str]] = []
+
+    for raw in lyrics.splitlines():
+        line = raw.strip()
+        if not line:
+            # 空行はスキップ（元の仕様も同様）
+            continue
+
+        kana = _kana_stub(line)
+        lines.append(
+            {
+                "en": line,
+                "kana": kana,
+                "notes": "",
+            }
+        )
+
+    payload: Dict[str, Any] = {
+        "title": title or "",
+        "original_lyrics": lyrics,
+        "kana_lines": lines,
+        "notes": "",
+        "debug": {
+            "engine": "local-stub-v1",
+            "line_count": len(lines),
+            "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        },
+    }
+
+    # ログに最低限だけ残しておく（失敗しても無視）
+    try:
+        ts = datetime.datetime.now().isoformat(timespec="seconds")
+        with CONVERT_LOG.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] title={title!r} lines={len(lines)}\n")
+    except Exception:
+        pass
+
+    return payload
+
+
+def save_feedback(text: str) -> None:
+    """
+    ユーザーからのフィードバックを単純にログへ書き出すだけの関数。
+    app_web.py 側のインターフェイス維持用。
+    """
+    if not text:
+        return
+
+    try:
+        ts = datetime.datetime.now().isoformat(timespec="seconds")
+        with FEEDBACK_LOG.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {text}\n")
+    except Exception:
+        # ログ失敗でサービスを落とさない
+        pass

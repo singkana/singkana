@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>SingKANA β – 英語歌詞かな変換スタジオ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: light;
+    }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: #faf7ff;
+      color: #222;
+    }
+    h1 {
+      font-size: 22px;
+      margin: 0 0 8px;
+    }
+    .sub {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 16px;
+    }
+    .layout-root {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .panel {
+      flex: 1;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      box-sizing: border-box;
+    }
+    .panel h2 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+    label {
+      font-size: 12px;
+      color: #444;
+    }
+    input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 8px;
+      font-size: 13px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin: 4px 0 8px;
+    }
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      font-size: 13px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      resize: vertical;
+      line-height: 1.4;
+      font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      white-space: pre;
+    }
+    .primary-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(90deg, #ff7ad9, #ffb86c);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+    }
+    .primary-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .primary-btn span.icon {
+      font-size: 16px;
+    }
+
+    .error-banner {
+      display: none;
+      background: #ffe5e8;
+      color: #a4001d;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    /* タブ UI */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 6px 0;
+      font-size: 12px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-radius: 8px 8px 0 0;
+      color: #666;
+    }
+    .tab-btn.active {
+      background: #fff1fb;
+      color: #c3206f;
+      font-weight: 600;
+      box-shadow: 0 -1px 4px rgba(0,0,0,0.04);
+    }
+    .tab-panel {
+      display: none;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 4px;
+    }
+    .result-header span {
+      flex: 1;
+      font-weight: 600;
+    }
+    .result-header span:last-child {
+      text-align: left;
+    }
+
+    .result-panel {
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      padding: 6px 8px;
+      max-height: 320px;
+      overflow: auto;
+      font-size: 13px;
+      background: #fdfbff;
+    }
+    .result-row {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 8px;
+      padding: 4px 0;
+      border-bottom: 1px dashed rgba(0,0,0,0.05);
+    }
+    .result-row:last-child {
+      border-bottom: none;
+    }
+    .result-en {
+      white-space: pre-wrap;
+      color: #333;
+    }
+    .result-ka {
+      white-space: pre-wrap;
+      color: #7a2d9c;
+      font-family: "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin: 0 0 4px;
+    }
+    .section-note {
+      font-size: 11px;
+      color: #777;
+      margin-bottom: 6px;
+    }
+
+    .copyright-note {
+      font-size: 11px;
+      color: #666;
+      margin-top: 6px;
+    }
+
+    .footer-links {
+      font-size: 11px;
+      color: #777;
+      text-align: center;
+      margin-top: 12px;
+    }
+    .footer-links a {
+      color: inherit;
+      text-decoration: underline;
+    }
+
+    .feedback-area textarea {
+      min-height: 120px;
+      font-size: 12px;
+    }
+    .feedback-status {
+      font-size: 11px;
+      margin-top: 4px;
+      color: #555;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      .layout-root {
+        flex-direction: column;
+      }
+      .panel {
+        width: 100%;
+      }
+      .result-panel {
+        max-height: 260px;
+      }
+      .primary-btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>SingKANA β</h1>
+  <p class="sub">英語・韓国語の歌詞を、歌いやすい日本語かなに変換するスタジオ。</p>
+
+  <div id="error-banner" class="error-banner"></div>
+
+  <div class="layout-root">
+
+    <!-- 左：入力パネル -->
+    <div class="panel">
+      <h2>歌詞入力</h2>
+      <label for="song-title">1. 曲名（任意）</label>
+      <input id="song-title" type="text" placeholder="例）golden" />
+
+      <label for="lyrics-input">2. 歌詞を貼り付け</label>
+      <textarea id="lyrics-input" placeholder="I was a ghost, I was alone, hah&#10;..."></textarea>
+
+      <button class="primary-btn" type="button" onclick="convertLyrics()">
+        <span class="icon">▶</span>
+        <span>この歌詞で変換する</span>
+      </button>
+
+      <p class="copyright-note">
+        商用楽曲の歌詞は著作権で保護されています。本サービスは <strong>個人の練習用途</strong> を想定しています。
+        結果テキストの公開・配布・商用利用を行う場合は、各楽曲の権利者のルールに従ってください。
+      </p>
+    </div>
+
+    <!-- 右：結果 / フィードバック（タブ切り替え） -->
+    <div class="panel">
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="result">変換結果</button>
+        <button class="tab-btn" data-tab="feedback">フィードバック</button>
+      </div>
+
+      <!-- タブ：変換結果 -->
+      <div id="tab-result" class="tab-panel active">
+        <p class="section-note">左に原文（EN/KR/JP）、右にSingKANAかなを表示します。</p>
+
+        <div class="result-header">
+          <span>EN / 原文</span>
+          <span>KA / かな（スペース区切り）</span>
+        </div>
+
+        <div id="result-panel" class="result-panel">
+          <p style="font-size:12px;color:#888;">
+            歌詞を入力して「この歌詞で変換する」を押すと、ここに結果が表示されます。
+          </p>
+        </div>
+      </div>
+
+      <!-- タブ：フィードバック -->
+      <div id="tab-feedback" class="tab-panel">
+        <p class="section-title">フィードバック</p>
+        <p class="section-note">
+          気づいたこと・歌いにくかった行・良かった点など、なんでも書いてもらえると開発の参考になります。
+        </p>
+        <textarea id="feedback-text" placeholder="例）サビの「higher」のところ、もう少し伸ばした表記だと歌いやすいかも…"></textarea>
+        <button class="primary-btn" type="button" style="margin-top:6px;" onclick="sendFeedback()">
+          <span class="icon">✉</span>
+          <span>フィードバックを送信</span>
+        </button>
+        <div id="feedback-status" class="feedback-status"></div>
+
+        <div class="footer-links">
+          <a href="/terms.html" target="_blank">利用規約</a> ・
+          <a href="/privacy.html" target="_blank">プライバシーポリシー</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // タブ切り替え
+    document.addEventListener("DOMContentLoaded", () => {
+      const tabButtons = document.querySelectorAll(".tab-btn");
+      const panels = {
+        result: document.getElementById("tab-result"),
+        feedback: document.getElementById("tab-feedback"),
+      };
+
+      tabButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const tab = btn.dataset.tab;
+          tabButtons.forEach(b => b.classList.toggle("active", b === btn));
+          Object.entries(panels).forEach(([key, panel]) => {
+            panel.classList.toggle("active", key === tab);
+          });
+        });
+      });
+    });
+
+    async function convertLyrics() {
+      const errorBanner = document.getElementById("error-banner");
+      const resultPanel = document.getElementById("result-panel");
+
+      errorBanner.style.display = "none";
+      errorBanner.textContent = "";
+      resultPanel.innerHTML = "<p style='font-size:12px;color:#888;'>変換中です…</p>";
+
+      const lyrics = document.getElementById("lyrics-input").value;
+
+      try {
+        const res = await fetch("/api/convert", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({lyrics}),
+        });
+
+        const data = await res.json();
+
+        if (!data.ok) {
+          errorBanner.textContent = data.error || "変換に失敗しました。";
+          errorBanner.style.display = "block";
+          resultPanel.innerHTML = "";
+          return;
+        }
+
+        const lines = data.lines || [];
+        if (!lines.length) {
+          resultPanel.innerHTML = "<p style='font-size:12px;color:#888;'>有効な行がありませんでした。</p>";
+          return;
+        }
+
+        const frag = document.createDocumentFragment();
+        lines.forEach((line) => {
+          const row = document.createElement("div");
+          row.className = "result-row";
+
+          const enDiv = document.createElement("div");
+          enDiv.className = "result-en";
+          enDiv.textContent = line.en || "";
+
+          const kaDiv = document.createElement("div");
+          kaDiv.className = "result-ka";
+          kaDiv.textContent = line.kana || "";
+
+          row.appendChild(enDiv);
+          row.appendChild(kaDiv);
+          frag.appendChild(row);
+        });
+
+        resultPanel.innerHTML = "";
+        resultPanel.appendChild(frag);
+
+      } catch (e) {
+        console.error(e);
+        errorBanner.textContent = "ネットワークまたはサーバーエラーが発生しました。";
+        errorBanner.style.display = "block";
+        resultPanel.innerHTML = "";
+      }
+    }
+
+    async function sendFeedback() {
+      const textBox = document.getElementById("feedback-text");
+      const status = document.getElementById("feedback-status");
+      const text = textBox.value.trim();
+
+      status.textContent = "";
+
+      if (!text) {
+        status.textContent = "フィードバック内容を入力してください。";
+        return;
+      }
+
+      const title = document.getElementById("song-title").value || "";
+      const meta = {
+        song: title,
+        engine_version: "v4-mixed",
+      };
+
+      try {
+        const res = await fetch("/api/feedback", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({text, meta}),
+        });
+
+        const data = await res.json().catch(() => ({ok: false}));
+        if (data.ok) {
+          status.textContent = "フィードバックありがとうございました！";
+          textBox.value = "";
+        } else {
+          status.textContent = "送信に失敗しました。時間をおいて再度お試しください。";
+        }
+      } catch (e) {
+        console.error(e);
+        status.textContent = "送信に失敗しました。ネットワーク環境を確認してください。";
+      }
+    }
+  </script>
+</body>
+</html>

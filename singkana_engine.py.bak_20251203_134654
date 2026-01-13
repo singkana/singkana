@@ -1,0 +1,56 @@
+"""
+SingKANA β 用のシンプルなスタブエンジン。
+（今は OpenAI には一切アクセスせず、ローカル処理だけ）
+
+・1行ずつ EN / KA ペアに変換
+・空行はスキップ
+・スペースを 1つにまとめて、小文字にしたものを「かなもどき」として返す
+"""
+
+from pathlib import Path
+from datetime import datetime
+
+# --- ログ出力先 ---
+LOG_DIR = Path("Logs")
+LOG_DIR.mkdir(exist_ok=True)
+
+CONVERT_LOG = LOG_DIR / "convert.log"
+FEEDBACK_LOG = LOG_DIR / "feedback.log"
+
+
+def convert_lyrics(lyrics: str) -> list[dict]:
+    """歌詞テキストを EN / KA ペアの配列にする"""
+    lines: list[dict] = []
+
+    for raw in lyrics.splitlines():
+        text = raw.strip()
+        if not text:
+            continue
+
+        # なんちゃって変換：スペース整形 + 小文字化
+        kana = " ".join(text.split()).lower()
+
+        lines.append(
+            {
+                "en": text,
+                "kana": kana,
+            }
+        )
+
+    # ログだけ残しておく
+    ts = datetime.now().isoformat(timespec="seconds")
+    with CONVERT_LOG.open("a", encoding="utf-8") as f:
+        f.write(f"[{ts}] lines={len(lines)}\n")
+
+    return lines
+
+
+def save_feedback(text: str) -> None:
+    """フィードバックをテキストとして保存"""
+    text = (text or "").strip()
+    if not text:
+        return
+
+    ts = datetime.now().isoformat(timespec="seconds")
+    with FEEDBACK_LOG.open("a", encoding="utf-8") as f:
+        f.write(f"[{ts}] {text}\n")

@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>SingKANA β – 英語歌詞かな変換スタジオ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta
+    name="description"
+    content="SingKANA（シンカナ）は、英語の歌詞を“歌えるかな表記”に変換するAIスタジオ。発音ガイドやブレス位置、ロングトーンまで可視化し、好きな曲を好きな言語で歌える世界へ。"
+  />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            singkana: {
+              50: '#f7f4ff',
+              100: '#ede7ff',
+              200: '#d9ceff',
+              300: '#c0aeff',
+              400: '#a184ff',
+              500: '#8a5dff',
+              600: '#7441f0',
+              700: '#5c32c4',
+              800: '#472898',
+              900: '#362073'
+            }
+          },
+          boxShadow: {
+            soft: '0 18px 45px rgba(0,0,0,0.35)',
+            glow: '0 0 40px rgba(138,93,255,0.45)'
+          },
+          backdropBlur: {
+            xs: '2px'
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- スタジオ用 CSS -->
+  <style>
+    .error-banner {
+      display: none;
+      background: #ffe5e8;
+      color: #a4001d;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 6px 0;
+      font-size: 12px;
+      cursor: pointer;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      color: #e5e7eb;
+      background: transparent;
+      transition: all 0.15s ease;
+    }
+    .tab-btn.active {
+      background: rgba(148, 163, 255, 0.18);
+      border-color: rgba(165, 180, 252, 0.6);
+      color: #e0f2fe;
+      font-weight: 600;
+      box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.35);
+    }
+
+    .result-panel {
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      padding: 8px 10px;
+      max-height: 320px;
+      overflow: auto;
+      font-size: 13px;
+      background: radial-gradient(circle at top left, rgba(129, 140, 248, 0.18), rgba(15, 23, 42, 0.95));
+    }
+
+    .result-block {
+      padding: 6px 8px;
+      margin-bottom: 6px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+    }
+    .result-block:hover {
+      background: rgba(30, 64, 175, 0.3);
+      border-color: rgba(129, 140, 248, 0.6);
+    }
+    .result-block.active {
+      background: rgba(15, 23, 42, 0.95);
+      border-color: rgba(196, 181, 253, 0.95);
+      box-shadow: 0 0 0 1px rgba(196, 181, 253, 0.75);
+    }
+    .line-head {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 2px;
+    }
+    .result-en {
+      font-size: 13px;
+      color: #e5e7eb;
+      white-space: pre-wrap;
+    }
+    .result-ka {
+      font-size: 12px;
+      color: #e9d5ff;
+      font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      white-space: pre-wrap;
+      margin-top: 4px;
+    }
+    .feedback-status {
+      font-size: 11px;
+      margin-top: 4px;
+    }
+
+    /* 追加：スタジオ操作ボタンの見た目 */
+    .mini-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: rgba(15, 23, 42, 0.35);
+      color: #e5e7eb;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .mini-btn:hover { background: rgba(148,163,255,0.15); border-color: rgba(165,180,252,0.7); }
+    .mini-select {
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 11px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: rgba(2, 6, 23, 0.35);
+      color: #e5e7eb;
+      outline: none;
+    }
+    .mini-hint {
+      font-size: 11px;
+      color: rgba(148, 163, 184, 0.95);
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 antialiased">
+  <!-- 背景 -->
+  <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+    <div class="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-singkana-500/40 blur-3xl"></div>
+    <div class="absolute top-40 -left-40 h-96 w-96 rounded-full bg-fuchsia-500/30 blur-3xl"></div>
+    <div class="absolute bottom-[-10rem] right-[-5rem] h-80 w-80 rounded-full bg-cyan-400/20 blur-3xl"></div>
+  </div>
+
+  <!-- ヘッダ -->
+  <header class="border-b border-white/5 bg-slate-950/70 backdrop-blur-sm sticky top-0 z-30">
+    <div class="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-9 w-9 rounded-2xl bg-gradient-to-br from-singkana-400 to-fuchsia-500 shadow-glow flex items-center justify-center">
+          <span class="text-xs font-semibold tracking-[0.18em]">SK</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-lg font-semibold tracking-wide">SingKANA</span>
+            <span class="rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">beta</span>
+          </div>
+          <p class="text-xs text-slate-400">歌詞かな変換 AI スタジオ</p>
+        </div>
+      </div>
+
+      <nav class="hidden md:flex items-center gap-7 text-sm text-slate-200">
+        <a href="#about" class="hover:text-singkana-200 transition">SingKANAとは</a>
+        <a href="#features" class="hover:text-singkana-200 transition">機能</a>
+        <a href="#how-it-works" class="hover:text-singkana-200 transition">使い方</a>
+        <a href="#pricing" class="hover:text-singkana-200 transition">料金</a>
+        <a href="#faq" class="hover:text-singkana-200 transition">FAQ</a>
+        <a href="#studio" class="rounded-full border border-singkana-400/70 bg-slate-950/80 px-4 py-1.5 text-xs font-semibold text-singkana-100 shadow-soft hover:bg-singkana-500/10 hover:shadow-glow transition">
+          かな変換を試す
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-4 pb-24 pt-10 space-y-28">
+    <!-- HERO -->
+    <section id="hero" class="grid gap-12 md:grid-cols-2 md:items-center">
+      <div class="space-y-6">
+        <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-slate-900/80 px-3 py-1 text-[11px] text-slate-200 shadow-soft backdrop-blur-xs">
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+          好きな曲を「読めない」から一瞬で「歌える」に。
+        </div>
+
+        <div class="space-y-3">
+          <h1 class="text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight">
+            好きな歌を、<br />
+            <span class="bg-gradient-to-r from-singkana-200 via-fuchsia-200 to-cyan-200 bg-clip-text text-transparent">
+              好きな言語で歌える世界へ。
+            </span>
+          </h1>
+          <p class="text-sm md:text-base text-slate-300 leading-relaxed">
+            SingKANA（シンカナ）は、英語の歌詞を
+            <span class="font-semibold text-singkana-100">“歌えるかな表記”</span>
+            に変換するAIスタジオ。発音ガイド、ブレス位置、ロングトーン、ニュアンスまで可視化して、あなたの「歌いたい」をその場で「歌える」に変えます。
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <a
+            href="#studio"
+            class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition"
+          >
+            無料でかな変換を試す
+            <span class="text-xs">▶</span>
+          </a>
+          <a
+            href="#how-it-works"
+            class="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-slate-950/80 px-5 py-2 text-xs font-medium text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition"
+          >
+            仕組みを見る
+          </a>
+        </div>
+
+        <p class="text-[11px] text-slate-400">
+          ブラウザだけで完結 / PC・スマホ対応 / β版は月◯曲まで無料
+        </p>
+      </div>
+
+      <!-- Demo -->
+      <div class="relative">
+        <div class="absolute -top-6 -left-4 h-20 w-20 rounded-full border border-slate-500/30 bg-gradient-to-br from-slate-900/10 via-slate-900/40 to-slate-900/80 blur-2xl"></div>
+        <div class="absolute -bottom-10 -right-6 h-28 w-28 rounded-full bg-gradient-to-tr from-fuchsia-500/30 via-singkana-400/20 to-cyan-300/20 blur-3xl"></div>
+
+        <div class="relative rounded-3xl border border-white/10 bg-slate-900/70 p-5 shadow-soft backdrop-blur-sm">
+          <div class="flex items-center justify-between mb-3">
+            <div class="space-y-0.5">
+              <p class="text-xs text-slate-300">Demo Project</p>
+              <p class="text-sm font-semibold">EN → 歌えるかな</p>
+            </div>
+            <div class="flex items-center gap-1.5 text-[10px] text-slate-400">
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+              AI Studio Online
+            </div>
+          </div>
+
+          <div class="grid gap-3 text-[11px]">
+            <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-3">
+              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">Original Lyrics</p>
+              <p class="text-slate-200">
+                Put your <span class="underline decoration-dotted">heart</span> on the line, we’ll be <span class="underline decoration-dotted">flying</span> tonight...
+              </p>
+            </div>
+
+            <div class="rounded-2xl border border-singkana-400/40 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-slate-900/90 p-3 shadow-glow">
+              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-300 mb-1.5">SingKANA Output</p>
+              <p class="font-medium text-slate-100 leading-relaxed">
+                プッ ユア <span class="text-singkana-200">ハート</span> オン ザ ライン<br />
+                ウィー ビー <span class="text-singkana-200">フライイン</span> トゥナイッ
+              </p>
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">BR</span>
+                <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">HLD</span>
+                <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">VIB</span>
+                <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">SLD</span>
+              </div>
+            </div>
+
+            <p class="text-[10px] text-slate-400">
+              ※ 実際の変換結果は楽曲やモードによって異なります。
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 問題 -->
+    <section id="problems" class="space-y-6">
+      <h2 class="text-xl md:text-2xl font-semibold">
+        歌いたい曲がある。<br class="hidden md:block" />
+        でも「発音わからん」で止まってしまうあなたへ。
+      </h2>
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
+          <p class="text-sm font-medium text-slate-100">英語歌詞のカタカナ起こしが地獄</p>
+          <p class="text-xs text-slate-300">歌詞サイトを見ながら、一行ずつカタカナを書いていくだけで、練習前に疲れてしまう。</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
+          <p class="text-sm font-medium text-slate-100">発音・ブレス・ニュアンスが掴めない</p>
+          <p class="text-xs text-slate-300">どこで息継ぎするか、どこを伸ばすか、どこを強く歌うかが分からず、不安なまま歌うことになる。</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
+          <p class="text-sm font-medium text-slate-100">歌ってみた制作の準備が面倒すぎる</p>
+          <p class="text-xs text-slate-300">台本用に整理しているうちに録音時間がなくなる。本当は本番に時間を使いたい。</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
+          <p class="text-sm font-medium text-slate-100">「歌える日本語」に落ちてこない</p>
+          <p class="text-xs text-slate-300">翻訳や普通の表記だとリズムが崩れる。耳では分かるのに口に乗らない。</p>
+        </div>
+      </div>
+      <p class="text-sm text-slate-200">
+        これ、全部 <span class="font-semibold text-singkana-100">SingKANA が代わりにやります。</span>
+      </p>
+    </section>
+
+    <!-- About -->
+    <section id="about" class="space-y-5">
+      <h2 class="text-xl md:text-2xl font-semibold">
+        言語の壁を越えて歌える、<br class="hidden md:block" />
+        “歌詞翻訳ではない” 新しい体験。
+      </h2>
+      <p class="text-sm md:text-base text-slate-300 leading-relaxed">
+        SingKANA は英語歌詞を日本語かなに変換するだけのツールではありません。<br />
+        <span class="font-semibold text-singkana-100">声が自然に乗る「歌いやすさ」</span>を基準に、
+        発音バランス / 音節の区切り / 歌い方のニュアンスを整える音楽特化AIです。
+      </p>
+      <p class="text-sm md:text-base text-slate-300 leading-relaxed">
+        目指すのは「読める」ではなく <span class="font-semibold text-singkana-100">“歌えるかな”</span>。
+        直訳や普通のカタカナより、声に出したときの気持ちよさを優先します。
+      </p>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="space-y-6">
+      <h2 class="text-xl md:text-2xl font-semibold">SingKANA の主な機能</h2>
+
+      <div class="grid gap-5 md:grid-cols-3">
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">01 / Kana Engine</p>
+          <h3 class="text-sm font-semibold text-slate-50">歌いやすさ優先のかな変換エンジン</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">文章としての正しさより、歌ったときにリズムが崩れないことを重視。</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">02 / Marking</p>
+          <h3 class="text-sm font-semibold text-slate-50">カラオケ風 “歌い方マーク”</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">視覚ガイドで練習効率を上げる（今後拡張）。</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">03 / Web Studio</p>
+          <h3 class="text-sm font-semibold text-slate-50">ブラウザだけで即利用</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">PC・スマホ対応。思い立った瞬間に変換して歌える。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Emotional -->
+    <section id="emotional" class="space-y-4">
+      <h2 class="text-xl md:text-2xl font-semibold">歌詞を読むのに集中する時代は終わり。</h2>
+      <p class="text-sm md:text-base text-slate-300 leading-relaxed">
+        歌いたい気持ちがピークの瞬間に、発音調べでテンションが下がる。そんな理由で、好きな曲を諦めてほしくない。
+      </p>
+      <p class="text-sm md:text-base text-slate-300 leading-relaxed">
+        SingKANA が作りたいのは、
+        <span class="font-semibold text-singkana-100">「言語の壁で好きな曲を諦める人がいなくなる世界」</span>です。<br />
+        そのために、<span class="font-semibold text-slate-100">歌うまでの手間をゼロにする</span>発想で設計されています。
+      </p>
+    </section>
+
+    <!-- How -->
+    <section id="how-it-works" class="space-y-5">
+      <h2 class="text-xl md:text-2xl font-semibold">使い方は、シンプルに 3 ステップ</h2>
+      <div class="grid gap-4 md:grid-cols-3">
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Step 01</p>
+          <h3 class="text-sm font-semibold text-slate-50">歌詞を用意</h3>
+          <p class="text-xs text-slate-300">歌詞テキストをコピペ（βはファイルUPは今後）。</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Step 02</p>
+          <h3 class="text-sm font-semibold text-slate-50">ワンクリックでかな変換</h3>
+          <p class="text-xs text-slate-300">ボタンを押すだけ。数秒で“歌えるかな歌詞”が完成。</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Step 03</p>
+          <h3 class="text-sm font-semibold text-slate-50">そのまま練習 or 収録へ</h3>
+          <p class="text-xs text-slate-300">コピー/TXT/SRTで台本としてすぐ使える。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pricing -->
+    <section id="pricing" class="space-y-5">
+      <h2 class="text-xl md:text-2xl font-semibold">料金プラン（β版）</h2>
+      <div class="grid gap-5 md:grid-cols-3">
+        <div class="rounded-2xl border border-slate-500/40 bg-slate-900/80 p-5 flex flex-col">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 mb-1">Free</p>
+          <h3 class="text-lg font-semibold mb-2">β版フリープラン</h3>
+          <p class="text-sm text-slate-300 mb-3">まずは体験したい方向け。</p>
+          <ul class="space-y-1.5 text-xs text-slate-200 mb-4">
+            <li>・月◯曲までかな変換</li>
+            <li>・基本かな変換エンジン</li>
+            <li>・Webブラウザから利用</li>
+          </ul>
+          <div class="mt-auto">
+            <p class="text-xl font-semibold text-slate-50">¥0<span class="text-xs text-slate-400"> / β期間中</span></p>
+          </div>
+        </div>
+
+        <div class="rounded-2xl border border-singkana-400/70 bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-900/90 p-5 shadow-glow flex flex-col">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-singkana-200 mb-1">Creator</p>
+          <h3 class="text-lg font-semibold mb-2">Creator プラン（予定）</h3>
+          <p class="text-sm text-slate-200 mb-3">本格活用したい方向け。</p>
+          <ul class="space-y-1.5 text-xs text-slate-100 mb-4">
+            <li>・月△曲までかな変換</li>
+            <li>・保存・管理機能（予定）</li>
+            <li>・YouTube / 配信での商用利用OK（予定）</li>
+          </ul>
+          <div class="mt-auto">
+            <p class="text-xs text-slate-400 mb-1">※ 価格・仕様は正式リリース時に告知予定</p>
+            <p class="text-xl font-semibold text-slate-50">Coming Soon</p>
+          </div>
+        </div>
+
+        <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-5 flex flex-col">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 mb-1">Studio / School</p>
+          <h3 class="text-lg font-semibold mb-2">スタジオ・スクール向け（相談）</h3>
+          <p class="text-sm text-slate-300 mb-3">導入したい方向け。</p>
+          <ul class="space-y-1.5 text-xs text-slate-200 mb-4">
+            <li>・複数アカウント管理（予定）</li>
+            <li>・プロジェクト共有（予定）</li>
+            <li>・専用サポート（予定）</li>
+          </ul>
+          <div class="mt-auto">
+            <p class="text-xs text-slate-400 mb-1">お問い合わせベース</p>
+            <p class="text-sm font-semibold text-slate-50">準備中</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq" class="space-y-5">
+      <h2 class="text-xl md:text-2xl font-semibold">よくある質問</h2>
+      <div class="space-y-3">
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+          <p class="text-sm font-semibold text-slate-50 mb-1">Q. 著作権は大丈夫ですか？</p>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            SingKANA は「歌詞テキストのかな変換」ツールです。歌詞そのものの権利は権利者に帰属します。利用規約と法令の範囲で使用してください。
+          </p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+          <p class="text-sm font-semibold text-slate-50 mb-1">Q. スマホだけでも使えますか？</p>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            はい。ブラウザで使えます。推奨は最新版の Chrome / Safari / Edge。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Studio -->
+    <section id="studio" class="space-y-5">
+      <h2 class="text-xl md:text-2xl font-semibold">かな変換スタジオ（β版）</h2>
+      <p class="text-sm text-slate-300">
+        下のスタジオで、実際に英語の歌詞を「歌えるかな」に変換してみてください。
+      </p>
+
+      <div class="mt-2 rounded-3xl border border-singkana-400/40 bg-slate-950/80 p-5 shadow-glow">
+        <p class="text-sm text-slate-200 font-semibold mb-2">SingKANA β</p>
+        <p class="text-xs text-slate-400 mb-4">
+          変換処理はお使いのブラウザ内のみで行われます（※現在のβ仕様）。
+        </p>
+
+        <div id="error-banner" class="error-banner"></div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <!-- 左：入力 -->
+          <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-4 space-y-3">
+            <h3 class="text-sm font-semibold text-slate-50">歌詞入力</h3>
+
+            <div class="space-y-1">
+              <label for="song-title" class="block text-xs text-slate-200">1. 曲名（任意）</label>
+              <input
+                id="song-title"
+                type="text"
+                placeholder="例）golden"
+                class="w-full rounded-xl border border-slate-600 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-singkana-400/80"
+              />
+            </div>
+
+            <div class="space-y-1">
+              <label for="lyrics-input" class="block text-xs text-slate-200">2. 歌詞を貼り付け</label>
+              <textarea
+                id="lyrics-input"
+                placeholder="I was a ghost, I was alone, hah&#10;..."
+                class="w-full min-h-[160px] rounded-xl border border-slate-600 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-singkana-400/80 font-mono leading-relaxed"
+              ></textarea>
+            </div>
+
+            <!-- 追加：保存/復元/テンプレ（Copy/TXT/SRT/ナビは右側に維持） -->
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" class="mini-btn" onclick="saveStudioState()">💾 保存</button>
+              <button type="button" class="mini-btn" onclick="restoreStudioState()">↩ 復元</button>
+              <button type="button" class="mini-btn" onclick="clearStudioState()">🧹 クリア</button>
+
+              <span class="mx-1 h-4 w-px bg-white/15"></span>
+
+              <label class="mini-hint">テンプレ：</label>
+              <select id="template-select" class="mini-select" onchange="applyTemplateFromSelect()">
+                <option value="">選択…</option>
+                <option value="warmup">ウォームアップ（短文）</option>
+                <option value="chorus">サビ練習（汎用）</option>
+                <option value="speech">語尾・子音の練習</option>
+              </select>
+
+              <span id="studio-status" class="text-[11px] text-slate-400 ml-auto"></span>
+            </div>
+
+            <button
+              class="primary-btn inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-5 py-2 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition"
+              type="button"
+              onclick="convertLyrics()"
+            >
+              <span class="icon text-xs">▶</span>
+              <span>この歌詞で変換する</span>
+            </button>
+
+            <p class="text-[11px] text-slate-400 mt-3 leading-relaxed">
+              入力されたテキストは端末内のみで処理されます。サーバーには送信されません。<br />
+              商用楽曲の歌詞は著作権で保護されています。本サービスは<strong>個人の練習用途</strong>を想定しています。
+            </p>
+          </div>
+
+          <!-- 右：結果 -->
+          <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-4 space-y-3">
+            <div class="flex gap-2 mb-1">
+              <button class="tab-btn active" data-tab="result">変換結果</button>
+              <button class="tab-btn" data-tab="feedback">フィードバック</button>
+            </div>
+
+            <!-- 結果 -->
+            <div id="tab-result" class="tab-panel active space-y-2">
+              <p class="text-[11px] text-slate-400">
+                各行をタップすると、その行だけハイライトされ、音声読み上げでかなを再生します（対応ブラウザのみ）。
+              </p>
+
+              <!-- 出力ツールバー -->
+              <div class="flex flex-wrap items-center gap-2">
+                <button type="button"
+                  class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
+                  onclick="copyKanaOnly()">📋 かなだけコピー</button>
+
+                <button type="button"
+                  class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
+                  onclick="copyEnKana()">📋 EN+かなコピー</button>
+
+                <button type="button"
+                  class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
+                  onclick="downloadTxt()">⬇ TXT</button>
+
+                <button type="button"
+                  class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
+                  onclick="downloadSrt()">⬇ SRT(簡易)</button>
+
+                <span class="mx-1 h-4 w-px bg-white/15"></span>
+
+                <button type="button"
+                  class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
+                  onclick="prevLine()">◀ 前</button>
+
+                <button type="button"
+                  class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
+                  onclick="nextLine()">次 ▶</button>
+
+                <label class="ml-1 inline-flex items-center gap-2 text-[11px] text-slate-300 select-none">
+                  <input id="auto-scroll" type="checkbox" class="accent-indigo-400" checked />
+                  自動追従
+                </label>
+
+                <span id="export-status" class="text-[11px] text-slate-400 ml-auto"></span>
+              </div>
+
+              <div id="result-panel" class="result-panel">
+                <p style="font-size:12px;color:#cbd5f5;">
+                  歌詞を入力して「この歌詞で変換する」を押すと、ここに結果が表示されます。
+                </p>
+              </div>
+            </div>
+
+            <!-- フィードバック（見た目だけ残す：送信は現状のまま） -->
+            <div id="tab-feedback" class="tab-panel hidden">
+              <p class="text-xs font-semibold text-slate-100 mb-1">フィードバック</p>
+              <p class="text-[11px] text-slate-400 mb-2">
+                ※歌詞そのもののコピー＆ペーストはお控えください（行番号＋コメント推奨）。
+              </p>
+              <textarea
+                id="feedback-text"
+                placeholder="例）#12 の「believe」のところ、もう少し伸ばした表記だと歌いやすい。"
+                class="w-full min-h-[120px] rounded-xl border border-slate-600 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-singkana-400/80"
+              ></textarea>
+              <button
+                class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-4 py-1.5 text-xs font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
+                type="button"
+                onclick="sendFeedback()"
+              >
+                <span class="icon text-xs">✉</span>
+                <span>フィードバックを送信</span>
+              </button>
+              <div id="feedback-status" class="feedback-status text-[11px] text-slate-300 mt-1"></div>
+
+              <div class="text-[11px] text-slate-400 mt-3">
+                <a href="/terms.html" target="_blank" class="underline">利用規約</a> ・
+                <a href="/privacy.html" target="_blank" class="underline">プライバシーポリシー</a>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- CTA -->
+    <section id="cta-bottom" class="space-y-4 pt-8 border-t border-white/10">
+      <h2 class="text-xl md:text-2xl font-semibold">「歌いたい」を、今日「歌えた」に変える。</h2>
+      <p class="text-sm md:text-base text-slate-300 leading-relaxed">
+        英語が読めなくても、発音が苦手でも、あなたの声はもっと自由に歌える。<br />
+        SingKANA は <span class="font-semibold text-singkana-100">“音楽と言語の境界線” を溶かす</span>ためのAIです。
+      </p>
+      <div class="flex flex-wrap items-center gap-3">
+        <a href="#studio"
+          class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition">
+          無料でかな変換を試す
+        </a>
+        <a href="#hero"
+          class="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-slate-950/80 px-5 py-2 text-xs font-medium text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition">
+          ページの先頭に戻る
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-white/10 bg-slate-950/80">
+    <div class="mx-auto max-w-6xl px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-2">
+      <p class="text-[11px] text-slate-500">© <span id="year"></span> SingKANA. All rights reserved.</p>
+      <p class="text-[11px] text-slate-500">Powered by Sovereign Cognitive Architecture.</p>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
+
+  <!-- クライアントサイド変換エンジン -->
+  <script src="/singkana_core.js"></script>
+
+  <script>
+    // ===== タブ切り替え =====
+    document.addEventListener("DOMContentLoaded", () => {
+      const tabButtons = document.querySelectorAll(".tab-btn");
+      const panels = {
+        result: document.getElementById("tab-result"),
+        feedback: document.getElementById("tab-feedback"),
+      };
+
+      tabButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const tab = btn.dataset.tab;
+          tabButtons.forEach(b => b.classList.toggle("active", b === btn));
+          Object.entries(panels).forEach(([key, panel]) => {
+            const active = key === tab;
+            panel.classList.toggle("active", active);
+            panel.classList.toggle("hidden", !active);
+          });
+        });
+      });
+
+      // 起動時に復元（localStorage）
+      restoreStudioState(/*silent=*/true);
+
+      // 自動保存（軽量：入力変化を拾って数百msで保存）
+      const songEl = document.getElementById("song-title");
+      const lyrEl  = document.getElementById("lyrics-input");
+      const fbEl   = document.getElementById("feedback-text");
+
+      let t = null;
+      function scheduleAutoSave(){
+        if (t) clearTimeout(t);
+        t = setTimeout(() => saveStudioState(true), 450);
+      }
+
+      [songEl, lyrEl, fbEl].forEach(el => {
+        if (!el) return;
+        el.addEventListener("input", scheduleAutoSave);
+        el.addEventListener("change", scheduleAutoSave);
+      });
+    });
+
+    let currentActiveBlock = null;
+
+    // ===== 出力・練習用 state =====
+    let currentConvertedLines = [];
+    let activeIndex = -1;
+
+    // ===== 保存/復元/テンプレ =====
+    const LS_KEY = "singkana.studio.v1";
+
+    const TEMPLATES = {
+      warmup: {
+        title: "warmup",
+        lyrics: [
+          "Take it easy, keep it steady",
+          "Breathe in slow, breathe out ready",
+          "Hold the note and let it glow"
+        ].join("\n")
+      },
+      chorus: {
+        title: "chorus-practice",
+        lyrics: [
+          "We are rising, we are shining",
+          "In the night, we keep on flying",
+          "Let it go, and sing it loud"
+        ].join("\n")
+      },
+      speech: {
+        title: "consonants",
+        lyrics: [
+          "Just a little bit, step by step",
+          "Keep the beat, don't stop, don't slip",
+          "Bright light, night ride, right side"
+        ].join("\n")
+      }
+    };
+
+    function setStudioStatus(msg) {
+      const el = document.getElementById("studio-status");
+      if (!el) return;
+      el.textContent = msg || "";
+      if (msg) setTimeout(() => { el.textContent = ""; }, 2200);
+    }
+
+    function readStudioStateFromUI() {
+      const song = (document.getElementById("song-title")?.value || "").toString();
+      const lyrics = (document.getElementById("lyrics-input")?.value || "").toString();
+      const feedback = (document.getElementById("feedback-text")?.value || "").toString();
+      return { song, lyrics, feedback, ts: new Date().toISOString() };
+    }
+
+    function writeStudioStateToUI(st) {
+      if (!st) return;
+      const songEl = document.getElementById("song-title");
+      const lyrEl  = document.getElementById("lyrics-input");
+      const fbEl   = document.getElementById("feedback-text");
+      if (songEl && typeof st.song === "string") songEl.value = st.song;
+      if (lyrEl && typeof st.lyrics === "string") lyrEl.value = st.lyrics;
+      if (fbEl && typeof st.feedback === "string") fbEl.value = st.feedback;
+    }
+
+    function saveStudioState(silent=false) {
+      try {
+        const st = readStudioStateFromUI();
+        localStorage.setItem(LS_KEY, JSON.stringify(st));
+        if (!silent) setStudioStatus("保存しました");
+      } catch (e) {
+        console.warn(e);
+        if (!silent) setStudioStatus("保存に失敗（localStorage不可）");
+      }
+    }
+
+    function restoreStudioState(silent=false) {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) { if (!silent) setStudioStatus("保存データなし"); return; }
+        const st = JSON.parse(raw);
+        writeStudioStateToUI(st);
+        if (!silent) setStudioStatus("復元しました");
+      } catch (e) {
+        console.warn(e);
+        if (!silent) setStudioStatus("復元に失敗");
+      }
+    }
+
+    function clearStudioState() {
+      try {
+        localStorage.removeItem(LS_KEY);
+      } catch (e) {}
+      const songEl = document.getElementById("song-title");
+      const lyrEl  = document.getElementById("lyrics-input");
+      const fbEl   = document.getElementById("feedback-text");
+      if (songEl) songEl.value = "";
+      if (lyrEl) lyrEl.value = "";
+      if (fbEl) fbEl.value = "";
+      setStudioStatus("クリアしました");
+    }
+
+    function applyTemplateFromSelect() {
+      const sel = document.getElementById("template-select");
+      const key = sel ? sel.value : "";
+      if (!key) return;
+      const t = TEMPLATES[key];
+      if (!t) return;
+      const songEl = document.getElementById("song-title");
+      const lyrEl  = document.getElementById("lyrics-input");
+      if (songEl) songEl.value = t.title;
+      if (lyrEl)  lyrEl.value = t.lyrics;
+      saveStudioState(true);
+      setStudioStatus("テンプレ適用");
+    }
+
+    // ===== 既存：出力ツール類 =====
+    function setStatus(msg) {
+      const el = document.getElementById("export-status");
+      if (!el) return;
+      el.textContent = msg || "";
+      if (msg) setTimeout(() => { el.textContent = ""; }, 2200);
+    }
+
+    function getSongTitleSafe() {
+      const t = (document.getElementById("song-title")?.value || "").trim();
+      return t ? t.replace(/[\\\/:*?"<>|]/g, "_") : "singkana";
+    }
+
+    function fmt2(n){ return String(n).padStart(2,"0"); }
+
+    function secToSrtTime(sec){
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = Math.floor(sec % 60);
+      const ms = Math.floor((sec - Math.floor(sec)) * 1000);
+      return `${fmt2(h)}:${fmt2(m)}:${fmt2(s)},${String(ms).padStart(3,"0")}`;
+    }
+
+    function buildKanaOnlyText() {
+      if (!currentConvertedLines.length) return "";
+      return currentConvertedLines.map(x => (x.kana || "").trim()).filter(Boolean).join("\n");
+    }
+
+    function buildEnKanaText() {
+      if (!currentConvertedLines.length) return "";
+      return currentConvertedLines.map(x => {
+        const en = (x.en || "").trim();
+        const ka = (x.kana || "").trim();
+        const no = x.lineNo ? `#${x.lineNo}` : "";
+        return `${no} ${en}\n${ka}`.trim();
+      }).join("\n\n");
+    }
+
+    async function copyTextToClipboard(text) {
+      if (!text) { setStatus("コピーする内容がありません"); return; }
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus("コピーしました");
+      } catch (e) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        setStatus("コピーしました");
+      }
+    }
+
+    function downloadBlob(filename, content, mime) {
+      const blob = new Blob([content], { type: mime || "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function copyKanaOnly(){ copyTextToClipboard(buildKanaOnlyText()); }
+    function copyEnKana(){ copyTextToClipboard(buildEnKanaText()); }
+
+    function downloadTxt(){
+      const text = buildEnKanaText();
+      if (!text) { setStatus("出力がありません"); return; }
+      downloadBlob(`${getSongTitleSafe()}_singkana.txt`, text + "\n", "text/plain;charset=utf-8");
+      setStatus("TXTを保存しました");
+    }
+
+    function downloadSrt(){
+      if (!currentConvertedLines.length) { setStatus("出力がありません"); return; }
+
+      // 超簡易SRT：1行=2.2秒固定（台本の叩き台用）
+      const dur = 2.2;
+      let t = 0;
+      let idx = 1;
+      const srt = currentConvertedLines.map(line => {
+        const text = (line.kana || line.en || "").trim();
+        const start = secToSrtTime(t);
+        const end = secToSrtTime(t + dur);
+        t += dur;
+        return `${idx++}\n${start} --> ${end}\n${text}\n`;
+      }).join("\n");
+
+      downloadBlob(`${getSongTitleSafe()}_singkana.srt`, srt, "text/plain;charset=utf-8");
+      setStatus("SRT(簡易)を保存しました");
+    }
+
+    function setActiveBlock(block) {
+      if (currentActiveBlock && currentActiveBlock !== block) {
+        currentActiveBlock.classList.remove("active");
+      }
+      currentActiveBlock = block;
+      if (block) {
+        block.classList.add("active");
+      }
+    }
+
+    function scrollActiveIntoView() {
+      const chk = document.getElementById("auto-scroll");
+      if (chk && !chk.checked) return;
+      if (currentActiveBlock) {
+        currentActiveBlock.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
+    }
+
+    function speakKana(text) {
+      if (!text || !text.trim()) return;
+      if (!("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      const voices = window.speechSynthesis.getVoices();
+      const jpVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith("ja"));
+      if (jpVoice) utter.voice = jpVoice;
+      window.speechSynthesis.speak(utter);
+    }
+
+    function setActiveIndex(i){
+      if (!currentConvertedLines.length) return;
+      activeIndex = Math.max(0, Math.min(i, currentConvertedLines.length - 1));
+      const target = document.querySelector(`.result-block[data-line-no="${currentConvertedLines[activeIndex].lineNo}"]`);
+      if (target) {
+        setActiveBlock(target);
+        const line = currentConvertedLines[activeIndex];
+        const speakText = (line.kana && line.kana.trim()) ? line.kana : (line.en || "");
+        speakKana(speakText);
+        scrollActiveIntoView();
+      }
+    }
+
+    function nextLine(){ if (currentConvertedLines.length) setActiveIndex((activeIndex < 0 ? 0 : activeIndex + 1)); }
+    function prevLine(){ if (currentConvertedLines.length) setActiveIndex((activeIndex < 0 ? 0 : activeIndex - 1)); }
+
+    function convertLyrics() {
+      const errorBanner = document.getElementById("error-banner");
+      const resultPanel = document.getElementById("result-panel");
+      const lyrics = document.getElementById("lyrics-input").value || "";
+
+      errorBanner.style.display = "none";
+      errorBanner.textContent = "";
+
+      const lines = (window.SingKanaCore && window.SingKanaCore.convertLyrics)
+        ? window.SingKanaCore.convertLyrics(lyrics)
+        : [];
+
+      if (!lines.length) {
+        currentConvertedLines = [];
+        activeIndex = -1;
+        resultPanel.innerHTML = "<p style='font-size:12px;color:#cbd5f5;'>有効な行がありませんでした。</p>";
+        saveStudioState(true);
+        return;
+      }
+
+      currentConvertedLines = lines;
+      activeIndex = -1;
+
+      const frag = document.createDocumentFragment();
+
+      lines.forEach((line, i) => {
+        const block = document.createElement("div");
+        block.className = "result-block";
+        block.dataset.lineNo = String(line.lineNo || "");
+
+        const head = document.createElement("div");
+        head.className = "line-head";
+        head.textContent = `#${line.lineNo || ""}`;
+        block.appendChild(head);
+
+        const enDiv = document.createElement("div");
+        enDiv.className = "result-en";
+        enDiv.textContent = line.en || "";
+        block.appendChild(enDiv);
+
+        const kaDiv = document.createElement("div");
+        kaDiv.className = "result-ka";
+        kaDiv.textContent = line.kana || "";
+        block.appendChild(kaDiv);
+
+        block.addEventListener("click", () => {
+          activeIndex = i;
+          setActiveBlock(block);
+          const speakText = (line.kana && line.kana.trim()) ? line.kana : (line.en || "");
+          speakKana(speakText);
+          scrollActiveIntoView();
+        });
+
+        frag.appendChild(block);
+      });
+
+      resultPanel.innerHTML = "";
+      resultPanel.appendChild(frag);
+
+      // 最初の行を自動選択
+      setActiveIndex(0);
+
+      // 変換後も保存（復元で入力は戻る）
+      saveStudioState(true);
+    }
+
+    async function sendFeedback() {
+      const textBox = document.getElementById("feedback-text");
+      const status = document.getElementById("feedback-status");
+      const text = textBox.value.trim();
+      status.textContent = "";
+
+      if (!text) {
+        status.textContent = "フィードバック内容を入力してください。";
+        return;
+      }
+
+      const title = document.getElementById("song-title").value || "";
+
+      // 既存仕様を尊重：text + meta を送る（サーバ側で text/meta を拾う）
+      const meta = {
+        song: title,
+        client_side: true,
+        engine_version: "js-core-v1.9",
+      };
+
+      try {
+        const res = await fetch("/api/feedback", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ text, meta }),
+        });
+
+        const data = await res.json().catch(() => ({ ok: false }));
+        if (data.ok) {
+          status.textContent = "フィードバックありがとうございました。";
+          textBox.value = "";
+          saveStudioState(true);
+        } else {
+          status.textContent = "送信に失敗しました。時間をおいて再度お試しください。";
+        }
+      } catch (e) {
+        console.error(e);
+        status.textContent = "送信に失敗しました。ネットワーク環境をご確認ください。";
+      }
+    }
+  </script>
+</body>
+</html>

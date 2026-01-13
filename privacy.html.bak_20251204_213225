@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>プライバシーポリシー | SingKANA β</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+           margin: 16px; line-height: 1.7; font-size: 14px; }
+    h1 { font-size: 20px; margin-bottom: 8px; }
+    h2 { font-size: 16px; margin-top: 18px; }
+  </style>
+</head>
+<body>
+  <h1>SingKANA β プライバシーポリシー（簡易版）</h1>
+  <p>本サービスは、利用者から提供された情報を以下の方針に基づき取り扱います。</p>
+
+  <h2>1. 取得する情報</h2>
+  <ul>
+    <li>利用者が入力した歌詞テキスト（サーバ側では一時的な処理のためにのみ利用）</li>
+    <li>変換結果に対するフィードバック内容（サービス改善のためにログとして保存）</li>
+    <li>アクセスログ（IPアドレス・ブラウザ情報など）</li>
+  </ul>
+
+  <h2>2. 利用目的</h2>
+  <ul>
+    <li>歌詞変換機能の提供</li>
+    <li>変換精度・機能の改善</li>
+    <li>不正利用・障害対応などサービス運営上必要な範囲での利用</li>
+  </ul>
+
+  <h2>3. 第三者提供</h2>
+  <p>法令に基づく場合を除き、取得した情報を第三者に販売・共有することはありません。</p>
+
+  <h2>4. ログの保管期間</h2>
+  <p>変換ログやフィードバックログは、サービス改善およびトラブルシューティングに必要な期間のみ保持し、適切な方法で削除または匿名化を行います。</p>
+
+  <h2>5. 変更</h2>
+  <p>本ポリシーの内容は、必要に応じて変更される場合があります。変更後の内容は、本ページに掲載された時点で効力を生じます。</p>
+
+  <p style="margin-top:20px;">最終更新日：2025-12-04</p>
+</body>
+</html>

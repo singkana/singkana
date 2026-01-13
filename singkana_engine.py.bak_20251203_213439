@@ -1,0 +1,181 @@
+"""SingKANA β 用のシンプルかな変換エンジン（ローカル版）
+
+・外部APIを叩かない／タイムアウトしないことを最優先
+・「それっぽいローマ字→ひらがな」変換で EN / KA ペアを返す
+・本番ではここを OpenAI 等の本物エンジンに差し替える前提
+
+戻り値の形：
+    {"lines": [{"en": "...", "kana": "..."}, ...]}
+"""
+
+from __future__ import annotations
+
+import datetime as _dt
+from pathlib import Path
+from typing import Any, Dict, List
+
+# ==== ログ出力まわり ===================================================
+
+LOG_DIR = Path("Logs")
+LOG_DIR.mkdir(exist_ok=True)
+
+CONVERT_LOG = LOG_DIR / "convert.log"
+FEEDBACK_LOG = LOG_DIR / "feedback.log"
+
+
+def _safe_log(path: Path, message: str) -> None:
+    """ログ周りで失敗してもサービスは落とさない用のユーティリティ。"""
+    ts = _dt.datetime.now().isoformat(timespec="seconds")
+    try:
+        with path.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {message}\n")
+    except Exception:
+        # ログで失敗しても本体まで巻き込まない
+        pass
+
+
+# ==== 例外クラス =======================================================
+
+class SingKanaError(Exception):
+    """シンカナ専用の業務エラー。app_web.py でハンドリングされる想定。"""
+    pass
+
+
+# ==== 初期化フック =====================================================
+
+def init_engine() -> None:
+    """将来、本物のモデルや外部 API を初期化するためのフック。
+
+    現状はログに 1 行書くだけの no-op。
+    """
+    _safe_log(CONVERT_LOG, "init_engine called (stub)")
+
+
+# ==== ローマ字 → ひらがな なんちゃって変換 ============================
+
+# 長いパターン優先でマッチさせる
+_ROMA_KANA_TABLE = [
+    # 3文字コンビ（きゃ / しゃ / ちゃ / じゃ 等）
+    ("kyo", "きょ"), ("kya", "きゃ"), ("kyu", "きゅ"),
+    ("gyo", "ぎょ"), ("gya", "ぎゃ"), ("gyu", "ぎゅ"),
+    ("sho", "しょ"), ("sha", "しゃ"), ("shu", "しゅ"),
+    ("cho", "ちょ"), ("cha", "ちゃ"), ("chu", "ちゅ"),
+    ("jyo", "じょ"), ("ja", "じゃ"), ("ju", "じゅ"), ("jo", "じょ"),
+    ("ryo", "りょ"), ("rya", "りゃ"), ("ryu", "りゅ"),
+    ("hyo", "ひょ"), ("hya", "ひゃ"), ("hyu", "ひゅ"),
+    ("byo", "びょ"), ("bya", "びゃ"), ("byu", "びゅ"),
+    ("pyo", "ぴょ"), ("pya", "ぴゃ"), ("pyu", "ぴゅ"),
+    ("myo", "みょ"), ("mya", "みゃ"), ("myu", "みゅ"),
+    ("nyo", "にょ"), ("nya", "にゃ"), ("nyu", "にゅ"),
+    ("tyo", "ちょ"), ("tsa", "つぁ"), ("tsi", "つぃ"),
+    ("tse", "つぇ"), ("tso", "つぉ"),
+
+    # 2文字コンビ
+    ("ka", "か"), ("ki", "き"), ("ku", "く"), ("ke", "け"), ("ko", "こ"),
+    ("sa", "さ"), ("si", "し"), ("su", "す"), ("se", "せ"), ("so", "そ"),
+    ("ta", "た"), ("ti", "ち"), ("tu", "つ"), ("te", "て"), ("to", "と"),
+    ("na", "な"), ("ni", "に"), ("nu", "ぬ"), ("ne", "ね"), ("no", "の"),
+    ("ha", "は"), ("hi", "ひ"), ("hu", "ふ"), ("he", "へ"), ("ho", "ほ"),
+    ("ma", "ま"), ("mi", "み"), ("mu", "む"), ("me", "め"), ("mo", "も"),
+    ("ya", "や"), ("yu", "ゆ"), ("yo", "よ"),
+    ("ra", "ら"), ("ri", "り"), ("ru", "る"), ("re", "れ"), ("ro", "ろ"),
+    ("wa", "わ"), ("wo", "を"),
+
+    ("ga", "が"), ("gi", "ぎ"), ("gu", "ぐ"), ("ge", "げ"), ("go", "ご"),
+    ("za", "ざ"), ("zi", "じ"), ("zu", "ず"), ("ze", "ぜ"), ("zo", "ぞ"),
+    ("da", "だ"), ("di", "ぢ"), ("du", "づ"), ("de", "で"), ("do", "ど"),
+    ("ba", "ば"), ("bi", "び"), ("bu", "ぶ"), ("be", "べ"), ("bo", "ぼ"),
+    ("pa", "ぱ"), ("pi", "ぴ"), ("pu", "ぷ"), ("pe", "ぺ"), ("po", "ぽ"),
+
+    # 母音単体
+    ("a", "あ"), ("i", "い"), ("u", "う"), ("e", "え"), ("o", "お"),
+]
+
+# 長い順にソート（kyo を優先して ky + o にならないように）
+_ROMA_KANA_TABLE.sort(key=lambda x: len(x[0]), reverse=True)
+
+
+def _romaji_to_hiragana(text: str) -> str:
+    """超ざっくりローマ字→ひらがな変換。
+
+    ・アルファベット以外（スペース、句読点、既存の日本語 / 韓国語など）はそのまま
+    ・英語っぽい単語でも「それっぽいカナ」が付くだけの簡易版
+    """
+    s = text.lower()
+    out: List[str] = []
+    i = 0
+    n = len(s)
+
+    while i < n:
+        ch = s[i]
+        # アルファベット以外はそのまま出力
+        if not ("a" <= ch <= "z"):
+            out.append(ch)
+            i += 1
+            continue
+
+        matched = False
+        for roma, kana in _ROMA_KANA_TABLE:
+            if s.startswith(roma, i):
+                out.append(kana)
+                i += len(roma)
+                matched = True
+                break
+
+        if matched:
+            continue
+
+        # マッチしないアルファベットはそのまま
+        out.append(ch)
+        i += 1
+
+    # 連続するスペースの整理などは UI 側でそのまま扱う
+    return "".join(out)
+
+
+def _normalize_input(*args: Any, **kwargs: Any) -> str:
+    """app_web から渡ってくる lyrics 引数を文字列に正規化。"""
+    if args:
+        src = args[0]
+    else:
+        src = kwargs.get("lyrics", "")
+
+    if not isinstance(src, str):
+        src = str(src)
+
+    # 改行コードだけ整えてそのまま返す
+    return src.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def convert_lyrics(*args: Any, **kwargs: Any) -> Dict[str, List[Dict[str, str]]]:
+    """歌詞テキストを EN / KA ペア配列に変換して返す。
+
+    ここでは OpenAI 等は使わず、ローカルのローマ字→かな変換だけを行う。
+    """
+    lyrics = _normalize_input(*args, **kwargs)
+
+    lines: List[Dict[str, str]] = []
+    for raw in lyrics.splitlines():
+        text = raw.strip()
+        if not text:
+            continue
+
+        # EN = 元の行そのまま
+        en_src = text
+
+        # KA = なんちゃってローマ字→ひらがな
+        kana = _romaji_to_hiragana(text)
+
+        lines.append({"en": en_src, "kana": kana})
+
+    _safe_log(CONVERT_LOG, f"convert_lyrics ok: lines={len(lines)}")
+
+    return {"lines": lines}
+
+
+# ==== フィードバック・ロギングだけ残す ================================
+
+def save_feedback(text: str) -> None:
+    """フィードバックをログに残すだけの簡易実装。"""
+    t = _dt.datetime.now().isoformat(timespec="seconds")
+    _safe_log(FEEDBACK_LOG, f"feedback: {t} {text!r}")

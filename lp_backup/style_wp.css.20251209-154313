@@ -1,0 +1,294 @@
+/* ===============================
+   SingKANA Whitepaper Style v1.0
+   =============================== */
+
+/* ベース */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+               "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
+  background: #050814;
+  color: #f5f7ff;
+  line-height: 1.7;
+  scroll-behavior: smooth;
+}
+
+a {
+  color: #a5b4ff;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* コンテナ共通 */
+.wp-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 4rem;
+}
+
+/* ===============================
+   HERO
+   =============================== */
+
+.wp-hero {
+  background: radial-gradient(circle at 0% 0%, #22d3ee 0, transparent 50%),
+              radial-gradient(circle at 100% 0%, #a855f7 0, transparent 55%),
+              linear-gradient(135deg, #111827 0%, #020617 55%, #050816 100%);
+  color: #f9fafb;
+  padding: 4rem 1.5rem 3rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.wp-hero-inner {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.wp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  color: #e5e7eb;
+  margin-bottom: 1rem;
+}
+
+.wp-badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.3);
+}
+
+.wp-hero h1 {
+  font-size: clamp(2rem, 3vw + 1.2rem, 2.8rem);
+  margin: 0 0 0.5rem;
+}
+
+.wp-hero-sub {
+  font-size: 0.95rem;
+  color: #e5e7eb;
+  opacity: 0.9;
+  margin-bottom: 2rem;
+}
+
+/* 言語切替ボタン */
+.wp-lang-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.wp-lang-switch button {
+  cursor: pointer;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: rgba(15, 23, 42, 0.8);
+  color: #e5e7eb;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.15s ease-out;
+}
+
+.wp-lang-switch button:hover {
+  background: rgba(30, 64, 175, 0.9);
+  border-color: #818cf8;
+  box-shadow: 0 10px 30px rgba(79, 70, 229, 0.35);
+}
+
+.wp-lang-switch button.wp-active {
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  border-color: transparent;
+  color: white;
+}
+
+/* ===============================
+   ナビゲーション（章リンク）
+   =============================== */
+
+.wp-nav {
+  backdrop-filter: blur(16px);
+  background: linear-gradient(to bottom,
+              rgba(15, 23, 42, 0.9),
+              rgba(15, 23, 42, 0.98));
+  border-bottom: 1px solid rgba(55, 65, 81, 0.7);
+}
+
+.wp-nav-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.wp-nav-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  margin-right: 0.75rem;
+}
+
+.wp-nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.8rem;
+}
+
+.wp-nav-links a {
+  font-size: 0.8rem;
+  color: #e5e7eb;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid transparent;
+  transition: all 0.15s ease-out;
+}
+
+.wp-nav-links a:hover {
+  border-color: rgba(129, 140, 248, 0.9);
+  background: rgba(30, 64, 175, 0.9);
+}
+
+/* ===============================
+   セクション
+   =============================== */
+
+.wp-section {
+  padding: 3rem 0 0;
+  border-top: 1px solid rgba(31, 41, 55, 0.9);
+}
+
+.wp-section:first-of-type {
+  border-top: none;
+}
+
+.wp-section h2 {
+  font-size: 1.4rem;
+  margin: 0 0 1rem;
+  color: #e5e7eb;
+}
+
+.wp-section h3 {
+  font-size: 1.1rem;
+  margin: 1.5rem 0 0.5rem;
+  color: #e5e7eb;
+}
+
+.wp-lead {
+  font-size: 0.97rem;
+  color: #e5e7eb;
+  margin-bottom: 1rem;
+}
+
+.wp-section ul {
+  margin: 0.5rem 0 1.25rem 1.2rem;
+  padding: 0;
+}
+
+.wp-section li {
+  margin-bottom: 0.35rem;
+}
+
+/* 2カラムっぽいボックス（必要な章に使える） */
+.wp-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+}
+
+.wp-card {
+  background: radial-gradient(circle at 0 0, rgba(79, 70, 229, 0.28), transparent 55%),
+              radial-gradient(circle at 100% 100%, rgba(14, 165, 233, 0.2), transparent 55%),
+              #020617;
+  border-radius: 1rem;
+  padding: 1.4rem 1.25rem;
+  border: 1px solid rgba(55, 65, 81, 0.9);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.9);
+}
+
+.wp-card-title {
+  font-size: 0.92rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+  margin-bottom: 0.6rem;
+}
+
+/* ===============================
+   フッター
+   =============================== */
+
+.wp-footer {
+  border-top: 1px solid rgba(31, 41, 55, 0.9);
+  padding: 1.5rem 1.5rem 2.5rem;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  text-align: center;
+}
+
+/* ===============================
+   レスポンシブ
+   =============================== */
+
+@media (max-width: 768px) {
+  .wp-hero {
+    padding: 3rem 1.25rem 2rem;
+  }
+  .wp-shell {
+    padding: 2.5rem 1.25rem 3rem;
+  }
+  .wp-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ===============================
+   Layout: align hero / nav / body
+   =============================== */
+
+/* ヒーロー・ナビ・本文の左右位置を完全に揃える */
+.wp-hero-inner,
+.wp-nav-inner,
+.wp-shell {
+  max-width: 900px;        /* ヒーローと本文の列幅を統一（好みで 960 でもOK） */
+  margin: 0 auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+/* 本文コンテナの上下パディングだけ個別指定 */
+.wp-shell {
+  padding-top: 3rem;
+  padding-bottom: 4rem;
+}
+
+/* セクションはシェルの中でフラットに並べる */
+.wp-section {
+  padding-left: 0;
+  padding-right: 0;
+}
+

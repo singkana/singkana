@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sovereign Cognitive Architecture – Whitepaper v1.0</title>
+  <!-- SingKANA 版ホワイトペーパースタイル -->
+  <link rel="stylesheet" href="/lp/style_wp.css" />
+</head>
+<body>
+
+  <!-- ============================
+       HERO
+  ============================ -->
+  <header class="wp-hero">
+    <div class="wp-hero-inner">
+      <div class="wp-badge">
+        <span class="wp-badge-dot"></span>
+        <span>SCA</span>
+        <span>External Brain Operating System</span>
+      </div>
+
+      <h1>Sovereign Cognitive Architecture</h1>
+      <p class="wp-hero-sub">Whitepaper v1.0</p>
+
+      <div class="wp-lang-switch">
+        <button data-lang-btn="jp" class="wp-active" onclick="switchLang('jp')">
+          🇯🇵 日本語
+        </button>
+        <button data-lang-btn="en" onclick="switchLang('en')">
+          🇺🇸 English
+        </button>
+      </div>
+
+      <div style="margin-top: 1.75rem; display:flex; flex-wrap:wrap; gap:0.75rem;">
+        <a href="#chapter-1" class="wp-cta-main">第1章から読む</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================
+       CHAPTER NAV
+  ============================ -->
+  <nav class="wp-nav">
+    <div class="wp-nav-inner">
+      <div class="wp-nav-label">Chapters</div>
+      <div class="wp-nav-links">
+        <a href="#chapter-1">1. Overview</a>
+        <a href="#chapter-2">2. Problem</a>
+        <a href="#chapter-3">3. Principles</a>
+        <a href="#chapter-4">4. Layers</a>
+        <a href="#chapter-5">5. Memory</a>
+        <a href="#chapter-6">6. Agents</a>
+        <a href="#chapter-7">7. Use Cases</a>
+        <a href="#chapter-8">8. Safety</a>
+        <a href="#chapter-9">9. Roadmap</a>
+        <a href="#chapter-10">10. How to Start</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============================
+       MAIN BODY
+  ============================ -->
+  <!-- ※ main は 1つだけに修正 -->
+  <main class="wp-shell" id="wp-container">
+
+    <!-- ========== Chapter 1 ========== -->
+    <section id="chapter-1" class="wp-section" data-lang="jp">
+      <h2>第1章：SCA 概要</h2>
+      <p class="wp-lead">
+        Sovereign Cognitive Architecture（以下 SCA）は、
+        「人間の意志」と「複数のAIエンジン」をまとめて扱うための
+        <strong>外部脳OS</strong> です。<br />
+        1つのモデルに依存するのではなく、記憶・動機・世界観・安全性などを
+        OSレベルで管理し、プロダクトやワークフローを横断して再利用できる
+        “認知インフラ” として設計されています。
+      </p>
+    </section>
+
+    <section class="wp-section" data-lang="en">
+      <h2>Chapter 1: Overview</h2>
+      <p class="wp-lead">
+        The Sovereign Cognitive Architecture (SCA) is an
+        <strong>External Brain Operating System</strong>
+        that coordinates human intention and multiple AI engines.<br />
+        Instead of depending on a single model, it provides OS-level abstractions for
+        memory, motivation, worldview and safety, reusable across products and workflows.
+      </p>
+    </section>
+
+    <!-- ========== Chapter 2 ========== -->
+    <section id="chapter-2" class="wp-section" data-lang="jp">
+      <h2>第2章：SCA が解決する問題</h2>
+      <ul>
+        <li>AIは会話ごとに「記憶がリセット」されやすく、長期プロジェクトを一貫して扱いづらい。</li>
+        <li>人間側は、日々のタスクに追われて長期目標・世界観を保ちにくい。</li>
+        <li>複数のモデルやツールを組み合わせると、設計がカオス化しやすい。</li>
+      </ul>
+      <p>
+        SCAはこれらを、「外部前頭葉」として一括で管理することで解決します。
+        すべてのAIエージェントが同じ “OS” の上で動き、同じ記憶と方針を共有します。
+      </p>
+    </section>
+
+    <section class="wp-section" data-lang="en">
+      <h2>Chapter 2: The Problem</h2>
+      <ul>
+        <li>AI sessions often reset context, making long-term projects fragile.</li>
+        <li>Humans are overwhelmed by daily tasks and lose track of higher-level goals.</li>
+        <li>Multi-model, multi-tool setups tend to become unmaintainable.</li>
+      </ul>
+      <p>
+        SCA acts as an “external prefrontal cortex”, providing a single place
+        to manage context, goals and policies that all AI agents share.
+      </p>
+    </section>
+
+    <!-- ========== Chapter 3 ========== -->
+    <section id="chapter-3" class="wp-section" data-lang="jp">
+      <h2>第3章：設計原則</h2>
+      <ol>
+        <li><strong>LLM 非依存性</strong>：特定ベンダーにロックされず、複数モデルを差し替え可能。</li>
+        <li><strong>レイヤー化</strong>：記憶・動機・世界観・安全を別レイヤーとして定義。</li>
+        <li><strong>人間主権</strong>：最終意思決定は常に人間に帰属する設計。</li>
+        <li><strong>ログと可観測性</strong>：なぜそう判断したかを追跡できる。</li>
+      </ol>
+    </section>
+
+    <section class="wp-section" data-lang="en">
+      <h2>Chapter 3: Design Principles</h2>
+      <ol>
+        <li><strong>LLM-agnostic</strong>: no hard dependency on a single vendor or model.</li>
+        <li><strong>Layered</strong>: memory, motivation, worldview and safety are separated.</li>
+        <li><strong>Human sovereignty</strong>: humans retain final authority over key decisions.</li>
+        <li><strong>Observability</strong>: reasoning paths and decisions are traceable.</li>
+      </ol>
+    </section>
+
+    <!-- ========== Chapter 4 ========== -->
+    <section id="chapter-4" class="wp-section" data-lang="jp">
+      <h2>第4章：コアレイヤー構造</h2>
+      <ul>
+        <li><strong>v31 Temporal Memory</strong>：時系列で蓄積される長期記憶。</li>
+        <li><strong>v32–33 Motivation / Horizon</strong>：目標・マイルストーン・優先度。</li>
+        <li><strong>v34–38 Multi-Agent Kernel</strong>：複数AIエージェントの指揮レイヤー。</li>
+        <li><strong>v35 Story-State</strong>：世界観・物語・ブランド一貫性。</li>
+        <li><strong>v36 Giving / Social Value</strong>：経済活動と社会貢献の結びつき。</li>
+        <li><strong>v37 Human Sovereignty</strong>：最終承認フロー・ブレーキ機構。</li>
+        <li><strong>v38–40 Unified Kernel</strong>：全レイヤーを束ねる統合カーネル。</li>
+        <li><strong>v50 Self-Diagnosis &amp; Healing</strong>：異常検知と自己修復。</li>
+      </ul>
+    </section>
+
+    <section class="wp-section" data-lang="en">
+      <h2>Chapter 4: Core Layers</h2>
+      <ul>
+        <li><strong>v31 Temporal Memory</strong>: ordered, long-term memory stream.</li>
+        <li><strong>v32–33 Motivation / Horizon</strong>: goals, milestones and priorities.</li>
+        <li><strong>v34–38 Multi-Agent Kernel</strong>: orchestration of multiple AI agents.</li>
+        <li><strong>v35 Story-State</strong>: worldview, narrative and brand consistency.</li>
+        <li><strong>v36 Giving / Social Value</strong>: aligning revenue with contribution.</li>
+        <li><strong>v37 Human Sovereignty</strong>: human approval and braking mechanisms.</li>
+        <li><strong>v38–40 Unified Kernel</strong>: unified decision-making engine.</li>
+        <li><strong>v50 Self-Diagnosis &amp; Healing</strong>: anomaly detection and repair.</li>
+      </ul>
+    </section>
+
+    <!-- ========== Chapter 5 ========== -->
+    <section id="chapter-5" class="wp-section" data-lang="jp">
+      <h2>第5章：時間記憶とログ構造</h2>
+      <p>
+        Temporal Memory は、「どの判断が、どの文脈と対話の積み重ねから生まれたか」を
+        追跡するためのレイヤーです。単なるチャット履歴ではなく、
+        <strong>イベントストリーム</strong> として保存されます。
+      </p>
+      <ul>
+        <li>重大な決定・分岐点は「チェックポイント」としてタグ付け。</li>
+        <li>プロダクトごとではなく「人格OS」レベルで共有。</li>
+        <li>異常検知レイヤー（v50）とも連携。</li>
+      </ul>
+    </section>
+
+    <section class="wp-section" data-lang="en">
+      <h2>Chapter 5: Temporal Memory &amp; Logs</h2>
+      <p>
+        Temporal Memory tracks <strong>how decisions emerged</strong> from sequences of context
+        and interactions. It is stored as an event stream rather than raw chat transcripts.
+      </p>
+      <ul>
+        <li>Key decisions are tagged as checkpoints.</li>
+        <li>Memory is shared at the “person OS” level, not per product.</li>
+        <li>Integrated with the self-diagnosis layer (v50).</li>
+      </ul>
+    </section>
+
+    <!-- ========== Chapter 6 ========== -->
+    <section id="chapter-6" class="wp-section" data-lang="jp">
+      <h2>第6章：マルチエージェントとワークフロー</h2>
+      <p>
+        SCA上では、複数のAIエージェントが役割分担をして動きます。
+        例：リサーチ担当・コード担当・レビュー担当・安全監査担当など。<br />
+        それぞれが独立した人格を持つのではなく、
+        <strong>同じ SCA の記憶と方針を共有</strong> した「手足」として動作します。
+      </p>
+    </section>
+
+    <section class="wp-section" data-lang="en">
+      <h2>Chapter 6: Multi-Agent Workflows</h2>
+      <p>
+        On top of SCA, multiple AI agents take different roles:
+        research, coding, review, safety auditing, and more.<br />
+        They do not each have their own siloed memory; instead they act as
+        limbs of the same external brain, sharing SCA’s policies and memory.
+      </p>
+    </section>
+
+    <!-- ========== Chapter 7 ========== -->
+    <section id="chapter-7" class="wp-section" data-lang="jp">
+      <h2>第7章：主なユースケース</h2>
+      <ul>
+        <li><strong>個人開発者の外部脳OS</strong>：複数プロダクト・複数EAの設計と運用を一元管理。</li>
+        <li><strong>小規模チームの知識OS</strong>：議事録・設計・マーケ資料を横断した記憶レイヤー。</li>
+        <li><strong>研究ワークフローOS</strong>：論文探索・要約・実験計画・コード生成を一気通貫で管理。</li>
+      </ul>
+    </section>
+
+    <section class="wp-section" data-lang="en">
+      <h2>Chapter 7: Typical Use Cases</h2>
+      <ul>
+        <li><strong>External brain for solo builders</strong> managing multiple products and bots.</li>
+        <li><strong>Knowledge OS for small teams</strong> unifying notes, designs and marketing.</li>
+        <li><strong>Research workflow OS</strong> covering literature search, planning and coding.</li>
+      </ul>
+    </section>
+
+    <!-- ========== Chapter 8 ========== -->
+    <section id="chapter-8" class="wp-section" data-lang="jp">
+      <h2>第8章：安全性とガバナンス</h2>
+      <p>
+        SCA は「なんでも自動化する」ことよりも、
+        <strong>安全な自動化の範囲を明示する</strong> ことを重視します。
+      </p>
+      <ul>
+        <li>危険領域のタスクは必ず人間の承認フローを通す。</li>
+        <li>ログとチェックポイントをもとに、後から判断を検証可能。</li>
+        <li>寄付・社会貢献レイヤー（v36）を通じたインセンティブ設計。</li>
+      </ul>
+    </section>
+
+    <section class="wp-section" data-lang="en">
+      <h2>Chapter 8: Safety &amp; Governance</h2>
+      <p>
+        SCA prioritizes <strong>explicit boundaries of automation</strong>
+        rather than blind full autonomy.
+      </p>
+      <ul>
+        <li>High-risk actions always require explicit human approval.</li>
+        <li>Decisions remain auditable via logs and checkpoints.</li>
+        <li>Economic incentives are coupled with social value via v36.</li>
+      </ul>
+    </section>
+
+    <!-- ========== Chapter 9 ========== -->
+    <section id="chapter-9" class="wp-section" data-lang="jp">
+      <h2>第9章：ロードマップ</h2>
+      <ul>
+        <li>v41+ 個人OSのテンプレート化（SCA-Personal プロファイル）。</li>
+        <li>v5x 研究OS・商用エンジンへの拡張。</li>
+        <li>マルチモデル環境への最適化（GPT / 他社モデルの併用）。</li>
+      </ul>
+    </section>
+
+    <section class="wp-section" data-lang="en">
+      <h2>Chapter 9: Roadmap</h2>
+      <ul>
+        <li>v41+: templates for SCA-Personal profiles.</li>
+        <li>v5x: extensions for research and commercial engines.</li>
+        <li>Deeper optimization for multi-model environments.</li>
+      </ul>
+    </section>
+
+    <!-- ========== Chapter 10 ========== -->
+    <section id="chapter-10" class="wp-section" data-lang="jp">
+      <h2>第10章：SCA をどう使い始めるか</h2>
+      <ol>
+        <li>まずは「1人の外部脳OS」として SCA-Personal を定義する。</li>
+        <li>現在使っているAIツール・エージェントを SCA の上にマウントする。</li>
+        <li>Temporal Memory とチェックポイントのログを必ず残す。</li>
+        <li>徐々に自動化領域を広げつつも、人間主権レイヤーを維持する。</li>
+      </ol>
+      <p class="wp-footer-note">
+        SCA は単一のアプリではなく、「あなた自身の思考OS」です。<br />
+        SingKANA を含む複数プロダクトの背後で、同じ外部脳が静かに動き続ける状態を目指します。
+      </p>
+    </section>
+
+    <section class="wp-section" data-lang="en">
+      <h2>Chapter 10: Getting Started</h2>
+      <ol>
+        <li>Define an SCA-Personal profile as your external brain.</li>
+        <li>Mount your existing AI tools and agents on top of it.</li>
+        <li>Record temporal memory and checkpoints from the beginning.</li>
+        <li>Expand automation carefully while preserving human sovereignty.</li>
+      </ol>
+      <p class="wp-footer-note">
+        SCA is not a single app; it is your thinking OS.<br />
+        The goal is a state where multiple products, including SingKANA,
+        quietly share the same external brain.
+      </p>
+    </section>
+
+  </main>
+
+  <!-- ============================
+       LANG SWITCH SCRIPT
+  ============================ -->
+  <script>
+    function switchLang(lang) {
+      document.querySelectorAll("[data-lang]").forEach(el => {
+        el.style.display =
+          el.getAttribute("data-lang") === lang ? "block" : "none";
+      });
+      document.querySelectorAll("[data-lang-btn]").forEach(btn => {
+        btn.classList.toggle(
+          "wp-active",
+          btn.getAttribute("data-lang-btn") === lang
+        );
+      });
+    }
+    // 初期表示は日本語
+    switchLang("jp");
+  </script>
+
+</body>
+</html>

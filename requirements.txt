@@ -1,0 +1,7 @@
+flask
+gunicorn
+openai
+python-dotenv
+ulid-py==1.1.0
+
+pykakasi

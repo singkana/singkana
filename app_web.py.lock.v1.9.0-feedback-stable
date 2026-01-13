@@ -1,0 +1,451 @@
+# SingKANA Webアプリ本体（Flask）
+# - /               : index.html
+# - /terms.html     : 利用規約
+# - /privacy.html   : プライバシーポリシー
+# - /singkana_core.js : 歌詞変換エンジン（フロント用 JS）
+# - /api/convert    : 歌詞 → EN/KA 変換（サーバー版エンジン）
+# - /api/feedback   : フィードバック保存（JSONL＋Discord）
+# - /admin/feedback : フィードバック簡易ビュー
+# - /healthz        : ヘルスチェック
+
+from __future__ import annotations
+
+import os
+import json
+import datetime
+import traceback
+import html
+import re
+from pathlib import Path
+import urllib.request
+import urllib.error
+
+from flask import (
+    Flask,
+    request,
+    jsonify,
+    send_from_directory,
+    Response,
+    current_app,
+)
+
+# .env から環境変数を読む（あれば）
+try:
+    from dotenv import load_dotenv  # type: ignore
+except Exception:
+    load_dotenv = None
+
+import singkana_engine as engine
+
+
+# ===== 基本設定 =========================================================
+
+BASE_DIR = Path(__file__).resolve().parent
+APP_NAME = "SingKANA"
+
+if load_dotenv:
+    # /var/www/singkana/.env を読む（なければ何もしない）
+    load_dotenv(BASE_DIR / ".env")
+
+app = Flask(__name__)
+
+FEEDBACK_PATH = BASE_DIR / "docs" / "feedback.jsonl"
+
+
+def _now_iso() -> str:
+    # JSTで出したければ環境でTZをJSTにしてる前提。ここはローカル時刻でOK。
+    return datetime.datetime.now().isoformat(timespec="seconds")
+
+
+def _client_ip() -> str:
+    # Cloudflare / Nginx 経由なら X-Forwarded-For が来る
+    xff = request.headers.get("X-Forwarded-For", "") or ""
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.remote_addr or ""
+
+
+def _truncate(s: str, n: int) -> str:
+    if s is None:
+        return ""
+    s = str(s)
+    return s if len(s) <= n else (s[: n - 1] + "…")
+
+
+def _strip_control_chars(s: str) -> str:
+    # Discord embed の変な崩れ防止
+    if not s:
+        return ""
+    return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", s)
+
+
+def _get_discord_webhook_url() -> str:
+    """
+    Discord Webhook URL を環境変数から取得。
+    - systemd Environment= でも .env でも OK
+    - 前後の空白・引用符を除去
+    """
+    url = os.environ.get("SINGKANA_FEEDBACK_WEBHOOK", "") or ""
+    url = url.strip().strip('"').strip("'")
+    return url.strip()
+
+
+# ===== 画面ルーティング =================================================
+
+@app.route("/singkana_core.js")
+def singkana_core_js() -> Response:
+    """歌詞変換 JS コアを返す（UTF-8 明示）"""
+    resp = send_from_directory(
+        str(BASE_DIR),
+        "singkana_core.js",
+        mimetype="application/javascript; charset=utf-8",
+    )
+    resp.headers["Content-Type"] = "application/javascript; charset=utf-8"
+    return resp
+
+
+@app.route("/")
+def index() -> Response:
+    return send_from_directory(str(BASE_DIR), "index.html")
+
+
+@app.route("/terms.html")
+def terms() -> Response:
+    return send_from_directory(str(BASE_DIR), "terms.html")
+
+
+@app.route("/privacy.html")
+def privacy() -> Response:
+    return send_from_directory(str(BASE_DIR), "privacy.html")
+
+
+@app.route("/favicon.ico")
+def favicon() -> Response:
+    try:
+        return send_from_directory(str(BASE_DIR), "favicon.ico")
+    except Exception:
+        return Response("", status=404)
+
+
+@app.route("/healthz")
+def healthz() -> Response:
+    return jsonify({"ok": True, "app": APP_NAME, "ts": _now_iso()})
+
+
+# ===== API: 歌詞変換（サーバーサイドエンジン） ==========================
+
+@app.route("/api/convert", methods=["POST"])
+def api_convert() -> Response:
+    try:
+        data = request.get_json(silent=True) or {}
+    except Exception:
+        data = {}
+
+    lyrics = (
+        data.get("lyrics")
+        or data.get("text")
+        or request.form.get("lyrics", "")
+        or request.form.get("text", "")
+    )
+
+    if not lyrics:
+        return jsonify({"ok": False, "error": "empty_lyrics"}), 400
+
+    try:
+        if hasattr(engine, "convertLyrics"):
+            result = engine.convertLyrics(lyrics)
+        elif hasattr(engine, "convert_lyrics"):
+            result = engine.convert_lyrics(lyrics)
+        else:
+            raise RuntimeError("singkana_engine: no convert function")
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"ok": False, "error": "engine_error", "detail": str(e)}), 500
+
+    return jsonify({"ok": True, "result": result})
+
+
+# ===== API: フィードバック保存 =========================================
+
+def _ensure_feedback_dir() -> None:
+    FEEDBACK_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+
+def _append_jsonl(path: Path, record: dict) -> None:
+    _ensure_feedback_dir()
+    line = json.dumps(record, ensure_ascii=False)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(line + "\n")
+
+
+def _post_feedback_to_discord(record: dict) -> None:
+    """
+    Discord Webhook に通知（同期・即時）。
+    - 失敗時は HTTPコード + レスポンス本文 をログに出す（原因追跡用）
+    - Discordの仕様に合わせて payload を必ず有効にする
+      * content は必ず非空文字
+      * embeds は必ず配列（空なら送らない）
+    """
+    url = _get_discord_webhook_url()
+    if not url:
+        current_app.logger.info("Discord webhook skipped: SINGKANA_FEEDBACK_WEBHOOK is empty")
+        return
+
+    created_at = str(record.get("created_at") or "")
+    ip = str(record.get("ip") or "")
+    ua = str(record.get("ua") or "")
+    text = str(record.get("text") or "")
+    meta = record.get("meta") or {}
+    if not isinstance(meta, dict):
+        meta = {"_raw": str(meta)}
+
+    song = str(meta.get("song") or record.get("song") or "").strip()
+    engine_ver = str(meta.get("engine_version") or record.get("engine_version") or "").strip()
+    client_side = meta.get("client_side")
+    client_side_str = "true" if client_side is True else ("false" if client_side is False else "")
+
+    # Discordの長さ制限を踏まえて整形
+    text = _strip_control_chars(_truncate(text.strip(), 1200))
+    song = _strip_control_chars(_truncate(song, 120))
+    engine_ver = _strip_control_chars(_truncate(engine_ver, 80))
+    ip = _strip_control_chars(_truncate(ip, 80))
+
+    desc_lines: list[str] = []
+    if created_at:
+        desc_lines.append(f"Time: {created_at}")
+    if engine_ver:
+        desc_lines.append(f"Engine: {engine_ver}")
+    if client_side_str:
+        desc_lines.append(f"ClientSide: {client_side_str}")
+    if ip:
+        desc_lines.append(f"IP: {ip}")
+    if song:
+        desc_lines.append(f"Song: {song}")
+
+    # Embed本文（必ず何か入れる）
+    description = "\n".join(desc_lines).strip()
+    if not description:
+        description = "New feedback received."
+
+    embeds = [{
+        "title": "SingKANA Feedback",
+        "description": description,
+        "color": 0x6366F1,
+        "fields": [
+            {"name": "Message", "value": text or "(empty)", "inline": False},
+        ],
+        "timestamp": datetime.datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+    }]
+
+    # Discordは content か embeds のどちらか必須。contentは必ず非空にする。
+    payload = {
+        "content": "📩 SingKANA feedback received",
+        "embeds": embeds,
+    }
+
+
+# ===== API: フィードバック保存（復旧） =====
+# （ここに表示されたコードをそのまま貼る）
+
+
+# ===== API: フィードバック保存（JSONL＋Discord） =====
+
+def _get_discord_webhook_url() -> str:
+    return os.environ.get("SINGKANA_FEEDBACK_WEBHOOK", "").strip()
+
+
+def _post_feedback_to_discord(record: dict) -> None:
+    url = _get_discord_webhook_url()
+    if not url:
+        current_app.logger.info(
+            "Discord webhook skipped: SINGKANA_FEEDBACK_WEBHOOK is empty"
+        )
+        return
+
+    song = (record.get("song") or "").strip()
+    line_no = record.get("lineNo") or record.get("line_no")
+    en_text = (record.get("en") or "").strip()
+    kana_text = (record.get("kana") or "").strip()
+    note = (record.get("note") or record.get("text") or "").strip()
+    error_msg = (record.get("error") or "").strip()
+    engine_ver = (record.get("engine_version") or "js-core-v1.x").strip()
+    ip = record.get("ip") or ""
+    ts = record.get("created_at") or record.get("ts") or ""
+
+    desc_lines = []
+    if ts:
+        desc_lines.append(f"Time: {ts}")
+    if engine_ver:
+        desc_lines.append(f"Engine: {engine_ver}")
+    if ip:
+        desc_lines.append(f"IP: {ip}")
+    if desc_lines:
+        desc_lines.append("")
+
+    if song:
+        desc_lines.append(f"Song: {song}")
+    if line_no is not None:
+        desc_lines.append(f"Line: #{line_no}")
+    if en_text:
+        desc_lines.append(f"EN: {en_text}")
+    if kana_text:
+        desc_lines.append(f"KANA: {kana_text}")
+    if note:
+        desc_lines.append(f"NOTE: {note}")
+    if error_msg:
+        desc_lines.append(f"ERROR: {error_msg}")
+
+    payload = {
+        "content": "SingKANA Feedback\n" + "\n".join(desc_lines)
+        if desc_lines
+        else "SingKANA Feedback (no details)"
+    }
+
+    payload_json = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+    req = urllib.request.Request(
+        url,
+        data=payload_json,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "SingKANA/1.0 (+https://singkana.com)",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            current_app.logger.info(
+                "Discord webhook response: status=%s",
+                getattr(resp, "status", "unknown"),
+            )
+    except urllib.error.HTTPError as e:
+        current_app.logger.error(
+            "Discord feedback webhook failed (HTTPError): %s %s",
+            e.code,
+            e.reason,
+        )
+
+
+@app.route("/api/feedback", methods=["POST"])
+def api_feedback() -> Response:
+    payload = request.get_json(silent=True) or {}
+
+    ts = datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+
+    record = {
+        "created_at": ts,
+        "ip": ip,
+        "song": payload.get("meta", {}).get("song", ""),
+        "engine_version": payload.get("meta", {}).get("engine_version", ""),
+        "text": payload.get("text", ""),
+        "meta": payload.get("meta", {}),
+    }
+
+    try:
+        _post_feedback_to_discord(record)
+    except Exception:
+        traceback.print_exc()
+
+    return jsonify({"ok": True})
+
+# ===== END feedback =====
+
+
+@app.get("/admin/feedback")
+def admin_feedback():
+    """
+    docs/feedback.jsonl を簡易UIで表示（最新100件）
+    """
+    fp = BASE_DIR / "docs" / "feedback.jsonl"
+    if not fp.exists():
+        return Response("feedback.jsonl not found", status=404, mimetype="text/plain")
+
+    # 末尾から100件だけ読む（巨大化対策）
+    lines = fp.read_text(encoding="utf-8", errors="replace").splitlines()
+    lines = lines[-100:]
+
+    rows = []
+    for ln in reversed(lines):
+        ln = ln.strip()
+        if not ln:
+            continue
+        try:
+            obj = json.loads(ln)
+        except Exception:
+            obj = {"_raw": ln}
+
+        created_at = str(obj.get("created_at") or obj.get("ts") or "")
+        ip = str(obj.get("ip") or "")
+        ua = str(obj.get("ua") or "")
+        song = str(obj.get("song") or obj.get("meta", {}).get("song") or "")
+        engine = str(obj.get("engine_version") or obj.get("meta", {}).get("engine_version") or "")
+        note = str(obj.get("note") or obj.get("text") or obj.get("meta", {}).get("text") or "")
+
+        rows.append((created_at, ip, song, engine, note, ua, obj))
+
+    def esc(x: str) -> str:
+        return html.escape(x or "")
+
+    trs = []
+    for (created_at, ip, song, engine, note, ua, raw) in rows:
+        raw_preview = esc(str(raw))[:8000]
+        trs.append(
+            "<tr>"
+            f"<td>{esc(created_at)}</td>"
+            f"<td>{esc(ip)}</td>"
+            f"<td>{esc(song)}</td>"
+            f"<td>{esc(engine)}</td>"
+            f"<td style='max-width:520px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' title='{esc(note)}'>{esc(note)}</td>"
+            f"<td style='max-width:420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;' title='{esc(ua)}'>{esc(ua)}</td>"
+            f"<td><details><summary>raw</summary><pre>{raw_preview}</pre></details></td>"
+            "</tr>"
+        )
+
+    html_body = f"""<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SingKANA Feedback Admin</title>
+<style>
+  body{{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; margin:24px; background:#0b1020; color:#e5e7eb;}}
+  a{{color:#a78bfa; text-decoration:none}}
+  .card{{background:#0f172a; border:1px solid rgba(255,255,255,.10); border-radius:14px; padding:18px;}}
+  h1{{margin:0 0 8px 0; font-size:20px}}
+  .meta{{color:#94a3b8; font-size:12px; margin-bottom:14px}}
+  table{{width:100%; border-collapse:collapse; font-size:13px}}
+  th,td{{border-bottom:1px solid rgba(255,255,255,.08); padding:10px 8px; vertical-align:top; text-align:left}}
+  th{{position:sticky; top:0; background:#0f172a; z-index:1}}
+  pre{{white-space:pre-wrap; word-break:break-word; background:#0b1020; padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,.08)}}
+  details summary{{cursor:pointer}}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; gap:12px; align-items:baseline;">
+      <h1>SingKANA Feedback <span style="font-size:12px;color:#94a3b8;">/admin/feedback</span></h1>
+      <a href="/">← back</a>
+    </div>
+    <div class="meta">latest {len(rows)} items (max 100) / source: docs/feedback.jsonl</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:170px;">Time</th>
+          <th style="width:120px;">IP</th>
+          <th style="width:160px;">Song</th>
+          <th style="width:140px;">Engine</th>
+          <th>Note</th>
+          <th style="width:260px;">UA</th>
+          <th style="width:120px;">Raw</th>
+        </tr>
+      </thead>
+      <tbody>
+        {''.join(trs)}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>"""
+    return Response(html_body, mimetype="text/html; charset=utf-8")

@@ -1,0 +1,172 @@
+# SingKANA Webアプリ本体（Flask）
+# Canonical Version – 2026-01-05 (DarkLP + Paywall Gate + Stripe Checkout stub)
+
+from __future__ import annotations
+
+import os
+import datetime
+import traceback
+from pathlib import Path
+from typing import Any, Dict, Tuple, Optional
+
+from flask import Flask, request, jsonify, send_from_directory, Response
+
+BASE_DIR = Path(__file__).resolve().parent
+APP_NAME = "SingKANA"
+
+try:
+    from dotenv import load_dotenv  # type: ignore
+except Exception:
+    load_dotenv = None
+
+if load_dotenv:
+    load_dotenv(BASE_DIR / ".env")
+
+import singkana_engine as engine
+
+app = Flask(__name__)
+
+FREE_ALLOWED_MODES = {"basic"}
+
+def _json_error(code: int, error: str, message: str = "", **extra: Any):
+    payload = {"ok": False, "error": error}
+    if message:
+        payload["message"] = message
+    payload.update(extra)
+    return jsonify(payload), code
+
+def _get_meta(data: Dict[str, Any]) -> Dict[str, Any]:
+    meta = data.get("meta")
+    return meta if isinstance(meta, dict) else {}
+
+def _get_display_mode(meta: Dict[str, Any]) -> str:
+    return str(meta.get("display_mode") or "basic").strip().lower()
+
+@app.post("/api/convert")
+def api_convert():
+    data = request.get_json(silent=True) or {}
+    lyrics = data.get("text") or data.get("lyrics") or ""
+    if not lyrics:
+        return _json_error(400, "empty_lyrics", "Lyrics is empty.")
+
+    meta = _get_meta(data)
+    display_mode = _get_display_mode(meta)
+
+    if display_mode not in FREE_ALLOWED_MODES:
+        return _json_error(
+            402,
+            "payment_required",
+            "This mode is available on Pro plan.",
+            requested_mode=display_mode,
+            allowed_free_modes=sorted(list(FREE_ALLOWED_MODES)),
+            required_plan="pro",
+        )
+
+    try:
+        if hasattr(engine, "convertLyrics"):
+            result = engine.convertLyrics(lyrics)
+        elif hasattr(engine, "convert_lyrics"):
+            result = engine.convert_lyrics(lyrics)
+        else:
+            result = [{"en": lyrics, "kana": lyrics}]
+    except Exception as e:
+        traceback.print_exc()
+        return _json_error(500, "engine_error", "Engine failed.", detail=str(e))
+
+    return jsonify({"ok": True, "result": result})
+
+# ---------------- Stripe Checkout ----------------
+
+def _stripe() -> Tuple[Optional[Any], Optional[str]]:
+    secret = os.getenv("STRIPE_SECRET_KEY", "").strip()
+    if not secret:
+        return None, "STRIPE_SECRET_KEY is not set."
+
+    try:
+        import stripe  # type: ignore
+    except Exception:
+        return None, "stripe python package is not installed. (pip install stripe)"
+
+    stripe.api_key = secret
+    return stripe, None
+
+@app.get("/api/billing/config")
+def billing_config():
+    publishable = os.getenv("STRIPE_PUBLISHABLE_KEY", "").strip()
+    price_id = os.getenv("STRIPE_PRICE_PRO_MONTHLY", "").strip()
+    return jsonify({
+        "ok": True,
+        "publishable_key_present": bool(publishable),
+        "price_pro_monthly_present": bool(price_id),
+        "required_env": [
+            "STRIPE_SECRET_KEY",
+            "STRIPE_PRICE_PRO_MONTHLY",
+            "STRIPE_PUBLISHABLE_KEY",
+            "STRIPE_SUCCESS_URL",
+            "STRIPE_CANCEL_URL",
+        ],
+    })
+
+@app.post("/api/billing/checkout")
+def billing_checkout():
+    stripe, err = _stripe()
+    if err:
+        return _json_error(501, "stripe_not_configured", err)
+
+    price_id = os.getenv("STRIPE_PRICE_PRO_MONTHLY", "").strip()
+    if not price_id:
+        return _json_error(501, "stripe_not_configured", "STRIPE_PRICE_PRO_MONTHLY is not set.")
+
+    success_url = os.getenv("STRIPE_SUCCESS_URL", "").strip() or "https://singkana.com/#pricing"
+    cancel_url  = os.getenv("STRIPE_CANCEL_URL", "").strip() or "https://singkana.com/#pricing"
+
+    data = request.get_json(silent=True) or {}
+    meta = _get_meta(data)
+    customer_email = str(meta.get("email") or "").strip() or None
+
+    try:
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[{"price": price_id, "quantity": 1}],
+            allow_promotion_codes=True,
+            success_url=success_url,
+            cancel_url=cancel_url,
+            customer_email=customer_email,
+        )
+    except Exception as e:
+        traceback.print_exc()
+        return _json_error(500, "stripe_error", "Failed to create checkout session.", detail=str(e))
+
+    return jsonify({"ok": True, "url": session.url})
+
+# ---------------- Static ----------------
+
+@app.get("/")
+def index() -> Response:
+    return send_from_directory(str(BASE_DIR), "index.html")
+
+@app.get("/singkana_core.js")
+def singkana_core_js() -> Response:
+    resp = send_from_directory(
+        str(BASE_DIR),
+        "singkana_core.js",
+        mimetype="application/javascript; charset=utf-8",
+    )
+    resp.headers["Content-Type"] = "application/javascript; charset=utf-8"
+    return resp
+
+@app.get("/assets/<path:filename>")
+def assets_files(filename):
+    return send_from_directory(str(BASE_DIR / "assets"), filename)
+
+@app.get("/paywall_gate.js")
+def serve_paywall_gate_js():
+    return send_from_directory(str(BASE_DIR), "paywall_gate.js")
+
+@app.get("/healthz")
+def healthz():
+    return jsonify({
+        "ok": True,
+        "service": APP_NAME,
+        "time": datetime.datetime.utcnow().isoformat() + "Z",
+    })

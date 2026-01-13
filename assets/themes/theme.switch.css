@@ -1,0 +1,237 @@
+/* =========================================================
+   SingKANA Theme Switch CSS (REPLACED)
+   - Focus: kdesign_bright (Gradient • Glass)
+   - Goal: Override Tailwind dark utility leftovers globally
+   ========================================================= */
+
+/* ---------- K-Design Bright Pastel : variables ---------- */
+html.kdesign_bright{
+  --bg0: #f2efff;
+  --bg1: #e9e6ff;
+
+  /* gradient alpha (tunable) */
+  --a1: 0.55;
+  --a2: 0.55;
+  --a3: 0.45;
+
+  /* glass */
+  --cardA: 0.78;     /* card alpha */
+  --cardA2: 0.62;    /* inner alpha */
+  --strokeA: 0.14;
+  --shadowA: 0.14;
+
+  /* ink */
+  --ink: #0f0b2e;
+  --mutedA: 0.62;
+
+  /* accents */
+  --g1: #a996ff;
+  --g2: #78cfff;
+  --g3: #ff86c8;
+  --g4: #6fe8c8;
+
+  background:
+    radial-gradient(1200px 700px at 10% 0%, rgba(185,167,255,var(--a1)), transparent 55%),
+    radial-gradient(900px 600px at 90% 10%, rgba(142,215,255,var(--a2)), transparent 55%),
+    radial-gradient(1000px 650px at 60% 110%, rgba(255,154,213,var(--a3)), transparent 60%),
+    linear-gradient(180deg, var(--bg0), var(--bg1)) !important;
+}
+
+/* body baseline */
+html.kdesign_bright body{
+  background:
+    radial-gradient(1200px 700px at 10% 0%, rgba(185,167,255,var(--a1)), transparent 55%),
+    radial-gradient(900px 600px at 90% 10%, rgba(142,215,255,var(--a2)), transparent 55%),
+    radial-gradient(1000px 650px at 60% 110%, rgba(255,154,213,var(--a3)), transparent 60%),
+    linear-gradient(180deg, var(--bg0), var(--bg1)) !important;
+
+  color: var(--ink) !important;
+}
+
+/* ---------- HARD OVERRIDES (kill Tailwind dark leftovers) ---------- */
+/* Background: any slate-9xx becomes glass */
+html.kdesign_bright [class*="bg-slate-9"]{
+  background: rgba(255,255,255,var(--cardA)) !important;
+  border-color: rgba(20,16,40,0.10) !important;
+}
+
+/* Some containers are transparent but appear dark due to nested styling.
+   Force common “card surfaces” to glass. */
+html.kdesign_bright .rounded-2xl,
+html.kdesign_bright .rounded-3xl{
+  border-color: rgba(20,16,40,0.10);
+}
+
+/* Text: slate-100/200/300 were for dark UI; convert to ink */
+html.kdesign_bright [class*="text-slate-50"],
+html.kdesign_bright [class*="text-slate-100"],
+html.kdesign_bright [class*="text-slate-200"],
+html.kdesign_bright [class*="text-slate-300"]{
+  color: rgba(15,11,46,0.90) !important;
+}
+
+/* Muted text */
+html.kdesign_bright [class*="text-slate-400"],
+html.kdesign_bright [class*="text-slate-500"]{
+  color: rgba(15,11,46,var(--mutedA)) !important;
+}
+
+/* Borders */
+html.kdesign_bright [class*="border-white/"],
+html.kdesign_bright [class*="border-slate-"]{
+  border-color: rgba(20,16,40,0.10) !important;
+}
+
+/* Inputs / textarea / select : glass + readable */
+html.kdesign_bright input,
+html.kdesign_bright textarea,
+html.kdesign_bright select{
+  background: rgba(255,255,255,var(--cardA2)) !important;
+  color: rgba(15,11,46,0.92) !important;
+  border-color: rgba(20,16,40,0.14) !important;
+}
+
+html.kdesign_bright ::placeholder{
+  color: rgba(15,11,46,0.45) !important;
+}
+
+/* Buttons: avoid dark fill */
+html.kdesign_bright button,
+html.kdesign_bright a.rounded-full,
+html.kdesign_bright a.inline-flex{
+  color: rgba(15,11,46,0.92);
+}
+
+/* Header / footer glass */
+html.kdesign_bright header{
+  background: rgba(255,255,255,0.55) !important;
+  border-bottom: 1px solid rgba(20,16,40,0.10) !important;
+}
+
+html.kdesign_bright footer{
+  background: rgba(255,255,255,0.45) !important;
+  border-top: 1px solid rgba(20,16,40,0.10) !important;
+}
+
+/* Demo / Output darker block fix (your “使えないじゃん” zone) */
+html.kdesign_bright .demo-output,
+html.kdesign_bright .singkana-output,
+html.kdesign_bright #result-panel,
+html.kdesign_bright .result-panel{
+  background: rgba(255,255,255,0.70) !important;
+  border: 1px solid rgba(20,16,40,0.10) !important;
+  box-shadow: 0 18px 60px rgba(25,15,60,0.08) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* If something is still dark due to background-image/gradient, neutralize */
+html.kdesign_bright .demo-output,
+html.kdesign_bright .singkana-output{
+  background-image: none !important;
+  filter: none !important;
+}
+
+/* “背景の入り身が薄い” -> 少し濃くしたい場合はここだけ調整
+   (default already stronger; you can tune via slider later) */
+
+/* =========================================================
+   K-Design / Gradient • Glass TOKENS (Single Source of Truth)
+   - sliders will mutate these vars
+   ========================================================= */
+html.kdesign_bright{
+  /* Background intensity (overall) */
+  --kd-bg-strength: 0.55;     /* 0.0..1.0  背景の濃さ */
+
+  /* Glass / cards */
+  --kd-card-alpha: 0.78;      /* 大枠カード */
+  --kd-inner-alpha: 0.62;     /* 内側カード/入力 */
+  --kd-stroke-alpha: 0.14;
+  --kd-shadow-alpha: 0.14;
+
+  /* Text */
+  --kd-ink: 15, 11, 46;       /* #0f0b2e */
+  --kd-muted-alpha: 0.62;     /* 説明文の濃さ(=薄さ) */
+  --kd-soft-alpha: 0.78;      /* サブテキスト */
+
+  /* Demo “dark area” (あなたが言う暗い部分) */
+  --kd-demo-dark: 0.32;       /* 0.0..0.9  暗さ */
+  --kd-demo-dark2: 0.42;      /* グラデの深さ */
+  --kd-demo-text: 0.78;       /* 暗箱内の文字濃さ */
+
+  /* Accent */
+  --kd-accent: 99, 102, 241;  /* indigo-ish */
+}
+
+/* Background (strength adjustable) */
+html.kdesign_bright,
+html.kdesign_bright body{
+  background:
+    radial-gradient(1200px 700px at 10% 0%, rgba(185,167,255,var(--kd-bg-strength)), transparent 55%),
+    radial-gradient(900px 600px at 90% 10%, rgba(142,215,255,var(--kd-bg-strength)), transparent 55%),
+    radial-gradient(1000px 650px at 60% 110%, rgba(255,154,213,calc(var(--kd-bg-strength) * 0.78)), transparent 60%),
+    linear-gradient(180deg, #f2efff, #e9e6ff) !important;
+  color: rgb(var(--kd-ink)) !important;
+}
+
+/* Kill tailwind dark text defaults in bright theme */
+html.kdesign_bright body .text-slate-100,
+html.kdesign_bright body .text-slate-200,
+html.kdesign_bright body .text-slate-300,
+html.kdesign_bright body .text-slate-400{
+  color: rgb(var(--kd-ink)) !important;
+}
+html.kdesign_bright body .text-slate-400,
+html.kdesign_bright body .text-\[11px\]{
+  color: rgba(var(--kd-ink), var(--kd-muted-alpha)) !important;
+}
+
+/* Glass surfaces (broad override: cards/panels) */
+html.kdesign_bright .rounded-3xl,
+html.kdesign_bright .rounded-2xl{
+  border-color: rgba(20,16,40,var(--kd-stroke-alpha)) !important;
+}
+html.kdesign_bright .shadow-soft,
+html.kdesign_bright .shadow-glow{
+  box-shadow: 0 30px 80px rgba(25,15,60,var(--kd-shadow-alpha)) !important;
+}
+
+/* The big “demo card” surface */
+html.kdesign_bright .relative.rounded-3xl{
+  background: rgba(255,255,255,var(--kd-card-alpha)) !important;
+  backdrop-filter: blur(18px);
+}
+
+/* Inputs / inner panels */
+html.kdesign_bright input,
+html.kdesign_bright textarea,
+html.kdesign_bright select{
+  background: rgba(255,255,255,var(--kd-inner-alpha)) !important;
+  color: rgb(var(--kd-ink)) !important;
+  border-color: rgba(20,16,40,calc(var(--kd-stroke-alpha) + 0.06)) !important;
+}
+
+/* --- The “dark area” you care about: SingKANA Output box --- */
+/* 対象は現状のHTML構造に合わせて広めに当てる */
+html.kdesign_bright .singkana-output,
+html.kdesign_bright .demo-output,
+html.kdesign_bright .rounded-2xl.border.border-white\/10.bg-slate-900\/80.p-3,
+html.kdesign_bright .rounded-2xl.border.border-white\/10.bg-slate-900\/80{
+  background:
+    linear-gradient(135deg,
+      rgba(15,23,42,var(--kd-demo-dark)),
+      rgba(15,23,42,var(--kd-demo-dark2))
+    ) !important;
+  color: rgba(255,255,255,var(--kd-demo-text)) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+}
+html.kdesign_bright .singkana-output *,
+html.kdesign_bright .demo-output *{
+  color: rgba(255,255,255,var(--kd-demo-text)) !important;
+}
+
+/* Buttons: keep readable */
+html.kdesign_bright button,
+html.kdesign_bright a.rounded-full{
+  color: rgb(var(--kd-ink)) !important;
+}

@@ -1,0 +1,185 @@
+import os
+import time
+import logging
+from logging.handlers import RotatingFileHandler
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+
+from flask import Flask, request, jsonify, send_from_directory
+from dotenv import load_dotenv
+
+from singkana_engine import convert_lyrics, SingKanaError
+
+# =========================
+# 基本設定
+# =========================
+
+load_dotenv()
+
+MAX_CHARS = 2000
+PROCESS_TIMEOUT = 15
+LOG_DIR = "log"  # app 用ログディレクトリ（エンジン側の Logs とは別）
+
+os.makedirs(LOG_DIR, exist_ok=True)
+
+app = Flask(__name__)
+
+# =========================
+# ロガー設定
+# =========================
+
+app_logger = logging.getLogger("singkana")
+app_logger.setLevel(logging.INFO)
+
+log_handler = RotatingFileHandler(
+    os.path.join(LOG_DIR, "app.log"),
+    maxBytes=1_000_000,
+    backupCount=5,
+    encoding="utf-8",
+)
+
+log_format = logging.Formatter(
+    "%(asctime)s %(levelname)s %(name)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log_handler.setFormatter(log_format)
+app_logger.addHandler(log_handler)
+
+feedback_logger = logging.getLogger("feedback")
+feedback_logger.setLevel(logging.INFO)
+
+fb_handler = RotatingFileHandler(
+    os.path.join(LOG_DIR, "feedback.log"),
+    maxBytes=1_000_000,
+    backupCount=3,
+    encoding="utf-8",
+)
+fb_handler.setFormatter(log_format)
+feedback_logger.addHandler(fb_handler)
+
+# 変換処理用スレッドプール
+executor = ThreadPoolExecutor(max_workers=4)
+
+# =========================
+# 内部ヘルパー
+# =========================
+
+
+def convert_with_timeout(lyrics: str) -> dict:
+    """歌詞を変換し、必ず dict 形式 {lines: [...]} で返す。"""
+    def job():
+        result = convert_lyrics(lyrics)
+        # convert_lyrics がリストを返しても / dict を返しても吸収する
+        if isinstance(result, dict):
+            if "lines" in result:
+                return result
+            # 念のため lines 以外の形式でもラップしておく
+            return {"lines": result.get("lines", [])}
+        # 想定どおりリストだった場合
+        return {"lines": result}
+
+    future = executor.submit(job)
+    return future.result(timeout=PROCESS_TIMEOUT)
+
+
+# =========================
+# ルーティング
+# =========================
+
+
+@app.route("/")
+def index():
+    """フロントエンド (index.html)"""
+    return send_from_directory(".", "index.html")
+
+
+@app.route("/api/convert", methods=["POST"])
+def api_convert():
+    """歌詞のかな変換 API"""
+    t0 = time.time()
+
+    try:
+        data = request.get_json(silent=True) or {}
+        raw = data.get("lyrics") or ""
+        lyrics = raw.strip()
+
+        if not lyrics:
+            app_logger.warning("convert: empty lyrics")
+            return jsonify({"error": "lyrics is required"}), 400
+
+        length = len(lyrics)
+        if length > MAX_CHARS:
+            app_logger.warning("convert: too long lyrics %s chars", length)
+            return (
+                jsonify(
+                    {
+                        "error": "文字数上限を超えています。英語歌詞を複数回に分けて変換してください。",
+                        "max_chars": MAX_CHARS,
+                        "length": length,
+                    }
+                ),
+                413,
+            )
+
+        app_logger.info("convert requested: %s chars", length)
+
+        try:
+            result = convert_with_timeout(lyrics)
+        except FuturesTimeoutError:
+            app_logger.error("convert timeout after %s sec", PROCESS_TIMEOUT)
+            return (
+                jsonify(
+                    {
+                        "error": "変換処理がタイムアウトしました。行数や文字数を減らして再度お試しください。",
+                        "timeout_sec": PROCESS_TIMEOUT,
+                    }
+                ),
+                504,
+            )
+        except SingKanaError as e:
+            app_logger.warning("convert domain error: %s", e)
+            return jsonify({"error": str(e)}), 400
+
+        elapsed = time.time() - t0
+        lines = result.get("lines", [])
+        app_logger.info(
+            "convert success: lines=%s elapsed=%.3fs", len(lines), elapsed
+        )
+
+        # ここで必ず {"lines": [...]} を返す
+        return jsonify(result)
+
+    except Exception:
+        app_logger.exception("convert: unexpected error")
+        return jsonify({"error": "サーバー内部エラーが発生しました。"}), 500
+
+
+@app.route("/api/feedback", methods=["POST"])
+def api_feedback():
+    """フィードバック投稿 API"""
+    try:
+        data = request.get_json(silent=True) or {}
+        text = (data.get("feedback") or "").strip()
+
+        if not text:
+            return jsonify({"error": "feedback is required"}), 400
+
+        ip = request.headers.get("X-Forwarded-For") or request.remote_addr or "-"
+        feedback_logger.info("ip=%s feedback=%s", ip, text)
+
+        return jsonify({"ok": True})
+
+    except Exception:
+        app_logger.exception("feedback: unexpected error")
+        return jsonify({"error": "サーバー内部エラーが発生しました。"}), 500
+
+
+@app.route("/health")
+def health():
+    """ヘルスチェック"""
+    return jsonify({"status": "ok", "timestamp": time.time()})
+
+
+# gunicorn 用に app オブジェクトだけ使われる
+if __name__ == "__main__":
+    app_logger.info("SingKANA app starting on http://0.0.0.0:5000")
+    app.run(host="0.0.0.0", port=5000, debug=True)

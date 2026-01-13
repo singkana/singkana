@@ -1,0 +1,3 @@
+{"from":"golden","to":"ゴールデン","target":"kana","mode":"literal","ci":true}
+{"from":"golden","to":"ゴールデン","target":"kana","mode":"literal","ci":true}
+{"from":"ご\\s*る\\s*で\\s*ん","to":"ゴールデン","target":"kana","mode":"regex","ci":false}

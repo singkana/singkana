@@ -1,0 +1,165 @@
+import os
+import time
+import json
+from typing import List, Dict
+
+from openai import OpenAI
+
+MAX_LINES = 80
+
+
+class SingKanaError(Exception):
+    """SingKANA 専用の例外"""
+    pass
+
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+def split_lyrics(lyrics: str) -> List[str]:
+    """歌詞を行ごとに分割"""
+    lines = [line.rstrip("\r") for line in lyrics.splitlines()]
+    non_empty = [l for l in lines if l.strip()]
+    if not non_empty:
+        return []
+    return lines
+
+
+def truncate_lines(lines: List[str], max_lines: int = MAX_LINES) -> List[str]:
+    """行数制限"""
+    if len(lines) <= max_lines:
+        return lines
+    return lines[:max_lines]
+
+
+def build_prompt(lines: List[str]) -> str:
+    """LLM に渡すプロンプト"""
+    joined = "\n".join(lines)
+    return f"""
+あなたは「英語歌詞を、日本語話者がカラオケで歌いやすい“かな”に変換する専門アシスタント」です。
+
+制約:
+- 出力は必ず JSON フォーマットのみ。
+- 説明文やコメントは一切出力しない。
+- 各行について、以下の情報を返す:
+  - en: 元の英語歌詞
+  - kana: 日本語話者が英語の音のまま歌いやすい「かな」表記
+  - marks: 歌い方マークの配列。以下の文字列のみ使用:
+    - "STR": 強く発声する位置が含まれる行
+    - "VIB": ビブラートをかける位置が含まれる行
+    - "BELT": 張り上げるニュアンスが強い行
+  - 必要なければ marks は空配列にしてよい。
+
+かな変換の方針:
+- 英語の音のリズムを優先しつつ、日本語として読める形にする。
+- 例:
+  - "take" → 「ていく」
+  - "me" → 「みー」
+  - "higher" → 「はいやー」
+  - "through" → 「するー」
+  - "night" → 「ないっ」
+- カタカナよりも、ひらがな主体でやさしい印象にする。
+- 語尾は、歌のノリに合わせて伸ばし（ー）や小さい「っ」を適宜使う。
+
+歌い方マーク (marks) の付け方:
+- STR: サビや、感情を強めたい単語が含まれる行。
+- VIB: ロングトーンにしたい母音が多い行。
+- BELT: 高音で張るニュアンスが強い行。
+- 行レベルでざっくり判断してよい。
+
+入力される歌詞:
+{joined}
+
+出力フォーマット（厳守）:
+{{
+  "lines": [
+    {{
+      "en": "元の英語1行目",
+      "kana": "かな表記",
+      "marks": ["STR", "VIB"]
+    }},
+    ...
+  ],
+  "params": {{
+    "kana_density": "少なめ/中/多め のいずれか",
+    "englishness": "0〜100% 程度の文字列（例: 70%）",
+    "ease": "やさしめ/ふつう/攻めめ のいずれか"
+  }}
+}}
+"""
+
+
+def call_llm(prompt: str) -> Dict:
+    """OpenAI API を叩いて JSON を取得"""
+    model = os.getenv("SINGKANA_MODEL", "gpt-5.1-mini")
+
+    resp = client.responses.create(
+        model=model,
+        input=prompt,
+        response_format={"type": "json_object"},
+        max_output_tokens=2048,
+    )
+
+    # SDK バージョンによってはこの部分のフィールド名が異なる場合があります。
+    content = resp.output[0].content[0].text
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as e:
+        raise SingKanaError(f"LLM出力のJSONパースに失敗: {e}")
+
+    return data
+
+
+def normalize_result(data: Dict, original_lines: List[str]) -> Dict:
+    """LLM 出力を /api/convert 仕様に正規化"""
+    lines = data.get("lines", [])
+    if not isinstance(lines, list) or not lines:
+        raise SingKanaError("LLMから有効な lines が返されませんでした。")
+
+    norm_lines = []
+    for idx, item in enumerate(lines):
+        if not isinstance(item, dict):
+            continue
+        en = item.get("en") or (original_lines[idx] if idx < len(original_lines) else "")
+        kana = item.get("kana") or ""
+        marks = item.get("marks") or []
+
+        valid_marks = []
+        for m in marks:
+            if m in ("STR", "VIB", "BELT"):
+                valid_marks.append(m)
+
+        norm_lines.append({"en": en, "kana": kana, "marks": valid_marks})
+
+    params = data.get("params") or {}
+    kana_density = params.get("kana_density") or "中"
+    englishness = params.get("englishness") or "70%"
+    ease = params.get("ease") or "やさしめ"
+
+    return {
+        "lines": norm_lines,
+        "params": {
+            "kana_density": kana_density,
+            "englishness": englishness,
+            "ease": ease,
+        },
+    }
+
+
+def convert_lyrics(lyrics: str) -> Dict:
+    """公開エントリポイント：歌詞全体を変換"""
+    t0 = time.time()
+
+    lines = split_lyrics(lyrics)
+    if not lines:
+        raise SingKanaError("空の歌詞が渡されました。")
+
+    lines = truncate_lines(lines, MAX_LINES)
+    prompt = build_prompt(lines)
+    raw = call_llm(prompt)
+    result = normalize_result(raw, lines)
+
+    elapsed = time.time() - t0
+    result["params"]["elapsed_ms"] = int(elapsed * 1000)
+
+    return result
