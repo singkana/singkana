@@ -17,16 +17,26 @@ cd /var/www
 sudo mv singkana singkana_OLD_$(date +%Y%m%d_%H%M%S)
 ```
 
-### 2. リポジトリをクローン
+### 2. deployユーザーを作成（デプロイ専用）
+
+```bash
+# deployユーザーを作成（既に存在する場合はスキップ）
+sudo useradd -m -s /bin/bash deploy || true
+
+# deployユーザーをsudoグループに追加（systemctl restart用）
+sudo usermod -aG sudo deploy
+```
+
+### 3. リポジトリをクローン（deployユーザー所有）
 
 ```bash
 cd /var/www
 sudo git clone <YOUR_REPO_SSH_URL> singkana
-sudo chown -R www-data:www-data /var/www/singkana
+sudo chown -R deploy:deploy /var/www/singkana
 cd /var/www/singkana
 ```
 
-### 3. 秘密情報を分離（Git外）
+### 4. 秘密情報を分離（Git外）
 
 ```bash
 # secrets.env を作成
@@ -47,13 +57,16 @@ COOKIE_SECURE=1
 SINGKANA_DB_PATH=/var/lib/singkana/singkana.db
 ```
 
+**注意：** `COOKIE_SECURE=1` は本番環境のみ。DEV環境では `0` を使用。
+```
+
 **権限を締める：**
 ```bash
 sudo chmod 600 /etc/singkana/secrets.env
 sudo chown root:root /etc/singkana/secrets.env
 ```
 
-### 4. DB/ログの置き場を固定（Git外）
+### 5. DB/ログの置き場を固定（Git外・www-data所有）
 
 ```bash
 # 永続データ用ディレクトリ作成
@@ -72,7 +85,7 @@ if [ -f billing.db ]; then
 fi
 ```
 
-### 5. Python環境を作成
+### 6. Python環境を作成（deployユーザーで実行）
 
 ```bash
 cd /var/www/singkana
@@ -82,7 +95,7 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 6. systemd設定の正規化
+### 7. systemd設定の正規化
 
 **`/etc/systemd/system/singkana.service` を確認・更新：**
 
@@ -98,10 +111,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=/var/www/singkana
 EnvironmentFile=/etc/singkana/secrets.env
-ExecStart=/var/www/singkana/venv/bin/gunicorn \
-    --bind 127.0.0.1:5000 \
-    --workers 3 \
-    app_web:app
+ExecStart=/var/www/singkana/venv/bin/gunicorn --bind 127.0.0.1:5000 --workers 2 app_web:app
 Restart=on-failure
 RestartSec=3
 
@@ -121,9 +131,10 @@ sudo systemctl status singkana --no-pager
 
 ## 通常のデプロイ（以後これだけ）
 
-**VPSでは編集せず、これだけ実行：**
+**VPSでは編集せず、deployユーザーでこれだけ実行：**
 
 ```bash
+# deployユーザーでログインして実行
 cd /var/www/singkana
 git pull
 sudo systemctl restart singkana
@@ -173,12 +184,15 @@ ls -la /etc/singkana/secrets.env
 
 ### Git pullが失敗する
 ```bash
-# SSH鍵の確認
-ssh -T git@github.com
+# SSH鍵の確認（deployユーザーで実行）
+sudo -u deploy ssh -T git@github.com
 
-# 権限確認
+# 権限確認（deploy所有であることを確認）
 ls -la /var/www/singkana/.git
-sudo chown -R www-data:www-data /var/www/singkana
+# 所有者が deploy:deploy であることを確認
+
+# もし所有者が違う場合は修正
+sudo chown -R deploy:deploy /var/www/singkana
 ```
 
 ---

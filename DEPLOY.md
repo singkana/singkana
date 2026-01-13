@@ -34,6 +34,8 @@ git push origin main
 
 ### 通常のデプロイ（以後これだけ）
 
+**deployユーザーで実行：**
+
 ```bash
 cd /var/www/singkana
 git pull

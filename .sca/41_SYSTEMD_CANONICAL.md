@@ -16,10 +16,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=/var/www/singkana
 EnvironmentFile=/etc/singkana/secrets.env
-ExecStart=/var/www/singkana/venv/bin/gunicorn \
-    --bind 127.0.0.1:5000 \
-    --workers 3 \
-    app_web:app
+ExecStart=/var/www/singkana/venv/bin/gunicorn --bind 127.0.0.1:5000 --workers 2 app_web:app
 Restart=on-failure
 RestartSec=3
 
@@ -38,8 +35,8 @@ WantedBy=multi-user.target
 - **理由：** 秘密情報をGit外で管理
 
 ### ExecStart
-- **固定値：** `/var/www/singkana/venv/bin/gunicorn --bind 127.0.0.1:5000 --workers 3 app_web:app`
-- **理由：** 既存設定を踏襲
+- **固定値：** `/var/www/singkana/venv/bin/gunicorn --bind 127.0.0.1:5000 --workers 2 app_web:app`（1行形式）
+- **理由：** 改行（バックスラッシュ）は環境によって解釈が不安定なため1行に統一。workersは2で安全側に設定
 
 ### 環境変数の分離
 
@@ -51,7 +48,7 @@ WantedBy=multi-user.target
 - `STRIPE_PRICE_PRO_MONTHLY`
 - `STRIPE_PRICE_PRO_YEARLY`
 - `APP_BASE_URL`
-- `COOKIE_SECURE`
+- `COOKIE_SECURE`（本番のみ `1`、DEVは `0`）
 - `SINGKANA_DB_PATH`
 
 **DB分離：**
