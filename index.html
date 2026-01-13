@@ -24,6 +24,12 @@
   <meta name="theme-color" content="#0b1220" />
   <meta name="application-name" content="SingKANA" />
 
+  <!-- Favicon (キャッシュ対策: ?v=2) -->
+  <link rel="icon" href="/assets/favicon/favicon.ico?v=2" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon/favicon-32.png?v=2">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon/favicon-16.png?v=2">
+  <link rel="apple-touch-icon" href="/assets/favicon/apple-touch.png?v=2">
+
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="SingKANA" />
@@ -313,9 +319,11 @@
   <header class="border-b border-white/5 bg-slate-950/70 backdrop-blur-sm sticky top-0 z-30">
     <div class="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="h-9 w-9 rounded-2xl bg-gradient-to-br from-singkana-400 to-fuchsia-500 shadow-glow flex items-center justify-center">
-          <span class="text-xs font-semibold tracking-[0.18em]">SK</span>
-        </div>
+        <img
+          src="/assets/favicon/favicon-32.png"
+          alt="SingKANA"
+          class="h-7 w-7 rounded-xl"
+        />
         <div>
           <div class="flex items-center gap-2">
             <span class="text-lg font-semibold tracking-wide">SingKANA</span>
