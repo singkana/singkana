@@ -131,15 +131,76 @@ SINGLE_CONSONANT: Dict[str, str] = {
 _WORD_OR_OTHER = re.compile(r"[A-Za-z]+|[^A-Za-z]+")
 
 # 単語ごとの読み上書き（必要に応じて増やす）
+# 歌いやすさを最優先にした「歌えるカタカナ」への変換
 WORD_OVERRIDE: Dict[str, str] = {
+    # 頻出語（母音を伸ばす）
+    "me": "みー",
+    "you": "ゆー",
+    "we": "うぃー",
+    "be": "びー",
+    "see": "しー",
+    "free": "ふりー",
+    "feel": "ふぃーる",
+    "real": "りーる",
+    "deal": "でぃーる",
+    "heal": "ひーる",
+    "steal": "すてぃーる",
+    "seal": "しーる",
+    
+    # 歌詞でよく伸ばされる語
     "ghost": "ごーすと",
     "alone": "あろーん",
     "throne": "すろーん",
     "believe": "びりーぶ",
+    "leave": "りーぶ",
+    "dream": "どりーむ",
+    "scream": "すくりーむ",
+    "stream": "すとりーむ",
+    "team": "てぃーむ",
+    "seem": "しーむ",
+    "theme": "てぃーむ",
+    
+    # 感嘆詞・間投詞
     "hah": "はっ",
     "yeah": "いぇあ",
-    "me": "みー",
-    "you": "ゆー",
+    "oh": "おー",
+    "ah": "あー",
+    "eh": "えー",
+    "uh": "あー",
+    "hey": "へい",
+    "hi": "はい",
+    
+    # よく使われる動詞・名詞
+    "love": "らぶ",
+    "live": "りぶ",
+    "life": "らいふ",
+    "light": "らいと",
+    "night": "ないと",
+    "right": "らいと",
+    "fight": "ふぁいと",
+    "might": "まいと",
+    "sight": "さいと",
+    "bright": "ぶらいと",
+    "flight": "ふらいと",
+    
+    # -tion 語尾（歌詞では -しょん が自然）
+    "action": "あくしょん",
+    "emotion": "いもーしょん",
+    "motion": "もーしょん",
+    "notion": "のーしょん",
+    "passion": "ぱっしょん",
+    "fashion": "ふぁっしょん",
+    "nation": "ねーしょん",
+    "station": "すてーしょん",
+    "creation": "くりえーしょん",
+    "relation": "りれーしょん",
+    
+    # -sion 語尾
+    "vision": "びじょん",
+    "mission": "みっしょん",
+    "passion": "ぱっしょん",
+    "session": "せっしょん",
+    "version": "ばーじょん",
 }
 
 
@@ -226,6 +287,7 @@ def _apply_english_phoneme_rules(line: str) -> str:
     text = line
 
     rules = [
+        # 頻出のフェイク発音パターン
         (r"\bwant you\b", "wanchu"),
         (r"\bwanna\b", "wana"),
         (r"\bgonna\b", "gona"),
@@ -242,6 +304,36 @@ def _apply_english_phoneme_rules(line: str) -> str:
         (r"\bgimme\b", "gimmi"),
         (r"\boutta\b", "outa"),
         (r"\bain't\b", "aint"),
+        (r"\bwhat you\b", "wachu"),
+        (r"\bthat you\b", "thatchu"),
+        (r"\bwhen you\b", "wenchu"),
+        (r"\bwhere you\b", "wherechu"),
+        (r"\bhow you\b", "howchu"),
+        (r"\bwhy you\b", "whychu"),
+        (r"\bwho you\b", "whochu"),
+        (r"\bcan't you\b", "canchu"),
+        (r"\bwon't you\b", "wonchu"),
+        (r"\bmust you\b", "mustchu"),
+        (r"\bmight you\b", "mightchu"),
+        (r"\bmay you\b", "maychu"),
+        (r"\bshall you\b", "shallchu"),
+        (r"\blet me\b", "lemmi"),
+        (r"\blet's\b", "lets"),
+        (r"\b'cause\b", "cuz"),
+        (r"\bcause\b", "cuz"),
+        (r"\b'em\b", "em"),
+        (r"\b'round\b", "round"),
+        (r"\b'fore\b", "fore"),
+        (r"\b'gainst\b", "gainst"),
+        (r"\b'neath\b", "neath"),
+        (r"\b'cross\b", "cross"),
+        (r"\b'long\b", "long"),
+        (r"\b'way\b", "way"),
+        (r"\b'round\b", "round"),
+        (r"\b'cause\b", "cuz"),
+        (r"\b'em\b", "em"),
+        (r"\b'cause\b", "cuz"),
+        (r"\b'em\b", "em"),
     ]
 
     for pattern, repl in rules:
@@ -249,6 +341,18 @@ def _apply_english_phoneme_rules(line: str) -> str:
 
     # 語尾 -ing → -in（singing → singin）
     text = re.sub(r"([A-Za-z]+)ing\b", r"\1in", text, flags=re.IGNORECASE)
+    
+    # 語尾 -tion → -shon（歌詞では -しょん が自然）
+    text = re.sub(r"([A-Za-z]+)tion\b", r"\1shon", text, flags=re.IGNORECASE)
+    
+    # 語尾 -sion → -shon（歌詞では -しょん が自然）
+    text = re.sub(r"([A-Za-z]+)sion\b", r"\1shon", text, flags=re.IGNORECASE)
+    
+    # 語尾 -ed → -d（過去形の -ed を簡略化）
+    text = re.sub(r"([A-Za-z]+)ed\b", r"\1d", text, flags=re.IGNORECASE)
+    
+    # 語尾 -er → -a（比較級の -er を簡略化、歌詞では -a が自然）
+    text = re.sub(r"([A-Za-z]+)er\b", r"\1a", text, flags=re.IGNORECASE)
 
     return text
 
