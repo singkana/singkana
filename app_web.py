@@ -494,3 +494,52 @@ def healthz():
         "service": APP_NAME,
         "time": _utc_iso(),
     })
+
+@app.get("/health")
+def health():
+    """Health check endpoint with sanitized status (no secrets exposed)."""
+    import os
+    
+    checks = {}
+    status = "ok"
+    http_status = 200
+    
+    # DB path configuration check
+    db_path = _env("SINGKANA_DB_PATH", "")
+    checks["db_path_configured"] = bool(db_path)
+    
+    # DB file existence check
+    db_exists = False
+    if db_path:
+        db_exists = os.path.exists(db_path)
+    checks["db_exists"] = db_exists
+    
+    # DB writability check
+    db_writable = False
+    if db_exists:
+        db_writable = os.access(db_path, os.W_OK)
+    checks["db_writable"] = db_writable
+    
+    # API keys presence check (values not exposed)
+    checks["openai_key_present"] = bool(_env("OPENAI_API_KEY", ""))
+    checks["stripe_key_present"] = bool(_env("STRIPE_SECRET_KEY", ""))
+    
+    # Critical checks: if any fails, return 500
+    critical_checks = [
+        checks["db_path_configured"],
+        checks["db_exists"],
+        checks["db_writable"],
+    ]
+    
+    if not all(critical_checks):
+        status = "degraded"
+        http_status = 500
+    
+    response = {
+        "status": status,
+        "app": APP_NAME,
+        "env": "prod",  # VPS固定
+        "checks": checks,
+    }
+    
+    return jsonify(response), http_status
