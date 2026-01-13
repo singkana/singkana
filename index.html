@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <title>SingKANA β｜英語歌詞を“歌えるかな”に変換（発音・ブレス・ロングトーン対応）</title>
-  <meta name="description" content="SingKANA（シンカナ）は、英語歌詞を“歌えるかな（カタカナ）”に変換するAIスタジオ。発音ガイド・ブレス位置・ロングトーンを可視化し、歌ってみた/練習/収録を高速化します。" />
+  <meta name="description" content="SingKANA（シンカナ）は、英語歌詞を“歌えるかな（カタカナ）”に変換するAIスタジオ。発音ガイド・ブレス位置・ロングトーンを可視化し、歌ってみた/練習/収録を高速化します。Global users? Check English LP at en.singkana.com" />
   
   <!-- (任意) canonical / OG / twitter は本番で追加推奨 -->
   <!-- <link rel="canonical" href="https://singkana.com/" /> -->
@@ -340,6 +340,9 @@
         <a href="#romaji-beta" class="hover:text-singkana-200 transition">Romaji β</a>
         <a href="#pricing" class="hover:text-singkana-200 transition">料金</a>
         <a href="#faq" class="hover:text-singkana-200 transition">FAQ</a>
+        <a href="https://en.singkana.com" target="_blank" rel="noopener" class="hover:text-singkana-200 transition border-l border-white/10 pl-4 ml-2">
+          English Version
+        </a>
         <a href="#studio" class="rounded-full border border-singkana-400/70 bg-slate-950/80 px-4 py-1.5 text-xs font-semibold text-singkana-100 shadow-soft hover:bg-singkana-500/10 hover:shadow-glow transition">
           かな変換を試す
         </a>
@@ -903,7 +906,12 @@
   <footer class="border-t border-white/10 bg-slate-950/80">
     <div class="mx-auto max-w-6xl px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-2">
       <p class="text-[11px] text-slate-500">© <span id="year"></span> SingKANA. All rights reserved.</p>
-      <p class="text-[11px] text-slate-500">Powered by Sovereign Cognitive Architecture.</p>
+      <div class="flex items-center gap-4">
+        <a href="https://en.singkana.com" target="_blank" rel="noopener" class="text-[11px] text-slate-400 hover:text-singkana-200 transition">
+          Global users? Check English LP here →
+        </a>
+        <p class="text-[11px] text-slate-500">Powered by Sovereign Cognitive Architecture.</p>
+      </div>
     </div>
   </footer>
 
@@ -913,6 +921,26 @@
   - page scripts (あなたのロジックを整理して1箇所に集約)
   ========================================================== -->
   <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+
+  <!-- Language Detection & Auto-Redirect (英語ユーザーをen.singkana.comへ) -->
+  <script>
+    (function() {
+      // URLパラメータで ?lang=ja があればリダイレクトしない
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('lang') === 'ja') {
+        return;
+      }
+      
+      // ブラウザ言語が英語系の場合、en.singkana.comへリダイレクト
+      const browserLang = navigator.language || navigator.userLanguage;
+      const isEnglish = browserLang.startsWith('en');
+      
+      // 現在のドメインが singkana.com で、英語ユーザーの場合のみリダイレクト
+      if (isEnglish && window.location.hostname === 'singkana.com' && !window.location.hostname.includes('en.')) {
+        window.location.href = 'https://en.singkana.com' + window.location.pathname + window.location.search;
+      }
+    })();
+  </script>
 
   <!-- クライアントサイド変換エンジン -->
   <script src="/singkana_core.js"></script>
