@@ -1,110 +1,115 @@
-# VPS Git Pull専用デプロイ手順
+# VPS Git Pull専用デプロイ手順（最終確定版）
 
 ## 大原則
 - **VPSでは編集しない**（pullして再起動するだけ）
 - **コードはGit管理**
 - **秘密情報・DB・ログ・アップロードはGit管理しない**
+- **デプロイは deployユーザーで実行（www-dataは実行ユーザーのみ）**
 
 ---
 
-## 初回セットアップ（VPS側）
+## 初回セットアップ（VPS側・コピペ実行）
 
-### 1. 既存コードを退避（保険）
+**前提：** root か sudo できるユーザーで入ってること。
+
+### 0) いま動いてるサービス止める（安全）
 
 ```bash
 sudo systemctl stop singkana || true
+```
+
+### 1) deployユーザー作成
+
+```bash
+sudo adduser --disabled-password --gecos "" deploy
+```
+
+### 2) deployのSSH鍵作成 → 公開鍵を表示
+
+```bash
+sudo -iu deploy
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+ssh-keygen -t ed25519 -C "singkana@vps" -f ~/.ssh/id_ed25519
+cat ~/.ssh/id_ed25519.pub
+```
+
+**ここで出た公開鍵を GitHub repo → Settings → Deploy keys に登録：**
+- Title: `vps-deploy`
+- ✅ Allow write access **OFF**
+
+登録後、VPSに戻って：
+
+```bash
+ssh -T git@github.com
+exit
+```
+
+### 3) 既存コード退避 → clone
+
+```bash
 cd /var/www
-sudo mv singkana singkana_OLD_$(date +%Y%m%d_%H%M%S)
+sudo mv singkana "singkana_OLD_$(date +%Y%m%d_%H%M%S)" 2>/dev/null || true
+sudo chown -R deploy:deploy /var/www
+sudo -iu deploy bash -lc 'cd /var/www && git clone git@github.com:singkana/singkana.git singkana'
 ```
 
-### 2. deployユーザーを作成（デプロイ専用）
+### 4) secrets（Git外）作成
 
 ```bash
-# deployユーザーを作成（既に存在する場合はスキップ）
-sudo useradd -m -s /bin/bash deploy || true
-
-# deployユーザーをsudoグループに追加（systemctl restart用）
-sudo usermod -aG sudo deploy
-```
-
-### 3. リポジトリをクローン（deployユーザー所有）
-
-```bash
-cd /var/www
-sudo git clone <YOUR_REPO_SSH_URL> singkana
-sudo chown -R deploy:deploy /var/www/singkana
-cd /var/www/singkana
-```
-
-### 4. 秘密情報を分離（Git外）
-
-```bash
-# secrets.env を作成
 sudo mkdir -p /etc/singkana
 sudo nano /etc/singkana/secrets.env
-```
-
-**secrets.env の内容例：**
-```
-OPENAI_API_KEY=...
-STRIPE_SECRET_KEY=...
-STRIPE_WEBHOOK_SECRET=...
-STRIPE_PUBLISHABLE_KEY=...
-STRIPE_PRICE_PRO_MONTHLY=...
-STRIPE_PRICE_PRO_YEARLY=...
-APP_BASE_URL=https://singkana.com
-COOKIE_SECURE=1
-SINGKANA_DB_PATH=/var/lib/singkana/singkana.db
-```
-
-**注意：** `COOKIE_SECURE=1` は本番環境のみ。DEV環境では `0` を使用。
-```
-
-**権限を締める：**
-```bash
 sudo chmod 600 /etc/singkana/secrets.env
 sudo chown root:root /etc/singkana/secrets.env
 ```
 
-### 5. DB/ログの置き場を固定（Git外・www-data所有）
+**secrets.env の内容（最低限）：**
+
+```env
+OPENAI_API_KEY=...
+APP_BASE_URL=https://singkana.com
+
+SINGKANA_DB_PATH=/var/lib/singkana/singkana.db
+BILLING_DB_PATH=/var/lib/singkana/billing.db
+COOKIE_SECURE=1
+```
+
+**注意：** `COOKIE_SECURE=1` は本番環境のみ。DEV環境では `0` を使用。
+
+### 5) 永続データ置き場（www-dataが書く）
 
 ```bash
-# 永続データ用ディレクトリ作成
 sudo mkdir -p /var/lib/singkana /var/log/singkana
 sudo chown -R www-data:www-data /var/lib/singkana /var/log/singkana
 ```
 
-**既存DBがある場合の移行：**
-```bash
-cd /var/www/singkana
-if [ -f singkana.db ]; then
-    sudo mv singkana.db /var/lib/singkana/singkana.db
-fi
-if [ -f billing.db ]; then
-    sudo mv billing.db /var/lib/singkana/billing.db
-fi
-```
-
-### 6. Python環境を作成（deployユーザーで実行）
+**既存DBがあるなら移動：**
 
 ```bash
-cd /var/www/singkana
-python3 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
+sudo mv /var/www/singkana_OLD_*/singkana.db /var/lib/singkana/singkana.db 2>/dev/null || true
+sudo mv /var/www/singkana_OLD_*/billing.db  /var/lib/singkana/billing.db  2>/dev/null || true
+sudo chown www-data:www-data /var/lib/singkana/*.db 2>/dev/null || true
 ```
 
-### 7. systemd設定の正規化
+### 6) venv作成（deployが作る）
 
-**`/etc/systemd/system/singkana.service` を確認・更新：**
+```bash
+sudo -iu deploy bash -lc 'cd /var/www/singkana && python3 -m venv venv && source venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt'
+```
+
+### 7) systemdを正規化（ExecStartは1行）
+
+**まず現状確認：**
+
+```bash
+sudo systemctl cat singkana.service
+```
+
+**必要なら `/etc/systemd/system/singkana.service` をこうする：**
 
 ```ini
 [Unit]
 Description=SingKANA Gunicorn Service
 After=network.target
-StartLimitIntervalSec=60
-StartLimitBurst=5
 
 [Service]
 User=www-data
@@ -120,23 +125,28 @@ WantedBy=multi-user.target
 ```
 
 **適用：**
+
 ```bash
 sudo systemctl daemon-reload
 sudo systemctl enable singkana
-sudo systemctl start singkana
+sudo systemctl restart singkana
 sudo systemctl status singkana --no-pager
+```
+
+**ログ確認（失敗時はこれが真実）：**
+
+```bash
+sudo journalctl -u singkana -n 200 --no-pager
 ```
 
 ---
 
-## 通常のデプロイ（以後これだけ）
+## 通常のデプロイ（以後これだけ・pull専用）
 
 **VPSでは編集せず、deployユーザーでこれだけ実行：**
 
 ```bash
-# deployユーザーでログインして実行
-cd /var/www/singkana
-git pull
+sudo -iu deploy bash -lc 'cd /var/www/singkana && git pull'
 sudo systemctl restart singkana
 sudo systemctl status singkana --no-pager
 ```
@@ -185,7 +195,7 @@ ls -la /etc/singkana/secrets.env
 ### Git pullが失敗する
 ```bash
 # SSH鍵の確認（deployユーザーで実行）
-sudo -u deploy ssh -T git@github.com
+sudo -iu deploy ssh -T git@github.com
 
 # 権限確認（deploy所有であることを確認）
 ls -la /var/www/singkana/.git
@@ -195,6 +205,39 @@ ls -la /var/www/singkana/.git
 sudo chown -R deploy:deploy /var/www/singkana
 ```
 
+### サービスが起動しない
+```bash
+# 詳細ログを確認
+sudo journalctl -u singkana -n 200 --no-pager
+
+# venvの確認
+ls -la /var/www/singkana/venv/bin/gunicorn
+
+# 環境変数の確認
+sudo -u www-data bash -c 'cd /var/www/singkana && source /etc/singkana/secrets.env && env | grep -E "(SINGKANA_DB|APP_BASE)"'
+```
+
+---
+
+## 診断用ログ（これだけで診断できる）
+
+問題が発生した場合、以下を確認：
+
+1. **SSH接続確認：**
+   ```bash
+   sudo -iu deploy ssh -T git@github.com
+   ```
+
+2. **サービス状態：**
+   ```bash
+   sudo systemctl status singkana --no-pager
+   ```
+
+3. **詳細ログ（失敗時）：**
+   ```bash
+   sudo journalctl -u singkana -n 200 --no-pager
+   ```
+
 ---
 
 ## 注意事項
@@ -203,3 +246,5 @@ sudo chown -R deploy:deploy /var/www/singkana
 - **git pull と systemctl restart 以外は実行しない**
 - **secrets.env は絶対にGitにコミットしない**
 - **DBファイルは /var/lib/singkana/ に配置（Git外）**
+- **デプロイは deployユーザーで実行（www-dataは実行ユーザーのみ）**
+- **/var/www/singkana は deploy所有、/var/lib/singkana と /var/log/singkana は www-data所有**
