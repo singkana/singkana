@@ -381,6 +381,25 @@ def _english_to_kana_line(line: str) -> str:
     return _kana_with_spaces(joined)
 
 
+def _english_to_kana_line_standard(line: str) -> str:
+    """
+    Standard変換（最適化なし）: 一般的なカタカナ寄せ。
+    フェイク発音ルール、WORD_OVERRIDE、語尾ルールを一切使わない。
+    単純にローマ字→ひらがな変換のみ。
+    """
+    # 最適化を一切通さない（フェイク発音ルールなし、WORD_OVERRIDEなし、語尾ルールなし）
+    pieces: List[str] = []
+    for token in _WORD_OR_OTHER.findall(line):
+        if re.fullmatch(r"[A-Za-z]+", token):
+            # WORD_OVERRIDEを使わず、直接_roman_to_hiraganaを呼ぶ
+            pieces.append(_roman_to_hiragana(token))
+        else:
+            pieces.append(token)
+
+    joined = "".join(pieces)
+    return _kana_with_spaces(joined)
+
+
 # ===== 韓国語 → かな =================================================
 
 _CHO = [
@@ -478,6 +497,42 @@ def convert_lyrics(*args: Any, **kwargs: Any) -> List[Dict[str, str]]:
         lines.append({"en": en_src, "kana": kana})
 
     _safe_log(CONVERT_LOG, f"convert_lyrics ok: lines={len(lines)}")
+    return lines
+
+
+def convert_lyrics_with_comparison(*args: Any, **kwargs: Any) -> List[Dict[str, str]]:
+    """
+    歌詞テキストを EN / STANDARD / SINGKANA の3つを返す。
+    上下比較UI用。
+
+    戻り値の形:
+        [{"en": "...", "standard": "...", "singkana": "..."}, ...]
+    """
+
+    # 1) 入力正規化（改行統一など）
+    text = _normalize_input(*args, **kwargs)
+
+    lines: List[Dict[str, str]] = []
+
+    for raw in text.split("\n"):
+        en_src = raw.rstrip("\r")
+        # 完全な空行はスキップ
+        if not en_src.strip():
+            continue
+
+        # 2) 行の中に英字が1文字でもあれば、両方の変換を実行
+        if _ASCII_CHARS.search(en_src):
+            standard = _english_to_kana_line_standard(en_src)
+            singkana = _english_to_kana_line(en_src)
+        else:
+            # 英字が含まれない行（日本語だけ / ハングルだけなど）は
+            # そのまま見せる
+            standard = en_src
+            singkana = en_src
+
+        lines.append({"en": en_src, "standard": standard, "singkana": singkana})
+
+    _safe_log(CONVERT_LOG, f"convert_lyrics_with_comparison ok: lines={len(lines)}")
     return lines
 
 

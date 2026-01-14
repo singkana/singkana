@@ -70,6 +70,93 @@ def _json_error(code: int, error: str, message: str = "", **extra: Any):
 MAX_JSON_BYTES = int(os.getenv("MAX_JSON_BYTES", "200000"))  # 200KB default
 FREE_ALLOWED_MODES = {"basic"}  # Freeで許す display_mode
 
+# ---- Dev Pro Override (3段ロック) ----
+def _client_ip() -> str:
+    """クライアントIPを取得（信頼できるproxy経由の場合のみX-Forwarded-Forを採用）"""
+    remote_addr = (getattr(request, "remote_addr", None) or "").strip()
+    if not remote_addr:
+        return ""
+    
+    # 信頼できるproxyのIP（Nginx経由の場合、remote_addrは127.0.0.1やprivate subnet）
+    # ローカル開発: 127.0.0.1, ::1
+    # Nginx経由: 127.0.0.1, 10.x.x.x, 172.16-31.x.x, 192.168.x.x
+    trusted_proxy_ips = {"127.0.0.1", "::1"}
+    
+    # RFC1918 private IP ranges をチェック（ipaddressモジュール使用）
+    try:
+        import ipaddress
+        ip = ipaddress.ip_address(remote_addr)
+        is_private = ip.is_private
+    except (ValueError, AttributeError):
+        # IPアドレスのパースに失敗した場合、文字列prefixで判定（フォールバック）
+        is_private = (
+            remote_addr.startswith("10.") or
+            remote_addr.startswith("192.168.") or
+            any(remote_addr.startswith(f"172.{i}.") for i in range(16, 32))
+        )
+    
+    # remote_addrが信頼できるproxyのIPの場合のみ、X-Forwarded-Forを採用
+    if remote_addr in trusted_proxy_ips or is_private:
+        forwarded = request.headers.get("X-Forwarded-For", "")
+        if forwarded:
+            # 最初のIPを取得（複数ある場合）
+            return forwarded.split(",")[0].strip()
+    
+    # 直接接続または信頼できないproxyの場合
+    return remote_addr
+
+def _dev_pro_enabled() -> bool:
+    """ロック1: 環境変数でDevモード許可（デフォルトOFF）"""
+    return os.getenv("SINGKANA_DEV_PRO", "0") == "1"
+
+def _dev_pro_token_ok() -> bool:
+    """ロック2: 秘密トークン一致が必須（URLから）またはCookieフラグ（2回目以降）"""
+    token = os.getenv("SINGKANA_DEV_PRO_TOKEN", "").strip()
+    if not token:
+        return False
+    
+    # まずURLパラメータをチェック（初回アクセス時）
+    req_token = (request.args.get("dev_pro") or "").strip()
+    if req_token and req_token == token:
+        return True
+    
+    # Cookieをチェック（2回目以降: Cookieにはフラグ "1" が入っている）
+    cookie_flag = (request.cookies.get(COOKIE_NAME_DEV_PRO) or "").strip()
+    if cookie_flag == "1":
+        # Cookieにフラグがある場合、環境変数とIP制限で再検証
+        # （Cookieにトークン本体を入れないため、環境変数とIP制限で安全性を確保）
+        return True
+    
+    return False
+
+def _dev_pro_ip_ok() -> bool:
+    """ロック3: 許可IP制限"""
+    allow_ips = os.getenv("SINGKANA_DEV_PRO_ALLOW_IPS", "").strip()
+    if not allow_ips:
+        return False
+    allow_set = {x.strip() for x in allow_ips.split(",") if x.strip()}
+    client_ip = _client_ip()
+    return client_ip in allow_set
+
+def _dev_pro_host_ok() -> bool:
+    """本番ドメインチェック: 本番ドメインでは常にFalse"""
+    host = request.host.lower()
+    if "singkana.com" in host and not host.startswith("staging.") and not host.startswith("dev."):
+        return False
+    return True
+
+def is_pro_override() -> bool:
+    """開発者モード（3段ロック）: すべて満たした場合のみTrue"""
+    if not _dev_pro_host_ok():  # 本番ドメインチェック
+        return False
+    if not _dev_pro_enabled():  # ロック1: 環境変数
+        return False
+    if not _dev_pro_token_ok():  # ロック2: トークン一致（URLから）またはCookieフラグ（2回目以降）
+        return False
+    if not _dev_pro_ip_ok():  # ロック3: IP制限
+        return False
+    return True
+
 def _require_json() -> Optional[Tuple[Dict[str, Any], Optional[Response]]]:
     if request.content_length is not None and request.content_length > MAX_JSON_BYTES:
         return {}, _json_error(413, "payload_too_large", "Request body is too large.", max_bytes=MAX_JSON_BYTES)
@@ -108,6 +195,7 @@ def _stripe_required_env() -> Dict[str, str]:
 # Identity + DB (Sovereign Billing Layer minimal)
 # ======================================================================
 COOKIE_NAME_UID = "sk_uid"
+COOKIE_NAME_DEV_PRO = "sk_dev_pro"  # 開発者モード用Cookie
 UID_RE = re.compile(r"^sk_[0-9A-HJKMNP-TV-Z]{26}$")  # ULID base32 26 chars
 COOKIE_SECURE = _env("COOKIE_SECURE", "1") == "1"     # 本番=1 / ローカルhttp検証=0
 DB_PATH = _env("SINGKANA_DB_PATH", str(BASE_DIR / "singkana.db"))
@@ -165,6 +253,27 @@ def _set_plan(conn, user_id: str, plan: str):
 @app.before_request
 def _identity_and_plan_bootstrap():
     try:
+        # 開発者モード: URLトークンを受けたらCookieに保存してリダイレクト
+        dev_pro_token = request.args.get("dev_pro", "").strip()
+        if dev_pro_token:
+            # トークンを検証
+            expected_token = os.getenv("SINGKANA_DEV_PRO_TOKEN", "").strip()
+            if expected_token and dev_pro_token == expected_token and _dev_pro_ip_ok():
+                # 検証OK: Cookieにフラグ "1" を保存してリダイレクト（URLからトークンを消す）
+                # 注意: Cookieにはトークン本体ではなくフラグを保存（セキュリティ強化）
+                from flask import redirect, url_for
+                resp = redirect(request.path or "/")
+                resp.set_cookie(
+                    COOKIE_NAME_DEV_PRO,
+                    "1",  # トークン本体ではなくフラグを保存
+                    max_age=60 * 60 * 24 * 7,  # 7日間有効
+                    httponly=True,
+                    samesite="Lax",
+                    secure=COOKIE_SECURE,
+                    path="/",  # 全ページ有効
+                )
+                return resp
+        
         uid = request.cookies.get(COOKIE_NAME_UID)
         if (not uid) or (not UID_RE.match(uid)):
             uid = _generate_user_id()
@@ -178,6 +287,13 @@ def _identity_and_plan_bootstrap():
         _ensure_user_exists(conn, uid)
         row = conn.execute("SELECT plan FROM users WHERE user_id=?", (uid,)).fetchone()
         g.user_plan = (row["plan"] if row else "free")
+        
+        # 開発者モード: Pro上書き（3段ロック通過時のみ）
+        if is_pro_override():
+            g.user_plan = "pro"
+            g.dev_pro_override = True
+        else:
+            g.dev_pro_override = False
     except Exception as e:
         app.logger.exception("Error in _identity_and_plan_bootstrap: %s", e)
         raise
@@ -195,15 +311,73 @@ def _identity_cookie_commit(resp):
             secure=COOKIE_SECURE,
         )
     resp.headers["X-SingKANA-Plan"] = getattr(g, "user_plan", "free")
+    
+    # キャッシュ禁止ヘッダー（Pro判定が混ざる事故を防ぐ）
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    
+    # Varyヘッダー: Cookieの値によってレスポンスが変わることを明示（CDN/中間キャッシュ対策）
+    # 既存のVaryヘッダーがある場合は結合、ない場合は新規設定
+    existing_vary = resp.headers.get("Vary", "")
+    if existing_vary:
+        vary_set = {v.strip() for v in existing_vary.split(",") if v.strip()}
+        vary_set.add("Cookie")
+        resp.headers["Vary"] = ", ".join(sorted(vary_set))
+    else:
+        resp.headers["Vary"] = "Cookie"
+    
+    return resp
+
+@app.get("/dev/logout")
+def dev_logout():
+    """開発者モードをOFFにする（Cookie削除）"""
+    # Host/IP制限を適用（外部からの嫌がらせを防ぐ）
+    # is_pro_override()と同じガード条件で統一
+    if not is_pro_override():
+        from flask import abort
+        abort(403)  # Forbidden
+    
+    from flask import redirect
+    resp = redirect("/")
+    # Cookieを削除（Max-Age=0で即時削除）
+    resp.set_cookie(
+        COOKIE_NAME_DEV_PRO,
+        "",
+        max_age=0,
+        path="/",
+        httponly=True,
+        samesite="Lax",
+        secure=COOKIE_SECURE,
+    )
     return resp
 
 @app.get("/api/me")
 def api_me():
+    # デバッグ用: 開発者モードの状態を確認（常に返す）
+    dev_pro_env = os.getenv("SINGKANA_DEV_PRO", "0")
+    debug_info = {
+        "dev_pro_env_value": dev_pro_env,
+        "dev_pro_enabled": dev_pro_env == "1",
+        "dev_pro_token_set": bool(os.getenv("SINGKANA_DEV_PRO_TOKEN", "")),
+        "dev_pro_token_value": os.getenv("SINGKANA_DEV_PRO_TOKEN", "")[:10] + "..." if os.getenv("SINGKANA_DEV_PRO_TOKEN") else "",
+        "dev_pro_token_match": _dev_pro_token_ok(),
+        "request_token": (request.args.get("dev_pro") or "")[:10] + "..." if request.args.get("dev_pro") else "",
+        "cookie_flag": request.cookies.get(COOKIE_NAME_DEV_PRO, ""),  # Cookieにはフラグ "1" が入っている
+        "client_ip": _client_ip(),
+        "allowed_ips": os.getenv("SINGKANA_DEV_PRO_ALLOW_IPS", ""),
+        "ip_ok": _dev_pro_ip_ok(),
+        "is_pro_override": is_pro_override(),
+        "dotenv_loaded": load_dotenv is not None,
+    }
+    
     return jsonify({
         "ok": True,
         "user_id": getattr(g, "user_id", ""),
         "plan": getattr(g, "user_plan", "free"),
+        "dev_pro_override": getattr(g, "dev_pro_override", False),  # UI表示用
         "time": _utc_iso(),
+        "debug": debug_info,  # デバッグ情報（常に返す）
     })
 
 # ======================================================================
@@ -224,24 +398,41 @@ def api_convert():
     display_mode = _get_display_mode(meta)
 
     # ★統治：planで決める（Freeはbasicのみ）
-    if getattr(g, "user_plan", "free") != "pro" and display_mode not in FREE_ALLOWED_MODES:
-        return _json_error(
-            402,
-            "payment_required",
-            "This mode is available on Pro plan.",
-            requested_mode=display_mode,
-            required_plan="pro",
-            user_plan=getattr(g, "user_plan", "free"),
-            allowed_free_modes=sorted(list(FREE_ALLOWED_MODES)),
-        )
+    # 開発者モードで上書きされている場合はPro扱い
+    user_plan = getattr(g, "user_plan", "free")
+    if user_plan != "pro" and display_mode not in FREE_ALLOWED_MODES:
+        # 念のため開発者モードを再チェック（二重防御）
+        if not is_pro_override():
+            return _json_error(
+                402,
+                "payment_required",
+                "This mode is available on Pro plan.",
+                requested_mode=display_mode,
+                required_plan="pro",
+                user_plan=user_plan,
+                allowed_free_modes=sorted(list(FREE_ALLOWED_MODES)),
+            )
 
     try:
-        if hasattr(engine, "convertLyrics"):
-            result = engine.convertLyrics(lyrics)
+        # 上下比較UI用: standard と singkana の両方を返す
+        if hasattr(engine, "convert_lyrics_with_comparison"):
+            result = engine.convert_lyrics_with_comparison(lyrics)
+        elif hasattr(engine, "convertLyrics"):
+            # 旧API互換: 通常の変換結果を standard と singkana の両方に設定
+            old_result = engine.convertLyrics(lyrics)
+            result = [
+                {"en": item.get("en", ""), "standard": item.get("kana", ""), "singkana": item.get("kana", "")}
+                for item in old_result
+            ]
         elif hasattr(engine, "convert_lyrics"):
-            result = engine.convert_lyrics(lyrics)
+            # 旧API互換: 通常の変換結果を standard と singkana の両方に設定
+            old_result = engine.convert_lyrics(lyrics)
+            result = [
+                {"en": item.get("en", ""), "standard": item.get("kana", ""), "singkana": item.get("kana", "")}
+                for item in old_result
+            ]
         else:
-            result = [{"en": lyrics, "kana": lyrics}]
+            result = [{"en": lyrics, "standard": lyrics, "singkana": lyrics}]
     except Exception as e:
         traceback.print_exc()
         return _json_error(
