@@ -2141,6 +2141,10 @@
       }
       statusDiv.textContent = "";
       
+      // 送信後2秒はdisable（連打防止）
+      let disableTimeout = null;
+      let disableDuration = 2000; // 基本2秒
+      
       try {
         const res = await fetch("/api/waitlist", {
           method: "POST",
@@ -2152,16 +2156,36 @@
         if (!res.ok) {
           // エラーレスポンスをパース
           let errorMessage = "登録に失敗しました。しばらくしてから再度お試しください。";
+          let errorCode = null;
           try {
             const errorData = await res.json();
             if (errorData.message) {
               errorMessage = errorData.message;
             }
+            if (errorData.code) {
+              errorCode = errorData.code;
+            }
           } catch (e) {
             // JSONパースに失敗した場合はデフォルトメッセージ
           }
+          
           statusDiv.textContent = errorMessage;
           statusDiv.className = "text-xs text-red-400 mt-2";
+          
+          // 429エラーの場合は10秒disable
+          if (res.status === 429 || errorCode === "rate_limited") {
+            disableDuration = 10000;
+          }
+          
+          // disable期間を設定
+          if (submitBtn) {
+            disableTimeout = setTimeout(() => {
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "先行利用に登録する";
+              }
+            }, disableDuration);
+          }
           return;
         }
         
@@ -2169,7 +2193,8 @@
         const data = await res.json().catch(() => ({ ok: false, message: "レスポンスの解析に失敗しました。" }));
         
         if (data.ok) {
-          // 成功
+          // 成功（登録済みも含む）
+          const isAlreadyRegistered = data.already_registered === true;
           statusDiv.textContent = data.message || "登録完了しました！";
           statusDiv.className = "text-xs text-green-400 mt-2";
           
@@ -2177,24 +2202,69 @@
           if (emailInput) emailInput.value = "";
           if (agreeCheckbox) agreeCheckbox.checked = false;
           
-          // 3秒後にモーダルを閉じる
+          // 成功メッセージとSNSフォローボタンを表示
+          const successMessage = document.getElementById("waitlist-success-message");
+          const snsSection = document.getElementById("waitlist-sns-section");
+          if (successMessage) {
+            successMessage.classList.remove("hidden");
+          }
+          if (snsSection) {
+            snsSection.classList.remove("hidden");
+          }
+          
+          // フォームを非表示
+          const form = document.querySelector("#waitlist-modal form");
+          if (form) {
+            form.classList.add("hidden");
+          }
+          
+          // 5秒後にモーダルを閉じる（SNSボタンを見せる時間を確保）
           setTimeout(() => {
             closeWaitlistModal();
+            // モーダルを閉じる際に状態をリセット
+            if (successMessage) successMessage.classList.add("hidden");
+            if (snsSection) snsSection.classList.add("hidden");
+            if (form) form.classList.remove("hidden");
             statusDiv.textContent = "";
-          }, 2000);
+          }, 5000);
         } else {
           // エラー
           statusDiv.textContent = data.message || "登録に失敗しました。";
           statusDiv.className = "text-xs text-red-400 mt-2";
+          
+          // disable期間を設定
+          if (submitBtn) {
+            disableTimeout = setTimeout(() => {
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "先行利用に登録する";
+              }
+            }, disableDuration);
+          }
         }
       } catch (e) {
         console.error("Waitlist registration error:", e);
         statusDiv.textContent = "登録に失敗しました。しばらくしてから再度お試しください。";
         statusDiv.className = "text-xs text-red-400 mt-2";
-      } finally {
+        
+        // disable期間を設定
         if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = "先行利用に登録する";
+          disableTimeout = setTimeout(() => {
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = "先行利用に登録する";
+            }
+          }, disableDuration);
+        }
+      } finally {
+        // タイムアウトが設定されていない場合のみ即座に有効化
+        if (!disableTimeout && submitBtn) {
+          setTimeout(() => {
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = "先行利用に登録する";
+            }
+          }, disableDuration);
         }
       }
     }
@@ -2242,8 +2312,8 @@
               class="mt-0.5 accent-singkana-400"
             />
             <span>
-              <a href="/#terms" class="text-singkana-300 hover:text-singkana-100 underline">利用規約</a>と
-              <a href="/#privacy" class="text-singkana-300 hover:text-singkana-100 underline">プライバシーポリシー</a>に同意します
+              <a href="/terms.html" target="_blank" class="text-singkana-300 hover:text-singkana-100 underline">利用規約</a>と
+              <a href="/privacy.html" target="_blank" class="text-singkana-300 hover:text-singkana-100 underline">プライバシーポリシー</a>に同意します
             </span>
           </label>
         </div>

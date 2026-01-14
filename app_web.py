@@ -61,7 +61,7 @@ def _env(name: str, default: str = "") -> str:
     return str(os.getenv(name, default) or "").strip()
 
 def _json_error(code: int, error: str, message: str = "", **extra: Any):
-    payload: Dict[str, Any] = {"ok": False, "error": error}
+    payload: Dict[str, Any] = {"ok": False, "error": error, "code": error}
     if message:
         payload["message"] = message
     payload.update(extra)
