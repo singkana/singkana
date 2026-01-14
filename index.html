@@ -2328,6 +2328,32 @@
           先行利用に登録する
         </button>
       </form>
+      
+      <!-- 成功メッセージ（登録成功時に表示） -->
+      <div id="waitlist-success-message" class="hidden mb-4">
+        <div class="text-center">
+          <p class="text-sm text-green-400 font-semibold mb-2">✓ 登録完了しました！</p>
+          <p class="text-xs text-slate-400 mb-3">Pro開始時に優先案内します</p>
+        </div>
+      </div>
+      
+      <!-- SNSフォローボタン（登録成功時に表示） -->
+      <div id="waitlist-sns-section" class="hidden mb-4 pt-4 border-t border-slate-700">
+        <p class="text-xs text-slate-400 text-center mb-3">Xで進捗も告知します（任意）</p>
+        <div class="flex justify-center gap-3">
+          <a
+            href="https://twitter.com/SingKANA_ai"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-semibold border border-slate-600 transition flex items-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+            フォローする
+          </a>
+        </div>
+      </div>
     </div>
   </div>
 </body>
