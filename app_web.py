@@ -11,6 +11,7 @@ import datetime
 import traceback
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
+from urllib.parse import urlparse
 
 from flask import (
     Flask,
@@ -104,6 +105,60 @@ def _client_ip() -> str:
     
     # 直接接続または信頼できないproxyの場合
     return remote_addr
+
+def _origin_ok() -> bool:
+    """Origin/Refererチェック（CSRF対策）"""
+    origin = (request.headers.get("Origin") or "").strip()
+    referer = (request.headers.get("Referer") or "").strip()
+    
+    # 許可リストを環境変数から取得（デフォルト値も設定）
+    allowed_str = _env("ALLOWED_ORIGINS", "").strip()
+    if allowed_str:
+        allowed_origins = {x.strip() for x in allowed_str.split(",") if x.strip()}
+    else:
+        # デフォルト許可リスト
+        allowed_origins = {
+            "https://singkana.com",
+            "https://www.singkana.com",
+            "http://127.0.0.1:5000",
+            "http://localhost:5000",
+        }
+        # APP_BASE_URLも追加
+        base_url = _env("APP_BASE_URL", "").strip()
+        if base_url:
+            base_url = base_url.rstrip("/")
+            allowed_origins.add(base_url)
+            # www付きも追加（https://の場合）
+            if base_url.startswith("https://") and not base_url.startswith("https://www."):
+                www_url = base_url.replace("https://", "https://www.", 1)
+                allowed_origins.add(www_url)
+    
+    # 1) Originがあるなら、それを厳格に見る（CORS/CSRFの基本）
+    if origin:
+        origin_normalized = origin.rstrip("/")
+        if origin_normalized in allowed_origins:
+            return True
+        # 完全一致しない場合、urlparseで正規化して再チェック
+        try:
+            parsed = urlparse(origin)
+            base = f"{parsed.scheme}://{parsed.netloc}"
+            if base in allowed_origins:
+                return True
+        except Exception:
+            pass
+    
+    # 2) Originが無い場合のみ、Refererで補助（ブラウザ/状況による）
+    if referer:
+        try:
+            parsed = urlparse(referer)
+            base = f"{parsed.scheme}://{parsed.netloc}"
+            if base in allowed_origins:
+                return True
+        except Exception:
+            pass
+    
+    # 3) 両方無い、または一致しない場合はNG
+    return False
 
 def _dev_pro_enabled() -> bool:
     """ロック1: 環境変数でDevモード許可（デフォルトOFF）"""
@@ -596,15 +651,11 @@ def stripe_webhook():
 def api_waitlist():
     """先行登録（メールアドレス受付）"""
     # Originチェック（CSRF対策）
-    origin = request.headers.get("Origin", "")
-    referer = request.headers.get("Referer", "")
-    base_url = _env("APP_BASE_URL", "https://singkana.com").rstrip("/")
-    allowed_origins = {base_url, "https://singkana.com", "http://127.0.0.1:5000", "http://localhost:5000"}
-    
-    if origin and origin.rstrip("/") not in allowed_origins:
-        if not referer or not any(base_url in ref for ref in [referer]):
-            app.logger.warning(f"Waitlist: Invalid origin/referer - Origin: {origin}, Referer: {referer}")
-            return _json_error(403, "forbidden", "Invalid origin.")
+    if not _origin_ok():
+        origin = request.headers.get("Origin", "")
+        referer = request.headers.get("Referer", "")
+        app.logger.warning(f"Waitlist: Invalid origin/referer - Origin: {origin}, Referer: {referer}")
+        return _json_error(403, "forbidden", "Invalid origin.")
     
     # レート制限（IPごと、1分に5回まで）
     client_ip = _client_ip()
