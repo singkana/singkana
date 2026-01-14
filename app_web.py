@@ -232,6 +232,13 @@ def _init_db():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS waitlist (
+            email TEXT PRIMARY KEY,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            notified INTEGER DEFAULT 0
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -584,6 +591,37 @@ def stripe_webhook():
             conn.commit()
 
     return jsonify({"ok": True})
+
+@app.route("/api/waitlist", methods=["POST"])
+def api_waitlist():
+    """先行登録（メールアドレス受付）"""
+    data, err = _require_json()
+    if err:
+        return err
+    
+    email = (data.get("email") or "").strip().lower()
+    if not email:
+        return _json_error(400, "empty_email", "Email address is required.")
+    
+    # メールアドレスの形式チェック（簡易）
+    if "@" not in email or "." not in email.split("@")[1]:
+        return _json_error(400, "invalid_email", "Invalid email format.")
+    
+    try:
+        conn = _db()
+        # 重複チェック
+        existing = conn.execute("SELECT email FROM waitlist WHERE email=?", (email,)).fetchone()
+        if existing:
+            return jsonify({"ok": True, "message": "既に登録済みです。", "already_registered": True})
+        
+        # 登録
+        conn.execute("INSERT INTO waitlist (email) VALUES (?)", (email,))
+        conn.commit()
+        
+        return jsonify({"ok": True, "message": "登録完了しました。準備が整い次第、優先的にご案内いたします。"})
+    except Exception as e:
+        app.logger.exception("Waitlist registration failed: %s", e)
+        return _json_error(500, "registration_failed", "Registration failed. Please try again later.")
 
 @app.post("/api/billing/checkout")
 def api_billing_checkout():

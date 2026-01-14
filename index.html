@@ -649,7 +649,7 @@
 
           <!-- 先行登録・通知受付（課金開放は準備中） -->
           <a href="#"
-            onclick="alert('Proプランの先行利用登録を受け付けています。\n\n準備が整い次第、ご登録いただいた方に優先的にご案内いたします。'); return false;"
+            onclick="openWaitlistModal(); return false;"
             class="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-singkana-500/20 px-4 py-2 text-xs font-semibold text-singkana-100 border border-singkana-400/40 hover:bg-singkana-500/25 transition">
             先行利用に登録（準備中）
           </a>
@@ -2093,6 +2093,154 @@
         status.textContent = "送信に失敗しました（ネットワーク/API未接続）。";
       }
     }
+
+    // =========================
+    // 先行登録モーダル
+    // =========================
+    function openWaitlistModal() {
+      const modal = document.getElementById("waitlist-modal");
+      if (modal) {
+        modal.classList.remove("hidden");
+        document.body.style.overflow = "hidden"; // スクロール無効化
+      }
+    }
+
+    function closeWaitlistModal() {
+      const modal = document.getElementById("waitlist-modal");
+      if (modal) {
+        modal.classList.add("hidden");
+        document.body.style.overflow = ""; // スクロール有効化
+      }
+    }
+
+    async function submitWaitlist(event) {
+      event.preventDefault();
+      const emailInput = document.getElementById("waitlist-email");
+      const agreeCheckbox = document.getElementById("waitlist-agree");
+      const submitBtn = document.getElementById("waitlist-submit");
+      const statusDiv = document.getElementById("waitlist-status");
+      
+      const email = (emailInput?.value || "").trim();
+      
+      if (!email) {
+        statusDiv.textContent = "メールアドレスを入力してください。";
+        statusDiv.className = "text-xs text-red-400 mt-2";
+        return;
+      }
+      
+      if (!agreeCheckbox?.checked) {
+        statusDiv.textContent = "規約に同意してください。";
+        statusDiv.className = "text-xs text-red-400 mt-2";
+        return;
+      }
+      
+      // 送信中
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "登録中...";
+      }
+      statusDiv.textContent = "";
+      
+      try {
+        const res = await fetch("/api/waitlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email })
+        });
+        
+        const data = await res.json();
+        
+        if (data.ok) {
+          // 成功
+          statusDiv.textContent = data.message || "登録完了しました！";
+          statusDiv.className = "text-xs text-green-400 mt-2";
+          
+          // フォームをリセット
+          if (emailInput) emailInput.value = "";
+          if (agreeCheckbox) agreeCheckbox.checked = false;
+          
+          // 3秒後にモーダルを閉じる
+          setTimeout(() => {
+            closeWaitlistModal();
+            statusDiv.textContent = "";
+          }, 2000);
+        } else {
+          // エラー
+          statusDiv.textContent = data.message || "登録に失敗しました。";
+          statusDiv.className = "text-xs text-red-400 mt-2";
+        }
+      } catch (e) {
+        console.error(e);
+        statusDiv.textContent = "登録に失敗しました。しばらくしてから再度お試しください。";
+        statusDiv.className = "text-xs text-red-400 mt-2";
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "先行利用に登録する";
+        }
+      }
+    }
   </script>
+
+  <!-- 先行登録モーダル -->
+  <div id="waitlist-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onclick="if(event.target===this) closeWaitlistModal()">
+    <div class="relative w-full max-w-md mx-4 bg-slate-900 rounded-2xl border border-singkana-400/30 shadow-glow p-6" onclick="event.stopPropagation()">
+      <!-- 閉じるボタン -->
+      <button onclick="closeWaitlistModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-100 transition">
+        <span class="text-2xl">×</span>
+      </button>
+      
+      <!-- ヘッダー -->
+      <div class="mb-4">
+        <h3 class="text-lg font-semibold text-slate-50 mb-1">Pro先行利用に登録</h3>
+        <p class="text-xs text-slate-400">準備が整い次第、優先的にご案内いたします。スパムなし。</p>
+      </div>
+      
+      <!-- 特典表示 -->
+      <div class="mb-4 p-3 rounded-lg bg-singkana-500/10 border border-singkana-400/20">
+        <p class="text-[11px] font-semibold text-singkana-200 mb-1">🎁 先行登録特典</p>
+        <p class="text-[10px] text-slate-300">正式リリース前に登録いただいた方には、Proアクセスを特別価格でご提供予定です。</p>
+      </div>
+      
+      <!-- フォーム -->
+      <form onsubmit="submitWaitlist(event)">
+        <div class="mb-4">
+          <label for="waitlist-email" class="block text-xs font-semibold text-slate-300 mb-2">メールアドレス</label>
+          <input
+            id="waitlist-email"
+            type="email"
+            placeholder="your@email.com"
+            required
+            class="w-full px-4 py-2 rounded-lg bg-slate-950 border border-slate-700 text-slate-100 text-sm focus:outline-none focus:border-singkana-400"
+          />
+        </div>
+        
+        <div class="mb-4">
+          <label class="flex items-start gap-2 text-xs text-slate-300 cursor-pointer">
+            <input
+              id="waitlist-agree"
+              type="checkbox"
+              required
+              class="mt-0.5 accent-singkana-400"
+            />
+            <span>
+              <a href="/#terms" class="text-singkana-300 hover:text-singkana-100 underline">利用規約</a>と
+              <a href="/#privacy" class="text-singkana-300 hover:text-singkana-100 underline">プライバシーポリシー</a>に同意します
+            </span>
+          </label>
+        </div>
+        
+        <div id="waitlist-status" class="text-xs mt-2"></div>
+        
+        <button
+          id="waitlist-submit"
+          type="submit"
+          class="w-full mt-4 px-4 py-2 rounded-lg bg-singkana-500/20 text-singkana-100 font-semibold text-sm border border-singkana-400/40 hover:bg-singkana-500/25 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          先行利用に登録する
+        </button>
+      </form>
+    </div>
+  </div>
 </body>
 </html>
