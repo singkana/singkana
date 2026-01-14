@@ -902,8 +902,8 @@
               <div id="feedback-status" class="feedback-status text-[11px] text-slate-300 mt-1"></div>
 
               <div class="text-[11px] text-slate-400 mt-3">
-                <a href="/terms.html" target="_blank" class="underline">利用規約</a> ・
-                <a href="/privacy.html" target="_blank" class="underline">プライバシーポリシー</a>
+                <a href="#terms" class="underline">利用規約</a> ・
+                <a href="#privacy" class="underline">プライバシーポリシー</a>
               </div>
             </div>
 
@@ -2312,8 +2312,8 @@
               class="mt-0.5 accent-singkana-400"
             />
             <span>
-              <a href="/terms.html" target="_blank" class="text-singkana-300 hover:text-singkana-100 underline">利用規約</a>と
-              <a href="/privacy.html" target="_blank" class="text-singkana-300 hover:text-singkana-100 underline">プライバシーポリシー</a>に同意します
+              <a href="#terms" class="text-singkana-300 hover:text-singkana-100 underline">利用規約</a>と
+              <a href="#privacy" class="text-singkana-300 hover:text-singkana-100 underline">プライバシーポリシー</a>に同意します
             </span>
           </label>
         </div>
@@ -2356,5 +2356,173 @@
       </div>
     </div>
   </div>
+
+  <!-- 利用規約セクション -->
+  <section id="terms" class="hidden min-h-screen py-16 px-4 bg-slate-950">
+    <div class="max-w-3xl mx-auto">
+      <div class="bg-slate-900 rounded-2xl p-8 border border-slate-700">
+        <h1 class="text-2xl font-bold text-slate-50 mb-6">SingKANA 利用規約</h1>
+        <div class="prose prose-invert max-w-none text-slate-300 space-y-6">
+          <p>この利用規約（以下「本規約」といいます。）は、SingKANA（以下「本サービス」といいます。）の利用条件を定めるものです。本サービスをご利用になる前に、本規約をよくお読みください。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">第1条（適用）</h2>
+          <p>1. 本規約は、本サービスの利用に関わる一切の関係に適用されます。</p>
+          <p>2. 本サービスの利用者（以下「ユーザー」といいます。）は、本サービスを利用した時点で本規約に同意したものとみなします。</p>
+          <p>3. 本規約の内容は、法令に基づき変更される場合があります。変更後の規約は、本サービス上に掲載された時点から効力を生じるものとします。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">第2条（本サービスの概要）</h2>
+          <p>1. 本サービスは、ユーザーが入力したテキスト（英語歌詞等）をもとに、日本語のかな表記による発音補助表示を行うツールです。</p>
+          <p>2. 本サービスには、無料プラン（Free）と有料プラン（Pro）がございます。</p>
+          <ul class="list-disc pl-6 space-y-2">
+            <li>Freeプラン：基本的な変換機能を無料でご利用いただけます。</li>
+            <li>Proプラン：より精密な変換、比較表示、Singabilityスコア等の高度な機能をご利用いただけます（月額980円）。</li>
+          </ul>
+          <p>3. 本サービスにおける変換処理は、ユーザーの端末（ブラウザ）内で行われます。運営側サーバーは、ユーザーが入力した歌詞やテキストの内容を取得・保存・解析しません。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">第3条（会員登録・アカウント）</h2>
+          <p>1. 本サービスの利用にあたり、会員登録は不要です。ただし、Proプランをご利用いただく場合は、決済情報の登録が必要です。</p>
+          <p>2. ユーザーは、本サービス上で提供される先行登録（waitlist）機能により、メールアドレスを登録することができます。先行登録により、Proプランの優先案内や特典を受けることができます。</p>
+          <p>3. ユーザーは、登録したメールアドレスが正確かつ最新のものであることを保証するものとします。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">第4条（料金・支払い）</h2>
+          <p>1. Proプランの利用料金は、月額980円（税込）です。</p>
+          <p>2. 決済は、Stripe社が提供する決済サービスを通じて行われます。決済に関する詳細は、Stripe社の利用規約およびプライバシーポリシーをご確認ください。</p>
+          <p>3. 料金は、初回登録時および毎月の更新日に自動的に課金されます（自動更新）。</p>
+          <p>4. ユーザーは、本サービス上からいつでもProプランを解約することができます。解約後は、現在の課金期間終了時点でProプランの利用が終了し、Freeプランに自動的に移行します。</p>
+          <p>5. 解約後も、既に支払い済みの期間についてはProプランの機能をご利用いただけます。</p>
+          <p>6. 返金については、Stripe社の返金ポリシーに従います。本サービス運営者は、返金に関する一切の責任を負いません。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">第5条（著作権等について）</h2>
+          <p>1. 商用楽曲の歌詞は、作詞者・音楽出版社その他の権利者により著作権が保有されています。本サービスは、かかる権利を侵害する目的を一切有していません。</p>
+          <p>2. 本サービスは、ユーザーの端末内で歌詞等のテキストをかな表記に変換する機能を提供するものであり、運営側サーバーは歌詞自体を保持しません。</p>
+          <p>3. ユーザーは、本サービスを利用して得られたかな表記等の結果について、以下の行為を行わないものとします。</p>
+          <ul class="list-disc pl-6 space-y-2">
+            <li>歌詞内容が特定できる形での全文またはそれに近い範囲のインターネット上への公開</li>
+            <li>権利者の許諾なく、商用利用（有償配布、販売物への組み込み等）を行うこと</li>
+            <li>その他、各楽曲の権利者の定めるルール・ガイドラインに反する利用</li>
+          </ul>
+          <p>4. 本サービスの利用に関連してユーザーが第三者との間で紛争を生じさせた場合、ユーザーの責任と費用においてこれを解決するものとし、運営者は一切の責任を負いません。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">第6条（禁止事項）</h2>
+          <p>ユーザーは、本サービスの利用にあたり、以下の行為を行ってはなりません。</p>
+          <ul class="list-disc pl-6 space-y-2">
+            <li>法令または公序良俗に違反する行為</li>
+            <li>第三者の著作権、商標権、その他の権利を侵害する行為</li>
+            <li>本サービスの運営を妨げたり、サーバーやネットワークに過度な負荷を与える行為</li>
+            <li>本サービスの不正アクセス、不正利用、リバースエンジニアリング等の行為</li>
+            <li>レート制限を回避するための自動化ツールやスクリプトの使用</li>
+            <li>その他、運営者が不適切と判断する行為</li>
+          </ul>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">第7条（免責事項）</h2>
+          <p>1. 本サービスは「現状有姿」で提供されます。変換結果の正確性・完全性・歌唱上の適合性について、運営者は保証しません。</p>
+          <p>2. 本サービスの利用によりユーザーに生じたいかなる損害についても、運営者は一切の責任を負わないものとします。</p>
+          <p>3. 本サービスの仕様変更、中断、停止または終了によりユーザーに生じた損害についても、運営者は一切の責任を負いません。</p>
+          <p>4. 決済サービス（Stripe）の不具合や停止により生じた損害についても、運営者は一切の責任を負いません。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">第8条（サービス内容の変更等）</h2>
+          <p>運営者は、ユーザーへの事前の通知なく、本サービスの内容変更・追加・停止・終了を行うことができるものとします。ただし、Proプランの料金変更や重要な機能変更については、可能な限り事前に通知いたします。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">第9条（規約の変更）</h2>
+          <p>運営者は、必要と判断した場合には、ユーザーへの事前通知なく本規約を変更することができます。変更後の規約は、本サービス上に掲載された時点から効力を生じるものとします。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">第10条（準拠法・裁判管轄）</h2>
+          <p>1. 本規約の解釈には、日本法を準拠法とします。</p>
+          <p>2. 本サービスに関して紛争が生じた場合、運営者の所在地を管轄する日本の裁判所を専属的合意管轄とします。</p>
+
+          <p class="text-sm text-slate-400 mt-8">制定日：2026年1月14日<br>最終更新日：2026年1月14日</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- プライバシーポリシーセクション -->
+  <section id="privacy" class="hidden min-h-screen py-16 px-4 bg-slate-950">
+    <div class="max-w-3xl mx-auto">
+      <div class="bg-slate-900 rounded-2xl p-8 border border-slate-700">
+        <h1 class="text-2xl font-bold text-slate-50 mb-6">SingKANA プライバシーポリシー</h1>
+        <div class="prose prose-invert max-w-none text-slate-300 space-y-6">
+          <p>SingKANA（以下「本サービス」といいます。）は、ユーザーのプライバシーを尊重し、個人情報の保護に取り組みます。本プライバシーポリシーでは、本サービスにおける情報の取扱いについて説明します。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">1. 取得する情報</h2>
+          <p>本サービスは、以下の情報を取得する場合があります。</p>
+          <ul class="list-disc pl-6 space-y-2">
+            <li><strong>アクセス情報</strong>：IPアドレス、ブラウザ種別、OS情報、アクセス日時等のサーバーログ情報</li>
+            <li><strong>統計情報</strong>：不具合解析やアクセス状況把握のための、匿名化された統計情報</li>
+            <li><strong>メールアドレス</strong>：先行登録（waitlist）機能により、ユーザーが自ら入力したメールアドレス</li>
+            <li><strong>決済情報</strong>：Proプランをご利用いただく場合、Stripe社を通じて決済情報（クレジットカード情報等）を取得します。決済情報はStripe社が管理し、本サービス運営者は直接取得・保存しません。</li>
+            <li><strong>ユーザーID</strong>：本サービスの利用状況を管理するための、自動生成される識別子（Cookieに保存）</li>
+          </ul>
+          <p><strong>重要な点</strong>：本サービスのメイン機能である「テキストからかな表記への変換」に際して、ユーザーが入力した歌詞・テキストの内容は、運営側サーバーには送信・保存されません。変換処理はユーザーの端末（ブラウザ）内のみで行われます。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">2. 情報の利用目的</h2>
+          <p>本サービスでは、取得した情報を以下の目的で利用します。</p>
+          <ul class="list-disc pl-6 space-y-2">
+            <li>本サービスの品質向上・不具合対応のため</li>
+            <li>本サービスの利用状況の把握・分析のため</li>
+            <li>サービス運営上必要なセキュリティ対策のため</li>
+            <li>先行登録者へのProプラン案内・特典提供のため</li>
+            <li>Proプランの課金・更新管理のため</li>
+            <li>レート制限や不正利用の防止のため</li>
+          </ul>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">3. 情報の保存期間</h2>
+          <p>1. メールアドレス（先行登録）：Proプランの案内が完了するまで、またはユーザーからの削除依頼があるまで保存します。</p>
+          <p>2. サーバーログ：セキュリティ対策のため、一定期間保存した後、自動的に削除します。</p>
+          <p>3. ユーザーID（Cookie）：本サービスの利用を継続する限り保存されます。ブラウザの設定により削除することも可能です。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">4. 第三者提供について</h2>
+          <p>1. 本サービスは、法令に基づく場合を除き、ユーザーに関する情報を第三者に提供することはありません。</p>
+          <p>2. ただし、以下の場合には情報を提供することがあります。</p>
+          <ul class="list-disc pl-6 space-y-2">
+            <li><strong>決済サービス（Stripe）</strong>：Proプランの決済処理のため、Stripe社に必要最小限の情報（ユーザーID、メールアドレス等）を提供します。決済情報（クレジットカード情報等）はStripe社が直接管理します。</li>
+            <li><strong>法的要請</strong>：法令に基づく要請がある場合、または裁判所・警察等の公的機関からの要請がある場合</li>
+          </ul>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">5. クッキー（Cookie）等の利用について</h2>
+          <p>1. 本サービスでは、以下の目的でクッキー（Cookie）を利用します。</p>
+          <ul class="list-disc pl-6 space-y-2">
+            <li>ユーザーIDの保存（本サービスの利用状況管理のため）</li>
+            <li>開発者モード（Dev Pro）の一時的な有効化フラグ（開発・検証目的）</li>
+            <li>利用状況の分析（匿名化された統計情報の取得）</li>
+          </ul>
+          <p>2. クッキーにより取得される情報には、特定の個人を直接識別する情報は含まれません。</p>
+          <p>3. ブラウザの設定により、クッキーの受け入れを拒否することも可能ですが、その場合、本サービスの一部機能が正常に動作しない可能性があります。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">6. 外部サービスとの連携</h2>
+          <p>本サービスでは、以下の外部サービスを利用しています。</p>
+          <ul class="list-disc pl-6 space-y-2">
+            <li><strong>Stripe</strong>：決済処理サービス。Stripe社のプライバシーポリシーは<a href="https://stripe.com/jp/privacy" target="_blank" rel="noopener" class="text-singkana-300 hover:text-singkana-100 underline">こちら</a>をご確認ください。</li>
+            <li><strong>ホスティングサービス</strong>：本サービスのサーバー運用のため</li>
+          </ul>
+          <p>これらの外部サービスがクッキー等を通じて情報を取得する可能性がありますが、取得される情報は各サービス提供者のプライバシーポリシーに従って管理されます。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">7. 情報の安全管理</h2>
+          <p>本サービスは、取得した情報について、不正アクセス・漏えい・改ざん・滅失等を防止するため、以下の対策を講じています。</p>
+          <ul class="list-disc pl-6 space-y-2">
+            <li>HTTPSによる通信の暗号化</li>
+            <li>サーバーへのアクセス制限・認証</li>
+            <li>レート制限による不正利用の防止</li>
+            <li>OriginチェックによるCSRF対策</li>
+            <li>定期的なセキュリティ監査</li>
+          </ul>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">8. ユーザーの権利</h2>
+          <p>1. ユーザーは、本サービスが保有する自己の個人情報について、開示・訂正・削除を求める権利を有します。</p>
+          <p>2. 個人情報の開示・訂正・削除を希望される場合は、本サービス運営者までご連絡ください。連絡先：<a href="mailto:singkana.official@gmail.com" class="text-singkana-300 hover:text-singkana-100 underline">singkana.official@gmail.com</a></p>
+          <p>3. 先行登録のメールアドレスについては、本サービス上から削除依頼を行うことができます。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">9. ポリシーの変更</h2>
+          <p>本プライバシーポリシーの内容は、必要に応じて変更されることがあります。変更後のプライバシーポリシーは、本サービス上に掲載された時点から効力を生じるものとします。</p>
+
+          <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">10. お問い合わせ</h2>
+          <p>本プライバシーポリシーに関するお問い合わせは、以下のメールアドレスまでご連絡ください。</p>
+          <p>メールアドレス：<a href="mailto:singkana.official@gmail.com" class="text-singkana-300 hover:text-singkana-100 underline">singkana.official@gmail.com</a></p>
+
+          <p class="text-sm text-slate-400 mt-8">制定日：2026年1月14日<br>最終更新日：2026年1月14日</p>
+        </div>
+      </div>
+    </div>
+  </section>
 </body>
 </html>
