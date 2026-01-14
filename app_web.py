@@ -302,6 +302,79 @@ def _init_db():
 
 _init_db()
 
+def _send_waitlist_confirmation_email(email: str) -> bool:
+    """先行登録完了メールを送信"""
+    try:
+        # SMTP設定を環境変数から取得
+        smtp_enabled = _env("SMTP_ENABLED", "0") == "1"
+        if not smtp_enabled:
+            app.logger.info(f"SMTP disabled, skipping confirmation email to {email}")
+            return False
+        
+        smtp_host = _env("SMTP_HOST", "smtp.gmail.com")
+        smtp_port = int(_env("SMTP_PORT", "587"))
+        smtp_user = _env("SMTP_USER", "")
+        smtp_password = _env("SMTP_PASSWORD", "")
+        from_email = _env("SMTP_FROM", smtp_user or "singkana.official@gmail.com")
+        
+        if not smtp_user or not smtp_password:
+            app.logger.warning("SMTP credentials not configured, skipping email")
+            return False
+        
+        # メール本文
+        subject = "SingKANA Pro先行登録完了"
+        body_text = f"""SingKANA Pro先行登録ありがとうございます！
+
+以下のメールアドレスで先行登録を受け付けました：
+{email}
+
+準備が整い次第、Proプランの優先案内をお送りします。
+今しばらくお待ちください。
+
+---
+SingKANA
+https://singkana.com
+"""
+        body_html = f"""<html>
+<head></head>
+<body style="font-family: sans-serif; line-height: 1.6; color: #333;">
+  <h2 style="color: #a78bfa;">SingKANA Pro先行登録完了</h2>
+  <p>SingKANA Pro先行登録ありがとうございます！</p>
+  <p>以下のメールアドレスで先行登録を受け付けました：</p>
+  <p style="background: #f5f5f5; padding: 10px; border-radius: 4px;"><strong>{email}</strong></p>
+  <p>準備が整い次第、Proプランの優先案内をお送りします。<br>今しばらくお待ちください。</p>
+  <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+  <p style="color: #666; font-size: 12px;">
+    SingKANA<br>
+    <a href="https://singkana.com" style="color: #a78bfa;">https://singkana.com</a>
+  </p>
+</body>
+</html>"""
+        
+        # メール作成
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = from_email
+        msg["To"] = email
+        
+        part1 = MIMEText(body_text, "plain", "utf-8")
+        part2 = MIMEText(body_html, "html", "utf-8")
+        msg.attach(part1)
+        msg.attach(part2)
+        
+        # SMTP送信
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.starttls()
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+        
+        app.logger.info(f"Waitlist confirmation email sent to {email}")
+        return True
+    except Exception as e:
+        app.logger.exception(f"Failed to send confirmation email to {email}: {e}")
+        # メール送信失敗は登録自体は成功とする（非同期処理推奨だが、今は同期的に）
+        return False
+
 def _generate_user_id() -> str:
     # dependency: pip install ulid-py
     import ulid
