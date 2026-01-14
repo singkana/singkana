@@ -1351,6 +1351,23 @@
       if (chk && !chk.checked) return;
       if (currentActiveBlock) currentActiveBlock.scrollIntoView({ block: "center", behavior: "smooth" });
     }
+    
+    // ハッシュリンク（#terms, #privacy）の処理
+    function showHashSection() {
+      const hash = window.location.hash;
+      if (hash === "#terms" || hash === "#privacy") {
+        const section = document.querySelector(hash);
+        if (section) {
+          section.classList.remove("hidden");
+          section.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }
+    }
+    
+    // ページ読み込み時とハッシュ変更時に実行
+    showHashSection();
+    window.addEventListener("hashchange", showHashSection);
+    
     function speakKana(text) {
       if (!text || !text.trim()) return;
       if (!("speechSynthesis" in window)) return;
