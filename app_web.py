@@ -12,6 +12,9 @@ import traceback
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 from flask import (
     Flask,
@@ -724,6 +727,12 @@ def api_waitlist():
         conn.execute("INSERT INTO waitlist (email) VALUES (?)", (email,))
         conn.commit()
         
+        # 完了メールを送信（非同期推奨だが、今は同期的に。失敗しても登録は成功）
+        try:
+            _send_waitlist_confirmation_email(email)
+        except Exception as e:
+            app.logger.warning(f"Email sending failed (registration succeeded): {e}")
+        
         return jsonify({"ok": True, "message": "登録完了しました。準備が整い次第、優先的にご案内いたします。"})
     except sqlite3.IntegrityError:
         # UNIQUE制約違反（同時リクエストなど）
@@ -821,6 +830,24 @@ def serve_paywall_gate_js():
 @app.get("/assets/<path:filename>")
 def assets_files(filename):
     return send_from_directory(str(BASE_DIR / "assets"), filename)
+
+@app.get("/terms.html")
+def terms_html():
+    """利用規約ページ"""
+    try:
+        return send_from_directory(str(BASE_DIR), "terms.html")
+    except Exception as e:
+        app.logger.exception("Error serving terms.html: %s", e)
+        return _json_error(500, "file_not_found", "利用規約ページが見つかりません。"), 500
+
+@app.get("/privacy.html")
+def privacy_html():
+    """プライバシーポリシーページ"""
+    try:
+        return send_from_directory(str(BASE_DIR), "privacy.html")
+    except Exception as e:
+        app.logger.exception("Error serving privacy.html: %s", e)
+        return _json_error(500, "file_not_found", "プライバシーポリシーページが見つかりません。"), 500
 
 # ======================================================================
 # Health
