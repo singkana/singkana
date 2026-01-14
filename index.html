@@ -2148,7 +2148,25 @@
           body: JSON.stringify({ email })
         });
         
-        const data = await res.json();
+        // HTTPステータスコードをチェック
+        if (!res.ok) {
+          // エラーレスポンスをパース
+          let errorMessage = "登録に失敗しました。しばらくしてから再度お試しください。";
+          try {
+            const errorData = await res.json();
+            if (errorData.message) {
+              errorMessage = errorData.message;
+            }
+          } catch (e) {
+            // JSONパースに失敗した場合はデフォルトメッセージ
+          }
+          statusDiv.textContent = errorMessage;
+          statusDiv.className = "text-xs text-red-400 mt-2";
+          return;
+        }
+        
+        // 成功レスポンスをパース
+        const data = await res.json().catch(() => ({ ok: false, message: "レスポンスの解析に失敗しました。" }));
         
         if (data.ok) {
           // 成功
@@ -2170,7 +2188,7 @@
           statusDiv.className = "text-xs text-red-400 mt-2";
         }
       } catch (e) {
-        console.error(e);
+        console.error("Waitlist registration error:", e);
         statusDiv.textContent = "登録に失敗しました。しばらくしてから再度お試しください。";
         statusDiv.className = "text-xs text-red-400 mt-2";
       } finally {
