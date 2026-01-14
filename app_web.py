@@ -214,13 +214,13 @@ def is_pro_override() -> bool:
 
 def _require_json() -> Optional[Tuple[Dict[str, Any], Optional[Response]]]:
     if request.content_length is not None and request.content_length > MAX_JSON_BYTES:
-        return {}, _json_error(413, "payload_too_large", "Request body is too large.", max_bytes=MAX_JSON_BYTES)
+        return {}, _json_error(413, "payload_too_large", "リクエストが大きすぎます。", max_bytes=MAX_JSON_BYTES)
 
     data = request.get_json(silent=True)
     if data is None:
-        return {}, _json_error(400, "bad_json", "Invalid or missing JSON body.")
+        return {}, _json_error(400, "bad_json", "リクエスト形式が正しくありません。")
     if not isinstance(data, dict):
-        return {}, _json_error(400, "bad_json", "JSON body must be an object.")
+        return {}, _json_error(400, "bad_json", "リクエスト形式が正しくありません。")
     return data, None
 
 def _get_meta(data: Dict[str, Any]) -> Dict[str, Any]:
