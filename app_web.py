@@ -655,26 +655,14 @@ def api_waitlist():
         origin = request.headers.get("Origin", "")
         referer = request.headers.get("Referer", "")
         app.logger.warning(f"Waitlist: Invalid origin/referer - Origin: {origin}, Referer: {referer}")
-        return _json_error(403, "forbidden", "Invalid origin.")
+        return _json_error(403, "invalid_origin", "このページからのみ登録できます。")
     
     # レート制限（IPごと、1分に5回まで）
     client_ip = _client_ip()
     if client_ip:
-        conn = _db()
-        now = datetime.datetime.now()
-        one_min_ago = now - datetime.timedelta(minutes=1)
-        
-        # 過去1分間のリクエスト数をカウント
-        count = conn.execute("""
-            SELECT COUNT(*) FROM waitlist_rate_limit 
-            WHERE ip = ? AND created_at > ?
-        """, (client_ip, one_min_ago.isoformat())).fetchone()[0]
-        
-        if count >= 5:
-            return _json_error(429, "rate_limit_exceeded", "Too many requests. Please try again later.", retry_after=60)
-        
-        # レート制限テーブルに記録
         try:
+            conn = _db()
+            # レート制限テーブルを確実に作成
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS waitlist_rate_limit (
                     ip TEXT,
@@ -682,6 +670,24 @@ def api_waitlist():
                     PRIMARY KEY (ip, created_at)
                 )
             """)
+            
+            now = datetime.datetime.now()
+            one_min_ago = now - datetime.timedelta(minutes=1)
+            
+            # 過去1分間のリクエスト数をカウント
+            try:
+                count = conn.execute("""
+                    SELECT COUNT(*) FROM waitlist_rate_limit 
+                    WHERE ip = ? AND created_at > ?
+                """, (client_ip, one_min_ago.isoformat())).fetchone()[0]
+            except Exception:
+                # テーブルが存在しない場合など
+                count = 0
+            
+            if count >= 5:
+                return _json_error(429, "rate_limited", "送信が多すぎます。1分ほど待って再度お試しください。", retry_after=60)
+            
+            # レート制限テーブルに記録
             conn.execute("INSERT INTO waitlist_rate_limit (ip, created_at) VALUES (?, ?)", 
                         (client_ip, now.isoformat()))
             # 古いレコードを削除（1時間以上前）
@@ -691,27 +697,28 @@ def api_waitlist():
             conn.commit()
         except Exception as e:
             app.logger.warning(f"Rate limit tracking failed: {e}")
-            # レート制限の記録に失敗しても続行
+            # レート制限の記録に失敗しても続行（ただしログに記録）
     
     data, err = _require_json()
     if err:
+        # _require_jsonは既にJSONエラーを返すが、念のため確認
         return err
     
     # メール正規化（strip + lower）
     email = (data.get("email") or "").strip().lower()
     if not email:
-        return _json_error(400, "empty_email", "Email address is required.")
+        return _json_error(400, "empty_email", "メールアドレスを入力してください。")
     
     # メールアドレスの形式チェック（簡易）
     if "@" not in email or "." not in email.split("@")[1]:
-        return _json_error(400, "invalid_email", "Invalid email format.")
+        return _json_error(400, "invalid_email", "メールアドレスの形式が正しくありません。")
     
     try:
         conn = _db()
         # 重複チェック（DBのUNIQUE制約も効くが、事前チェックでUX向上）
         existing = conn.execute("SELECT email FROM waitlist WHERE email=?", (email,)).fetchone()
         if existing:
-            return jsonify({"ok": True, "message": "既に登録済みです。", "already_registered": True})
+            return jsonify({"ok": True, "message": "既に登録済みです。案内までお待ちください。", "already_registered": True})
         
         # 登録（DBのUNIQUE制約で最終防御）
         conn.execute("INSERT INTO waitlist (email) VALUES (?)", (email,))
@@ -720,10 +727,10 @@ def api_waitlist():
         return jsonify({"ok": True, "message": "登録完了しました。準備が整い次第、優先的にご案内いたします。"})
     except sqlite3.IntegrityError:
         # UNIQUE制約違反（同時リクエストなど）
-        return jsonify({"ok": True, "message": "既に登録済みです。", "already_registered": True})
+        return jsonify({"ok": True, "message": "既に登録済みです。案内までお待ちください。", "already_registered": True})
     except Exception as e:
         app.logger.exception("Waitlist registration failed: %s", e)
-        return _json_error(500, "registration_failed", "Registration failed. Please try again later.")
+        return _json_error(500, "registration_failed", "登録に失敗しました。しばらくしてから再度お試しください。")
 
 @app.post("/api/billing/checkout")
 def api_billing_checkout():
