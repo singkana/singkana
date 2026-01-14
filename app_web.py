@@ -68,7 +68,7 @@ def _json_error(code: int, error: str, message: str = "", **extra: Any):
 
 # ---- Limits / Policy ----
 MAX_JSON_BYTES = int(os.getenv("MAX_JSON_BYTES", "200000"))  # 200KB default
-FREE_ALLOWED_MODES = {"basic"}  # Freeで許す display_mode
+FREE_ALLOWED_MODES = {"basic", "natural"}  # Freeで許す display_mode
 
 # ---- Dev Pro Override (3段ロック) ----
 def _client_ip() -> str:

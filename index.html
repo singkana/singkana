@@ -395,7 +395,7 @@
         </div>
 
         <p class="text-[11px] text-slate-400">
-          ブラウザだけで完結 / PC・スマホ対応 / Freeは1日3回まで
+          ブラウザだけで完結 / PC・スマホ対応 / FreeはBasic / Natural利用可能
         </p>
       </div>
 
@@ -597,7 +597,7 @@
         <div>
           <h2 class="text-xl md:text-2xl font-semibold text-slate-50">料金プラン</h2>
           <p class="text-sm text-slate-300 mt-2">
-            Free は <span class="font-semibold text-slate-100">1日3回まで</span>。<span class="font-semibold text-slate-100">Basic / Natural</span> のみ利用可能。<span class="font-semibold text-singkana-100">精密（日本語歌唱最適）</span> は Pro で解放されます。
+            Free は <span class="font-semibold text-slate-100">Basic / Natural</span> が利用可能。<span class="font-semibold text-singkana-100">精密（日本語歌唱最適）</span> は Pro で解放されます。
           </p>
         </div>
 
@@ -613,7 +613,7 @@
           <p class="text-sm text-slate-300 mt-2">まずは体験したい方向け。</p>
           <div class="mt-4">
             <p class="text-2xl font-semibold text-slate-50">¥0</p>
-            <p class="text-[11px] text-slate-400 mt-1">1日3回まで</p>
+            <p class="text-[11px] text-slate-400 mt-1">Basic / Natural 利用可能</p>
           </div>
           <ul class="mt-4 space-y-2 text-xs text-slate-200">
             <li>✅ Basic（読むためのカタカナ）</li>
@@ -641,7 +641,7 @@
           <ul class="mt-4 space-y-2 text-xs text-slate-200">
             <li>✅ 歌唱最適化（精密）モード</li>
             <li>✅ 無制限変換（回数制限なし）</li>
-            <li>✅ 歌いやすさスコア表示</li>
+            <li>✅ Singability（β）表示</li>
             <li>✅ ブロック境界（息継ぎ位置）表示</li>
             <li>✅ 制作・録音用途に最適</li>
           </ul>
@@ -698,7 +698,7 @@
                 <td class="py-2 pr-3">価格</td><td class="py-2 pr-3">¥0</td><td class="py-2 pr-3">¥980/月</td>
               </tr>
               <tr class="border-t border-white/10">
-                <td class="py-2 pr-3">変換回数</td><td class="py-2 pr-3">1日3回まで</td><td class="py-2 pr-3">無制限</td>
+                <td class="py-2 pr-3">変換回数</td><td class="py-2 pr-3">制限なし</td><td class="py-2 pr-3">無制限</td>
               </tr>
               <tr class="border-t border-white/10">
                 <td class="py-2 pr-3">変換モード</td><td class="py-2 pr-3">Basic / Natural</td><td class="py-2 pr-3">Basic + Natural + Precise</td>
@@ -707,7 +707,7 @@
                 <td class="py-2 pr-3">精密（日本語歌唱最適）</td><td class="py-2 pr-3">—</td><td class="py-2 pr-3">✅</td>
               </tr>
               <tr class="border-t border-white/10">
-                <td class="py-2 pr-3">歌いやすさスコア</td><td class="py-2 pr-3">—</td><td class="py-2 pr-3">✅</td>
+                <td class="py-2 pr-3">Singability（β）</td><td class="py-2 pr-3">—</td><td class="py-2 pr-3">✅</td>
               </tr>
               <tr class="border-t border-white/10">
                 <td class="py-2 pr-3">録音・制作向け</td><td class="py-2 pr-3">△</td><td class="py-2 pr-3">◎</td>
@@ -1051,7 +1051,7 @@
 
       // Freeでは精密モードのみ制限（Naturalは利用可能）
       if (mode === "precise") {
-        alert("精密モード（日本語として歌う・最適）は Pro プランで利用できます。\n\nFree では Basic / Natural が利用可能です（1日3回まで）。");
+        alert("精密モード（日本語として歌う・最適）は Pro プランで利用できます。\n\nFree では Basic / Natural が利用可能です。");
         const sel = document.getElementById("displayMode");
         if (sel) sel.value = "natural"; // Naturalに戻す
         return false;
@@ -1646,7 +1646,7 @@
           <div class="flex flex-col md:flex-row items-center justify-between gap-3">
             <div>
               <p class="text-sm font-semibold text-singkana-100 mb-1">この品質で変換し続ける</p>
-              <p class="text-xs text-slate-300">Proで無制限変換・精密（日本語歌唱最適）・歌いやすさスコア</p>
+              <p class="text-xs text-slate-300">Proで無制限変換・精密（日本語歌唱最適）・Singability（β）</p>
             </div>
             <a href="#pricing" class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition whitespace-nowrap">
               <span>Proを開始</span>
@@ -1916,15 +1916,16 @@
         
         textDiv.innerHTML = renderDisplay(highlighted, __getDisplayMode());
         
-        // Pro側だけ「歌いやすさスコア」を表示（仮実装）
+        // Pro側だけ「Singability（β）」を表示（仮実装）
         if (isPro()) {
           const scoreDiv = document.createElement("div");
           scoreDiv.className = "mt-2 pt-2 border-t border-singkana-400/20";
           scoreDiv.innerHTML = `
             <div class="flex items-center gap-2 text-[10px] text-singkana-200">
-              <span class="font-semibold">Singability:</span>
+              <span class="font-semibold">Singability（β）:</span>
               <span class="text-singkana-100 font-bold">86/100</span>
               <span class="text-slate-400 ml-1">（息継ぎ・母音安定・連結自然さ）</span>
+              <span class="text-slate-500 text-[9px] ml-1" title="β：現在は簡易推定">[β]</span>
             </div>
           `;
           textDiv.appendChild(scoreDiv);
