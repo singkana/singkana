@@ -595,10 +595,58 @@ def stripe_webhook():
 @app.route("/api/waitlist", methods=["POST"])
 def api_waitlist():
     """先行登録（メールアドレス受付）"""
+    # Originチェック（CSRF対策）
+    origin = request.headers.get("Origin", "")
+    referer = request.headers.get("Referer", "")
+    base_url = _env("APP_BASE_URL", "https://singkana.com").rstrip("/")
+    allowed_origins = {base_url, "https://singkana.com", "http://127.0.0.1:5000", "http://localhost:5000"}
+    
+    if origin and origin.rstrip("/") not in allowed_origins:
+        if not referer or not any(base_url in ref for ref in [referer]):
+            app.logger.warning(f"Waitlist: Invalid origin/referer - Origin: {origin}, Referer: {referer}")
+            return _json_error(403, "forbidden", "Invalid origin.")
+    
+    # レート制限（IPごと、1分に5回まで）
+    client_ip = _client_ip()
+    if client_ip:
+        conn = _db()
+        now = datetime.datetime.now()
+        one_min_ago = now - datetime.timedelta(minutes=1)
+        
+        # 過去1分間のリクエスト数をカウント
+        count = conn.execute("""
+            SELECT COUNT(*) FROM waitlist_rate_limit 
+            WHERE ip = ? AND created_at > ?
+        """, (client_ip, one_min_ago.isoformat())).fetchone()[0]
+        
+        if count >= 5:
+            return _json_error(429, "rate_limit_exceeded", "Too many requests. Please try again later.", retry_after=60)
+        
+        # レート制限テーブルに記録
+        try:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS waitlist_rate_limit (
+                    ip TEXT,
+                    created_at TEXT,
+                    PRIMARY KEY (ip, created_at)
+                )
+            """)
+            conn.execute("INSERT INTO waitlist_rate_limit (ip, created_at) VALUES (?, ?)", 
+                        (client_ip, now.isoformat()))
+            # 古いレコードを削除（1時間以上前）
+            one_hour_ago = now - datetime.timedelta(hours=1)
+            conn.execute("DELETE FROM waitlist_rate_limit WHERE created_at < ?", 
+                        (one_hour_ago.isoformat(),))
+            conn.commit()
+        except Exception as e:
+            app.logger.warning(f"Rate limit tracking failed: {e}")
+            # レート制限の記録に失敗しても続行
+    
     data, err = _require_json()
     if err:
         return err
     
+    # メール正規化（strip + lower）
     email = (data.get("email") or "").strip().lower()
     if not email:
         return _json_error(400, "empty_email", "Email address is required.")
@@ -609,16 +657,19 @@ def api_waitlist():
     
     try:
         conn = _db()
-        # 重複チェック
+        # 重複チェック（DBのUNIQUE制約も効くが、事前チェックでUX向上）
         existing = conn.execute("SELECT email FROM waitlist WHERE email=?", (email,)).fetchone()
         if existing:
             return jsonify({"ok": True, "message": "既に登録済みです。", "already_registered": True})
         
-        # 登録
+        # 登録（DBのUNIQUE制約で最終防御）
         conn.execute("INSERT INTO waitlist (email) VALUES (?)", (email,))
         conn.commit()
         
         return jsonify({"ok": True, "message": "登録完了しました。準備が整い次第、優先的にご案内いたします。"})
+    except sqlite3.IntegrityError:
+        # UNIQUE制約違反（同時リクエストなど）
+        return jsonify({"ok": True, "message": "既に登録済みです。", "already_registered": True})
     except Exception as e:
         app.logger.exception("Waitlist registration failed: %s", e)
         return _json_error(500, "registration_failed", "Registration failed. Please try again later.")
