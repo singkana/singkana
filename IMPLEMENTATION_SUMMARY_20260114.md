@@ -325,7 +325,59 @@ ALLOWED_ORIGINS=https://singkana.com,https://www.singkana.com
 
 ---
 
+## 本番投入前チェックリスト（最終確認）
+
+以下の項目がすべて **YES** なら本番投入可能です。
+
+### 必須チェック項目
+
+- [ ] `/var/lib/singkana` の **所有者が service user**（SQLiteはディレクトリへの書き込み権限が必須）
+- [ ] `waitlist` 登録 → DBに即反映
+- [ ] 登録完了メールが届く（GmailでOK、SMTP無効でも登録は成功）
+- [ ] 登録済み再送 → 緑表示（200 + `already_registered: true`）
+- [ ] 連打 → 429 + 日本語メッセージ
+- [ ] 別ドメイン叩き → 403 + 日本語メッセージ
+- [ ] `/terms.html` / `/privacy.html` が **独立ページとして読める**
+- [ ] `systemctl restart singkana` 後も正常起動
+- [ ] `/healthz` エンドポイントが正常応答（200）
+
+### チェックスクリプトの実行
+
+```bash
+cd /var/www/singkana
+git pull
+chmod +x check_production_readiness.sh
+./check_production_readiness.sh
+```
+
+このスクリプトで上記のチェック項目を自動確認できます。
+
+### チェックスクリプトのP0検証項目（必須）
+
+`check_production_readiness.sh`は以下の4つのP0検証を実装しています：
+
+1. **P0-A: systemdの実行ユーザーを取得して権限を照合**
+   - `systemctl show -p User singkana`で実行ユーザーを取得
+   - そのユーザーが`/var/lib/singkana`の所有者か確認
+   - root扱いの場合は警告
+
+2. **P0-B: DBディレクトリに対して実際に書き込みテスト**
+   - 権限の見た目だけでなく、実際に`.wal/.shm`が作れることを確認
+   - サービスユーザーで`touch`テストを実行
+   - SQLiteのWALモードが有効か確認
+
+3. **P0-C: `/api/waitlist`に対してローカルからヘルスチェック**
+   - 200が返るか確認
+   - JSONが返るか確認
+   - `ok`がbooleanであるか確認
+
+4. **P0-D: secrets.envがsystemdに読み込まれているか**
+   - `systemctl show singkana | grep EnvironmentFile`で確認
+   - ログから環境変数が読み込まれているか確認
+
+---
+
 ## 完了
 
 先行登録機能は本番運用可能な状態になりました。
-上記のP0（必須確認）3点を確認すれば、安全に本番投入できます。
+上記のP0（必須確認）3点と本番投入前チェックリストを確認すれば、安全に本番投入できます。
