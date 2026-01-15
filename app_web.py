@@ -262,6 +262,9 @@ def _db():
     if "db" not in g:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
+        # SQLite WALモードを有効化（性能＆ロック耐性向上）
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
         g.db = conn
     return g.db
 
@@ -273,6 +276,9 @@ def _close_db(exc):
 
 def _init_db():
     conn = sqlite3.connect(DB_PATH)
+    # SQLite WALモードを有効化（性能＆ロック耐性向上）
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             user_id TEXT PRIMARY KEY,

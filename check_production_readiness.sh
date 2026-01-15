@@ -30,18 +30,26 @@ check_warn() {
     ((WARN_COUNT++))
 }
 
-# 1. サービス実行ユーザーの確認
-echo "1. サービス実行ユーザーの確認"
-SERVICE_USER=$(systemctl cat singkana 2>/dev/null | grep "^User=" | cut -d= -f2)
-if [ -n "$SERVICE_USER" ]; then
-    check_pass "サービス実行ユーザー: $SERVICE_USER"
+# 1. サービス実行ユーザーの確認（P0-A: systemdの実行ユーザーを取得して権限を照合）
+echo "1. サービス実行ユーザーの確認（P0-A）"
+SERVICE_USER=$(systemctl show -p User singkana 2>/dev/null | cut -d= -f2)
+if [ -z "$SERVICE_USER" ]; then
+    # フォールバック: systemctl cat から取得
+    SERVICE_USER=$(systemctl cat singkana 2>/dev/null | grep "^User=" | cut -d= -f2)
+fi
+
+if [ -z "$SERVICE_USER" ] || [ "$SERVICE_USER" = "" ]; then
+    check_fail "サービス実行ユーザーが取得できません（root扱いの可能性。systemd設定を確認）"
+    SERVICE_USER="root"  # フォールバック
+elif [ "$SERVICE_USER" = "root" ]; then
+    check_warn "サービス実行ユーザー: root（非推奨。専用ユーザーを推奨）"
 else
-    check_fail "サービス実行ユーザーが取得できません（systemd設定を確認）"
+    check_pass "サービス実行ユーザー: $SERVICE_USER"
 fi
 echo ""
 
-# 2. DBディレクトリの権限確認
-echo "2. DBディレクトリの権限確認"
+# 2. DBディレクトリの権限確認（P0-B: 実際に書き込みテスト）
+echo "2. DBディレクトリの権限確認（P0-B）"
 DB_DIR="/var/lib/singkana"
 if [ -d "$DB_DIR" ]; then
     DIR_OWNER=$(stat -c '%U' "$DB_DIR" 2>/dev/null || stat -f '%Su' "$DB_DIR" 2>/dev/null)
@@ -57,6 +65,27 @@ if [ -d "$DB_DIR" ]; then
         check_pass "ディレクトリ権限: $DIR_PERM (OK)"
     else
         check_warn "ディレクトリ権限: $DIR_PERM (推奨: 755)"
+    fi
+    
+    # P0-B: 実際に書き込みテスト（.wal/.shmが作れることを確認）
+    TEST_FILE="$DB_DIR/.perm_test_$$"
+    if sudo -u "$SERVICE_USER" touch "$TEST_FILE" 2>/dev/null; then
+        sudo -u "$SERVICE_USER" rm -f "$TEST_FILE" 2>/dev/null
+        check_pass "書き込みテスト: 成功（.wal/.shmファイルが作成可能）"
+    else
+        check_fail "書き込みテスト: 失敗（サービスユーザーがディレクトリに書き込めません）"
+    fi
+    
+    # SQLiteの実際の読み書きテスト（可能なら）
+    if command -v sqlite3 &> /dev/null && [ -f "$DB_DIR/singkana.db" ]; then
+        if sudo -u "$SERVICE_USER" sqlite3 "$DB_DIR/singkana.db" "PRAGMA journal_mode;" >/dev/null 2>&1; then
+            JOURNAL_MODE=$(sudo -u "$SERVICE_USER" sqlite3 "$DB_DIR/singkana.db" "PRAGMA journal_mode;" 2>/dev/null | head -1)
+            if [ "$JOURNAL_MODE" = "wal" ]; then
+                check_pass "SQLite WALモード: 有効（推奨）"
+            else
+                check_warn "SQLite WALモード: $JOURNAL_MODE（WALモード推奨）"
+            fi
+        fi
     fi
 else
     check_fail "DBディレクトリが存在しません: $DB_DIR"
@@ -99,10 +128,25 @@ else
 fi
 echo ""
 
-# 5. 環境変数確認
-echo "5. 環境変数確認"
+# 5. 環境変数確認（P0-D: secrets.envがsystemdに読み込まれているか）
+echo "5. 環境変数確認（P0-D）"
 if [ -f "/etc/singkana/secrets.env" ]; then
     check_pass "secrets.env存在"
+    
+    # P0-D: systemdがsecrets.envを読み込んでいるか確認
+    ENV_FILE=$(systemctl show singkana 2>/dev/null | grep -i "EnvironmentFile" | head -1)
+    if echo "$ENV_FILE" | grep -q "secrets.env"; then
+        check_pass "systemdがsecrets.envを読み込み設定済み"
+    else
+        check_warn "systemdのEnvironmentFileにsecrets.envが設定されていない可能性"
+    fi
+    
+    # 実際にサービスが環境変数を読み込んでいるか（ログから確認）
+    if sudo journalctl -u singkana -n 100 --no-pager 2>/dev/null | grep -q "SMTP_ENABLED\|SINGKANA_DB_PATH"; then
+        check_pass "環境変数がサービスに読み込まれている（ログから確認）"
+    else
+        check_warn "環境変数の読み込み確認ができません（ログに記録がない可能性）"
+    fi
     
     if grep -q "SINGKANA_DB_PATH" /etc/singkana/secrets.env; then
         check_pass "SINGKANA_DB_PATH設定済み"
@@ -135,12 +179,34 @@ else
 fi
 echo ""
 
-# 7. ネットワーク確認
-echo "7. ネットワーク確認"
+# 7. ネットワーク確認（P0-C: /api/waitlist ヘルスチェック）
+echo "7. ネットワーク確認（P0-C）"
 if curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:5000/healthz 2>/dev/null | grep -q "200"; then
-    check_pass "ローカルヘルスチェック: OK"
+    check_pass "ローカルヘルスチェック (/healthz): OK"
 else
-    check_fail "ローカルヘルスチェック: 失敗"
+    check_fail "ローカルヘルスチェック (/healthz): 失敗"
+fi
+
+# P0-C: /api/waitlist に対してローカルからヘルスチェック
+WAITLIST_RESPONSE=$(curl -s -X POST http://127.0.0.1:5000/api/waitlist \
+    -H "Content-Type: application/json" \
+    -H "Origin: http://127.0.0.1:5000" \
+    -d '{"email":"test@example.com"}' 2>/dev/null)
+
+if [ -n "$WAITLIST_RESPONSE" ]; then
+    # JSONが返るか、okがbooleanであるかを確認
+    if echo "$WAITLIST_RESPONSE" | grep -q '"ok"'; then
+        OK_VALUE=$(echo "$WAITLIST_RESPONSE" | grep -o '"ok":[^,}]*' | cut -d: -f2 | tr -d ' ')
+        if [ "$OK_VALUE" = "true" ] || [ "$OK_VALUE" = "false" ]; then
+            check_pass "/api/waitlist: JSON応答正常（ok: $OK_VALUE）"
+        else
+            check_warn "/api/waitlist: JSON応答あり（ok値の形式確認推奨）"
+        fi
+    else
+        check_warn "/api/waitlist: 応答あり（JSON形式の確認推奨）"
+    fi
+else
+    check_fail "/api/waitlist: 応答なし（サービスが正常に動作していない可能性）"
 fi
 echo ""
 

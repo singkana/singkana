@@ -155,6 +155,11 @@
 - 環境変数`SINGKANA_DB_PATH`で指定（デフォルト: `singkana.db`）
 - VPSでは`/var/lib/singkana/singkana.db`を推奨
 
+#### SQLite設定（WALモード）
+- **WALモードを有効化**（`PRAGMA journal_mode=WAL;`）
+- **同期モードをNORMALに設定**（`PRAGMA synchronous=NORMAL;`）
+- これにより性能向上とロック耐性が向上（`database is locked`エラーの発生率が下がる）
+
 #### 権限設定（重要）
 - **DBディレクトリの所有者は、systemdサービスの実行ユーザーに合わせる**
 - 確認方法：
