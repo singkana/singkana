@@ -38,11 +38,25 @@ if [ -z "$SERVICE_USER" ]; then
     SERVICE_USER=$(systemctl cat singkana 2>/dev/null | grep "^User=" | cut -d= -f2)
 fi
 
+# 環境判定（開発環境かどうか）
+IS_PRODUCTION=true
+if [ -f "/etc/singkana/.dev_environment" ]; then
+    IS_PRODUCTION=false
+fi
+
 if [ -z "$SERVICE_USER" ] || [ "$SERVICE_USER" = "" ]; then
-    check_fail "サービス実行ユーザーが取得できません（root扱いの可能性。systemd設定を確認）"
+    if [ "$IS_PRODUCTION" = true ]; then
+        check_fail "サービス実行ユーザーが取得できません（root扱いの可能性。本番ではNG）"
+    else
+        check_warn "サービス実行ユーザーが取得できません（開発環境では許容）"
+    fi
     SERVICE_USER="root"  # フォールバック
 elif [ "$SERVICE_USER" = "root" ]; then
-    check_warn "サービス実行ユーザー: root（非推奨。専用ユーザーを推奨）"
+    if [ "$IS_PRODUCTION" = true ]; then
+        check_fail "サービス実行ユーザー: root（本番環境でroot実行は非推奨。専用ユーザーを作成してください）"
+    else
+        check_warn "サービス実行ユーザー: root（開発環境では許容。本番では専用ユーザーを推奨）"
+    fi
 else
     check_pass "サービス実行ユーザー: $SERVICE_USER"
 fi

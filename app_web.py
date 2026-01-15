@@ -276,7 +276,7 @@ def _close_db(exc):
 
 def _init_db():
     conn = sqlite3.connect(DB_PATH)
-    # SQLite WALモードを有効化（性能＆ロック耐性向上）
+    # WALモードは_db()で設定（接続生成時に1回）
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute("PRAGMA synchronous=NORMAL;")
     conn.execute("""

@@ -377,7 +377,47 @@ chmod +x check_production_readiness.sh
 
 ---
 
+## Waitlist運用コマンド（課金解放日に必須）
+
+### 登録者一覧のエクスポート（CSV）
+
+```bash
+sqlite3 /var/lib/singkana/singkana.db ".mode csv" ".headers on" "SELECT email, created_at FROM waitlist WHERE notified=0 ORDER BY created_at ASC;" > waitlist.csv
+```
+
+### 通知済みフラグの更新
+
+```bash
+sqlite3 /var/lib/singkana/singkana.db "UPDATE waitlist SET notified=1 WHERE email='example@example.com';"
+```
+
+### 登録数の確認
+
+```bash
+sqlite3 /var/lib/singkana/singkana.db "SELECT COUNT(*) as total, COUNT(CASE WHEN notified=1 THEN 1 END) as notified FROM waitlist;"
+```
+
+### 日次登録数の確認
+
+```bash
+sqlite3 /var/lib/singkana/singkana.db "SELECT DATE(created_at) as date, COUNT(*) as count FROM waitlist GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 7;"
+```
+
+---
+
+## 最小KPI（今週から見るべき数字）
+
+1. **Waitlist登録数**（累計/日次）
+2. **登録成功率**（エラー率：403/429/500をログから確認）
+3. **メール到達率**（問い合わせ件数でも代替可）
+
+これだけ見ていれば、課金解放のタイミングが判断できます。
+
+---
+
 ## 完了
 
 先行登録機能は本番運用可能な状態になりました。
-上記のP0（必須確認）3点と本番投入前チェックリストを確認すれば、安全に本番投入できます。
+上記のP0（必須確認）4点と本番投入前チェックリストを確認すれば、安全に本番投入できます。
+
+**デプロイして、待機リストを取りに行ってください。**
