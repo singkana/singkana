@@ -13,7 +13,8 @@
 - **Originチェック（CSRF対策）**
   - `_origin_ok()`関数でOrigin/Refererを検証
   - 許可リスト：`https://singkana.com`, `https://www.singkana.com`, `http://127.0.0.1:5000`, `http://localhost:5000`
-  - 環境変数`ALLOWED_ORIGINS`でカスタマイズ可能
+  - 環境変数`ALLOWED_ORIGINS`でカスタマイズ可能（カンマ区切り）
+  - サブドメイン（例：`en.singkana.com`）を追加する場合は`ALLOWED_ORIGINS`に追加
   - 403エラー時は日本語メッセージ「このページからのみ登録できます。」
 
 - **レート制限**
@@ -52,7 +53,7 @@
   - `_send_waitlist_confirmation_email()`関数を実装
   - SMTP設定は環境変数で管理
   - テキスト版とHTML版の両方を含むマルチパートメール
-  - メール送信失敗でも登録は成功（ログに記録）
+  - **メール送信失敗でも登録は成功（ログに記録）**
 
 - **SMTP設定（環境変数）**
   ```bash
@@ -63,6 +64,12 @@
   SMTP_PASSWORD=アプリパスワード
   SMTP_FROM=singkana.official@gmail.com
   ```
+
+- **運用上の注意**
+  - **SMTPは任意機能**。`SMTP_ENABLED=0`でも登録機能は正常動作
+  - GmailのSMTP（アプリパスワード）は突然弾かれることがある
+  - **本番ではSendGrid/Mailgun等の外部メールプロバイダへの差し替えを推奨**
+  - ログには「SMTP disabled」または「SMTP failed」が明確に記録される
 
 ---
 
@@ -121,9 +128,13 @@
   - 「Xで進捗も告知します（任意）」のメッセージ
   - モーダルは5秒後に自動クローズ（SNSボタンを見せる時間を確保）
 
-#### リンクの更新
-- フッターとモーダル内のリンクを`/terms.html` → `#terms`、`/privacy.html` → `#privacy`に変更
-- ページ内アンカーリンクでスムーズスクロール
+#### リンク設計
+- **フッター・モーダル内のリンクは `/terms.html` と `/privacy.html` を正とする**
+  - 独立ページとして固定（DOM変更の影響を受けない）
+  - `target="_blank"`で新規タブで開く
+- **`#terms` / `#privacy` アンカーは内部ナビ用として補助的に利用可能**
+  - LP内のスムーズスクロール用
+  - ただし規約・PPは独立ページを優先
 
 ---
 
@@ -137,12 +148,24 @@
 
 - **waitlist_rate_limit**
   - `ip` (TEXT) - IPアドレス
-  - `created_at` (TEXT) - リクエスト日時
+  - `created_at` (TEXT) - リクエスト日時（ミリ秒精度で衝突回避）
   - PRIMARY KEY (ip, created_at)
 
 #### 保存先
 - 環境変数`SINGKANA_DB_PATH`で指定（デフォルト: `singkana.db`）
 - VPSでは`/var/lib/singkana/singkana.db`を推奨
+
+#### 権限設定（重要）
+- **DBディレクトリの所有者は、systemdサービスの実行ユーザーに合わせる**
+- 確認方法：
+  ```bash
+  systemctl cat singkana | grep "^User="
+  ```
+- 例：`User=www-data` の場合
+  ```bash
+  sudo chown www-data:www-data /var/lib/singkana
+  ```
+- **注意**: `www-data`固定は危険。サービスの実行ユーザーが異なる場合に失敗する
 
 ---
 
@@ -235,10 +258,18 @@ ALLOWED_ORIGINS=https://singkana.com,https://www.singkana.com
    sudo systemctl restart singkana
    ```
 
-2. **DBディレクトリの作成**
+2. **DBディレクトリの作成と権限設定**
    ```bash
+   # ディレクトリ作成
    sudo mkdir -p /var/lib/singkana
-   sudo chown www-data:www-data /var/lib/singkana
+   
+   # サービスの実行ユーザーを確認
+   SERVICE_USER=$(systemctl cat singkana | grep "^User=" | cut -d= -f2)
+   echo "Service user: $SERVICE_USER"
+   
+   # 実行ユーザーに合わせて権限設定
+   sudo chown $SERVICE_USER:$SERVICE_USER /var/lib/singkana
+   sudo chmod 755 /var/lib/singkana
    ```
 
 3. **環境変数の設定**

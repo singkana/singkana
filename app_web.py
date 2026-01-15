@@ -763,9 +763,11 @@ def api_waitlist():
             if count >= 5:
                 return _json_error(429, "rate_limited", "送信が多すぎます。1分ほど待って再度お試しください。", retry_after=60)
             
-            # レート制限テーブルに記録
+            # レート制限テーブルに記録（ミリ秒精度で衝突を回避）
+            import time
+            now_iso = now.isoformat() + f".{int(time.time() * 1000) % 1000:03d}"
             conn.execute("INSERT INTO waitlist_rate_limit (ip, created_at) VALUES (?, ?)", 
-                        (client_ip, now.isoformat()))
+                        (client_ip, now_iso))
             # 古いレコードを削除（1時間以上前）
             one_hour_ago = now - datetime.timedelta(hours=1)
             conn.execute("DELETE FROM waitlist_rate_limit WHERE created_at < ?", 
