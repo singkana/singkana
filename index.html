@@ -111,10 +111,12 @@
     @media (max-width: 767px) {
       /* Hero: 1画面完結 */
       #hero {
-        min-height: calc(100vh - 80px);
+        /* 以前は縦中央寄せで“上の空白”が出やすかったので、上寄せにする */
+        min-height: auto;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-start;
+        padding-top: 0.75rem;
       }
       
       /* カードUI: padding削減（Studio配下のみ） */
