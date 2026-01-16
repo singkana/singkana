@@ -397,7 +397,7 @@
   <main class="mx-auto max-w-7xl 2xl:max-w-[1440px] px-4 pb-24 pt-6 md:pt-8 space-y-28">
 
     <!-- HERO -->
-    <section id="hero" class="grid gap-6 md:gap-12 md:grid-cols-2 md:items-center">
+    <section id="hero" class="grid gap-8 md:gap-10 lg:gap-14 lg:grid-cols-2 lg:items-center">
       <div class="space-y-4 md:space-y-6">
         <!-- スマホ: 最小限の情報のみ表示 -->
         <div class="md:hidden space-y-4">
@@ -503,20 +503,25 @@
         </p>
       </div>
 
-      <!-- Demo -->
-      <div class="relative">
+      <!-- Demo / Visual（PCで右側を“体験”で埋める） -->
+      <div class="relative w-full max-w-xl lg:max-w-none lg:w-[560px] lg:justify-self-end">
         <div class="absolute -top-6 -left-4 h-20 w-20 rounded-full border border-slate-500/30 bg-gradient-to-br from-slate-900/10 via-slate-900/40 to-slate-900/80 blur-2xl"></div>
         <div class="absolute -bottom-10 -right-6 h-28 w-28 rounded-full bg-gradient-to-tr from-fuchsia-500/30 via-singkana-400/20 to-cyan-300/20 blur-3xl"></div>
 
-        <div class="relative rounded-3xl border border-white/10 bg-slate-900/70 p-5 shadow-soft backdrop-blur-sm">
-          <div class="flex items-center justify-between mb-3">
+        <div class="relative rounded-3xl border border-white/10 bg-slate-900/70 p-6 lg:p-7 shadow-soft backdrop-blur-sm">
+          <div class="flex items-center justify-between mb-4">
             <div class="space-y-0.5">
-              <p class="text-xs text-slate-300">Demo Project</p>
-              <p class="text-sm font-semibold">EN → 歌えるかな</p>
+              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400">Live preview</p>
+              <p class="text-sm font-semibold">SingKANA Studio</p>
             </div>
-            <div class="flex items-center gap-1.5 text-[10px] text-slate-400">
-              <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-              AI Studio Online
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                Online
+              </span>
+              <span class="hidden sm:inline-flex items-center rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
+                No install
+              </span>
             </div>
           </div>
 
@@ -539,6 +544,23 @@
                 <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">HLD</span>
                 <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">VIB</span>
                 <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">SLD</span>
+              </div>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
+                <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">JP → Romaji (β)</p>
+                <p class="text-slate-200 leading-relaxed">
+                  Zankoku na tenshi no teeze<br />
+                  Shounen yo shinwa ni nare
+                </p>
+              </div>
+              <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
+                <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">Export</p>
+                <p class="text-slate-200 leading-relaxed">
+                  Copy / TXT / SRT（簡易）<br />
+                  行タップでハイライト
+                </p>
               </div>
             </div>
 
