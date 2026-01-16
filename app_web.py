@@ -318,6 +318,13 @@ _init_db()
 def _send_waitlist_confirmation_email(email: str) -> bool:
     """先行登録完了メールを送信"""
     try:
+        def _is_ascii(s: str) -> bool:
+            try:
+                s.encode("ascii")
+                return True
+            except Exception:
+                return False
+
         # SMTP設定を環境変数から取得
         smtp_enabled = _env("SMTP_ENABLED", "0") == "1"
         if not smtp_enabled:
@@ -332,6 +339,15 @@ def _send_waitlist_confirmation_email(email: str) -> bool:
         
         if not smtp_user or not smtp_password:
             app.logger.warning("SMTP credentials not configured, skipping email")
+            return False
+
+        # SMTP AUTH は基本ASCII前提。非ASCIIが混ざると smtplib が UnicodeEncodeError で落ちるので、
+        # ここで検知してスキップ（登録自体は成功扱い）。
+        if (not _is_ascii(smtp_user)) or (not _is_ascii(smtp_password)):
+            app.logger.warning(
+                "SMTP credentials contain non-ASCII characters; skipping email. "
+                "Check /etc/singkana/secrets.env (SMTP_USER/SMTP_PASSWORD)."
+            )
             return False
         
         app.logger.info(f"Attempting to send waitlist confirmation email to {email} via {smtp_host}:{smtp_port}")
