@@ -108,6 +108,9 @@
 
   <!-- Studio CSS -->
   <style>
+    /* 横はみ出し対策（装飾のabsolute要素など） */
+    html, body { overflow-x: hidden; }
+
     /* スマホ専用レイアウト最適化 */
     @media (max-width: 767px) {
       /* Hero: 1画面完結 */
@@ -331,7 +334,7 @@
 
 </head>
 
-<body data-theme="dark" class="bg-slate-950 text-slate-100 antialiased">
+<body data-theme="dark" class="bg-slate-950 text-slate-100 antialiased overflow-x-hidden">
 
   <!-- =========================================================
   GTM (noscript)
@@ -350,7 +353,7 @@
 
   <!-- ヘッダ -->
   <header class="border-b border-white/5 bg-slate-950/70 backdrop-blur-sm sticky top-0 z-30">
-    <div class="mx-auto max-w-6xl px-4 py-3 md:py-4 flex items-center justify-between">
+    <div class="mx-auto max-w-7xl 2xl:max-w-[1440px] px-4 py-3 md:py-4 flex items-center justify-between">
       <div class="flex items-center gap-3">
         <img
           src="/assets/favicon/favicon-32.png"
@@ -391,7 +394,7 @@
   MAIN
   （導線の鉄則：Hero → 問題 → About → 機能 → 使い方 → 体験（Romaji/Studio） → 価格 → FAQ → CTA）
   ========================================================== -->
-  <main class="mx-auto max-w-6xl px-4 pb-24 pt-6 md:pt-8 space-y-28">
+  <main class="mx-auto max-w-7xl 2xl:max-w-[1440px] px-4 pb-24 pt-6 md:pt-8 space-y-28">
 
     <!-- HERO -->
     <section id="hero" class="grid gap-6 md:gap-12 md:grid-cols-2 md:items-center">
@@ -1046,7 +1049,7 @@
   </main>
 
   <footer class="border-t border-white/10 bg-slate-950/80">
-    <div class="mx-auto max-w-6xl px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-2">
+    <div class="mx-auto max-w-7xl 2xl:max-w-[1440px] px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-2">
       <p class="text-[11px] text-slate-500">© <span id="year"></span> SingKANA. All rights reserved.</p>
       <div class="flex items-center gap-4">
         <a href="https://en.singkana.com" target="_blank" rel="noopener" class="text-[11px] text-slate-400 hover:text-singkana-200 transition">
