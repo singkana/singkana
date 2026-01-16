@@ -1,5 +1,12 @@
 #!/bin/bash
 # SingKANA 本番投入前チェックリスト
+#
+# 実行例:
+#   cd /var/www/singkana
+#   bash check_production_readiness.sh
+#
+# 8番だけ抜き出す例:
+#   bash check_production_readiness.sh | sed -n '/^8\\./,/^9\\./p'
 
 echo "=== SingKANA 本番投入前チェック ==="
 echo ""
@@ -224,8 +231,65 @@ else
 fi
 echo ""
 
-# 8. ファイル権限確認（重要ファイル）
-echo "8. 重要ファイルの権限確認"
+# 8. /api/romaji 確認（HEAD/GET + 500文字制限）
+echo "8. /api/romaji 確認（HEAD/GET + 500文字制限）"
+
+# HEAD: 200 で返るか（監視/プロキシ対策）
+ROMAJI_HEADERS=$(curl -sSI http://127.0.0.1:5000/api/romaji 2>/dev/null | tr -d '\r')
+if echo "$ROMAJI_HEADERS" | head -n 1 | grep -q " 200 "; then
+    check_pass "HEAD /api/romaji: 200"
+else
+    check_fail "HEAD /api/romaji: 200 以外（監視で刺さる可能性）"
+fi
+
+# Content-Type が application/json になっているか（見栄え/監視対策）
+ROMAJI_CT=$(echo "$ROMAJI_HEADERS" | grep -i '^Content-Type:' | head -1)
+if echo "$ROMAJI_CT" | grep -qi "application/json"; then
+    check_pass "HEAD Content-Type: application/json"
+else
+    check_warn "HEAD Content-TypeがJSONではありません: ${ROMAJI_CT:-'(missing)'}"
+fi
+
+# Vary: Cookie が乗っていないか（キャッシュ効率）
+ROMAJI_VARY=$(echo "$ROMAJI_HEADERS" | grep -i '^Vary:' | head -1)
+if echo "$ROMAJI_VARY" | grep -qi "cookie"; then
+    check_warn "HEAD VaryにCookieが含まれています（監視/キャッシュに不要）: $ROMAJI_VARY"
+else
+    check_pass "HEAD Vary: Cookieなし"
+fi
+
+# GET: JSONが返るか（プローブが生きてるか）
+ROMAJI_GET=$(curl -sS http://127.0.0.1:5000/api/romaji 2>/dev/null | head -1)
+if echo "$ROMAJI_GET" | grep -q '"ok":true'; then
+    check_pass "GET /api/romaji: JSON ok=true"
+else
+    check_warn "GET /api/romaji: JSON確認できず（応答先頭）: ${ROMAJI_GET:-'(empty)'}"
+fi
+
+# 501文字: 402 + payment_required になるか（無料制限）
+if command -v python3 &> /dev/null; then
+    JSON_501=$(python3 - <<'PY'
+import json
+print(json.dumps({"text": "a"*501}))
+PY
+)
+    HTTP_501=$(curl -sS -o /tmp/singkana_romaji_501.json -w "%{http_code}" \
+        -X POST http://127.0.0.1:5000/api/romaji \
+        -H "Content-Type: application/json" \
+        -d "$JSON_501" 2>/dev/null)
+
+    if [ "$HTTP_501" = "402" ] && grep -q "payment_required" /tmp/singkana_romaji_501.json 2>/dev/null; then
+        check_pass "POST /api/romaji (501 chars): 402 payment_required"
+    else
+        check_warn "POST /api/romaji (501 chars): 期待(402 payment_required)と不一致 (http=$HTTP_501)"
+    fi
+else
+    check_warn "python3が無いので 501文字テストをスキップ"
+fi
+echo ""
+
+# 9. ファイル権限確認（重要ファイル）
+echo "9. 重要ファイルの権限確認"
 if [ -f "/var/www/singkana/app_web.py" ]; then
     FILE_OWNER=$(stat -c '%U' /var/www/singkana/app_web.py 2>/dev/null || stat -f '%Su' /var/www/singkana/app_web.py 2>/dev/null)
     if [ "$FILE_OWNER" = "deploy" ] || [ "$FILE_OWNER" = "root" ]; then

@@ -43,6 +43,20 @@ sudo systemctl restart singkana
 sudo systemctl status singkana --no-pager
 ```
 
+### 本番投入前チェック（推奨）
+
+```bash
+cd /var/www/singkana
+bash check_production_readiness.sh
+```
+
+**8番だけ見たい場合（例）**:
+
+```bash
+cd /var/www/singkana
+bash check_production_readiness.sh | sed -n '/^8\\./,/^9\\./p'
+```
+
 **それ以外は禁止。**
 
 ---

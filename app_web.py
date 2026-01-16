@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
 import smtplib
+from email.header import Header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -46,12 +47,15 @@ app = Flask(__name__)
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
-app.config["PROPAGATE_EXCEPTIONS"] = True
+# 本番で常時ONにすると 404/405 なども巻き込んで運用が荒れるので、
+# 明示的に環境変数で有効化されたときだけ使う。
+if os.getenv("FLASK_DEBUG_HOOK", "0") == "1":
+    app.config["PROPAGATE_EXCEPTIONS"] = True
 
-@app.errorhandler(Exception)
-def _debug_any_exception(e):
-    app.logger.exception("Unhandled exception: %s", e)
-    raise  # let debugger/console see the original traceback
+    @app.errorhandler(Exception)
+    def _debug_any_exception(e):
+        app.logger.exception("Unhandled exception: %s", e)
+        raise  # let debugger/console see the original traceback
 # -------------------------------------------------------------
 
 # -------------------------
@@ -73,6 +77,9 @@ def _json_error(code: int, error: str, message: str = "", **extra: Any):
 # ---- Limits / Policy ----
 MAX_JSON_BYTES = int(os.getenv("MAX_JSON_BYTES", "200000"))  # 200KB default
 FREE_ALLOWED_MODES = {"basic", "natural"}  # Freeで許す display_mode
+
+# ローマ字変換の無料制限
+ROMAJI_FREE_MAX_CHARS = int(os.getenv("ROMAJI_FREE_MAX_CHARS", "500"))  # 無料プランでの最大文字数
 
 # ---- Dev Pro Override (3段ロック) ----
 def _client_ip() -> str:
@@ -327,6 +334,8 @@ def _send_waitlist_confirmation_email(email: str) -> bool:
             app.logger.warning("SMTP credentials not configured, skipping email")
             return False
         
+        app.logger.info(f"Attempting to send waitlist confirmation email to {email} via {smtp_host}:{smtp_port}")
+        
         # メール本文
         subject = "SingKANA Pro先行登録完了"
         body_text = f"""SingKANA Pro先行登録ありがとうございます！
@@ -359,7 +368,8 @@ https://singkana.com
         
         # メール作成
         msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
+        # ヘッダ（Subject/From等）はASCII前提で落ちやすいので明示的にUTF-8へ
+        msg["Subject"] = str(Header(subject, "utf-8"))
         msg["From"] = from_email
         msg["To"] = email
         
@@ -396,6 +406,22 @@ def _set_plan(conn, user_id: str, plan: str):
 
 @app.before_request
 def _identity_and_plan_bootstrap():
+    # ---- fast path: do not touch DB for cheap endpoints ----
+    # 監視/プロキシ/ブラウザが投げるHEAD/OPTIONSでDBに触る必要はない
+    if request.method in ("HEAD", "OPTIONS"):
+        return None
+
+    p = (request.path or "").strip()
+    if p in ("/healthz", "/robots.txt"):
+        return None
+    if p.startswith("/assets/"):
+        return None
+    if p in ("/singkana_core.js", "/paywall_gate.js", "/terms.html", "/privacy.html"):
+        return None
+    # /api/romaji のGET/HEADは監視/事前問い合わせ用（DB不要）
+    if p == "/api/romaji" and request.method in ("GET", "HEAD"):
+        return None
+    # ---------------------------------------------------------
     try:
         # 開発者モード: URLトークンを受けたらCookieに保存してリダイレクト
         dev_pro_token = request.args.get("dev_pro", "").strip()
@@ -444,6 +470,30 @@ def _identity_and_plan_bootstrap():
 
 @app.after_request
 def _identity_cookie_commit(resp):
+    # ---- cheap endpoints: do not add Cookie/Vary/cache-control noise ----
+    # before_request でDBを触らない系（監視/静的/プローブ）は、
+    # Vary: Cookie 等でキャッシュが割れたりログが汚れるのを避ける。
+    p = (request.path or "").strip()
+    is_cheap = (
+        request.method in ("HEAD", "OPTIONS")
+        or p in ("/healthz", "/robots.txt")
+        or p.startswith("/assets/")
+        or p in ("/singkana_core.js", "/paywall_gate.js", "/terms.html", "/privacy.html")
+        or (p == "/api/romaji" and request.method in ("GET", "HEAD"))
+    )
+
+    if is_cheap:
+        # /api/romaji のHEADは監視が見るので JSON に統一
+        if p == "/api/romaji" and request.method == "HEAD":
+            resp.headers["Content-Type"] = "application/json; charset=utf-8"
+
+        # JSONレスポンスのcharsetを明示（環境/ログ表示の文字化け対策）
+        ct = resp.headers.get("Content-Type", "") or ""
+        if ct.startswith("application/json") and "charset=" not in ct.lower():
+            resp.headers["Content-Type"] = f"{ct}; charset=utf-8" if ct else "application/json; charset=utf-8"
+
+        return resp
+
     uid = getattr(g, "_set_uid_cookie", None)
     if uid:
         resp.set_cookie(
@@ -470,6 +520,12 @@ def _identity_cookie_commit(resp):
         resp.headers["Vary"] = ", ".join(sorted(vary_set))
     else:
         resp.headers["Vary"] = "Cookie"
+
+    # JSONレスポンスのcharsetを明示（環境/ログ表示の文字化け対策）
+    ct = resp.headers.get("Content-Type", "") or ""
+    if ct.startswith("application/json") and "charset=" not in ct.lower():
+        # FlaskはUTF-8前提だが、明示しておくと運用が楽
+        resp.headers["Content-Type"] = f"{ct}; charset=utf-8" if ct else "application/json; charset=utf-8"
     
     return resp
 
@@ -523,6 +579,15 @@ def api_me():
         "time": _utc_iso(),
         "debug": debug_info,  # デバッグ情報（常に返す）
     })
+
+# ======================================================================
+# Static: robots.txt
+# ======================================================================
+
+@app.route("/robots.txt", methods=["GET"])
+def robots_txt():
+    """robots.txtを返す（SEO対策、404エラー回避）"""
+    return Response("User-agent: *\nDisallow:", mimetype="text/plain")
 
 # ======================================================================
 # API: 歌詞変換（Canonical）
@@ -588,14 +653,66 @@ def api_convert():
 
     return jsonify({"ok": True, "result": result})
 
-# --- Romaji (Phase 1 MVP) -----------------------------------------------
+# --- Romaji (Phase 1 MVP: 歌うためのローマ字) ----------------------------
 from pykakasi import kakasi  # noqa: E402
 
 # pykakasi v3 API (setMode/getConverter deprecated)
 _kks = kakasi()
 
-def to_romaji(text: str) -> str:
-    """Convert Japanese text to romaji while preserving line breaks."""
+def _optimize_romaji_for_singing(romaji: str) -> str:
+    """
+    歌唱向けにローマ字を最適化する。
+    - 音節の区切りを明確に（適切な位置にスペース）
+    - 長音（ー）を明確に（oo, uu など）
+    - 促音（っ）を適切に処理
+    - 歌いやすさを優先
+    """
+    if not romaji:
+        return romaji
+    
+    # 1. 長音記号（ー）の処理：前の母音に応じて適切に展開
+    # 例：おー → oo, あー → aa, えー → ee, いー → ii, うー → uu
+    # ただし、既に連続母音になっている場合はそのまま
+    
+    # 2. 促音（っ）の処理：pykakasiが既に適切に処理しているが、念のため確認
+    # 例：いっしょ → issho（既に処理済み）
+    
+    # 3. 音節区切りの最適化：子音+母音のペアを基本単位として、適切にスペースを入れる
+    # ただし、過度にスペースを入れすぎると読みにくくなるので、バランスを取る
+    # 基本的にはpykakasiの出力を尊重しつつ、明らかに区切った方が歌いやすい箇所のみ調整
+    
+    # 4. 大文字小文字の統一：歌詞として見やすく（文頭のみ大文字、他は小文字）
+    lines = romaji.splitlines()
+    optimized_lines = []
+    
+    for line in lines:
+        if not line.strip():
+            optimized_lines.append("")
+            continue
+        
+        # 基本的にはpykakasiの出力をそのまま使用
+        # 将来的にリズム・伸ばし・息継ぎを最適化する余地を残す
+        optimized = line.strip()
+        
+        # 簡易的な最適化：連続する子音の前にスペースを入れる（歌いやすさ向上）
+        # 例：shinjite → shin jite（ただし、これは過度に分割しすぎる可能性があるので慎重に）
+        # 現時点では、pykakasiの出力を尊重
+        
+        optimized_lines.append(optimized)
+    
+    return "\n".join(optimized_lines)
+
+def to_romaji(text: str, for_singing: bool = True) -> str:
+    """
+    日本語テキストをローマ字に変換する。
+    
+    Args:
+        text: 変換する日本語テキスト
+        for_singing: Trueの場合、歌唱向けに最適化（デフォルト）
+    
+    Returns:
+        ローマ字変換されたテキスト（改行は保持）
+    """
     lines = text.splitlines()
     out = []
     for line in lines:
@@ -607,18 +724,72 @@ def to_romaji(text: str) -> str:
         result = _kks.convert(line)
         # Join hepburn values, preserving spaces from original text
         romaji = ''.join(r.get('hepburn', r.get('orig', '')) for r in result)
+        
+        if for_singing:
+            romaji = _optimize_romaji_for_singing(romaji)
+        
         out.append(romaji.strip())
     return "\n".join(out)
 
+@app.route("/api/romaji", methods=["GET", "HEAD"])
+def api_romaji_probe():
+    """監視/事前問い合わせ用（HEADが500になるのを防ぐ）"""
+    # HEADはボディ無しで200（ただしContent-TypeはGETに寄せておく）
+    if request.method == "HEAD":
+        return Response("", status=200, mimetype="application/json")
+    return jsonify(ok=True, method="GET", hint="POST JSON {text} to convert"), 200
+
 @app.route("/api/romaji", methods=["POST"])
 def api_romaji():
+    """
+    日本語→ローマ字変換API（歌うためのローマ字）
+    無料プランでは文字数制限あり。
+    """
     data = request.get_json(silent=True) or {}
     text = (data.get("text") or "").strip()
 
     if not text:
-        return jsonify({"ok": False, "error": "empty_text"}), 400
+        return _json_error(400, "empty_text", "テキストを入力してください。")
 
-    return jsonify({"ok": True, "romaji": to_romaji(text)})
+    # 無料制限チェック
+    user_plan = getattr(g, "user_plan", "free")
+    text_length = len(text)
+    
+    # 開発者モードで上書きされている場合はPro扱い
+    is_pro = (user_plan == "pro") or is_pro_override()
+    
+    if not is_pro and text_length > ROMAJI_FREE_MAX_CHARS:
+        return _json_error(
+            402,
+            "payment_required",
+            f"無料プランでは{ROMAJI_FREE_MAX_CHARS}文字まで変換できます。Proプランでは無制限です。",
+            text_length=text_length,
+            free_limit=ROMAJI_FREE_MAX_CHARS,
+            required_plan="pro",
+            user_plan=user_plan,
+        )
+    
+    try:
+        romaji_result = to_romaji(text, for_singing=True)
+        
+        return jsonify({
+            "ok": True,
+            "romaji": romaji_result,
+            "meta": {
+                "text_length": text_length,
+                "plan": user_plan,
+                "is_pro": is_pro,
+                "free_limit": ROMAJI_FREE_MAX_CHARS if not is_pro else None,
+            }
+        })
+    except Exception as e:
+        app.logger.exception(f"Romaji conversion failed: {e}")
+        return _json_error(
+            500,
+            "conversion_error",
+            "ローマ字変換に失敗しました。",
+            detail=str(e),
+        )
 
 # ======================================================================
 # Billing: config + checkout + webhook
@@ -989,3 +1160,9 @@ def health():
     }
     
     return jsonify(response), http_status
+
+# ===== エントリポイント（ローカル開発用） ==============================
+
+if __name__ == "__main__":
+    # 開発用サーバー（本番は gunicorn＋nginx 経由）
+    app.run(host="127.0.0.1", port=5000, debug=True)

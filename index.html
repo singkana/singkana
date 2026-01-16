@@ -107,6 +107,36 @@
 
   <!-- Studio CSS -->
   <style>
+    /* スマホ専用レイアウト最適化 */
+    @media (max-width: 767px) {
+      /* Hero: 1画面完結 */
+      #hero {
+        min-height: calc(100vh - 80px);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      
+      /* カードUI: padding削減（Studio配下のみ） */
+      #studio .rounded-2xl,
+      #studio .rounded-3xl {
+        padding: 0.75rem !important;
+      }
+
+      /* 結果エリア: 未変換時は高さ制限（JSで is-placeholder を付与） */
+      #studio #result-panel.is-placeholder {
+        min-height: auto !important;
+        max-height: 4rem;
+        padding: 0.5rem;
+      }
+      
+      /* フッター直前: 余白削減 */
+      #cta-bottom {
+        padding-top: 1rem !important;
+        margin-bottom: 0.5rem;
+      }
+    }
+    
     .error-banner {
       display: none;
       background: #ffe5e8;
@@ -341,7 +371,7 @@
         <a href="#about" class="hover:text-singkana-200 transition">SingKANAとは</a>
         <a href="#features" class="hover:text-singkana-200 transition">機能</a>
         <a href="#how-it-works" class="hover:text-singkana-200 transition">使い方</a>
-        <a href="#romaji-beta" class="hover:text-singkana-200 transition">Romaji β</a>
+        <a href="#romaji-beta" class="hover:text-singkana-200 transition">歌うためのローマ字</a>
         <a href="#pricing" class="hover:text-singkana-200 transition">料金</a>
         <a href="#faq" class="hover:text-singkana-200 transition">FAQ</a>
         <a href="https://en.singkana.com" target="_blank" rel="noopener" class="hover:text-singkana-200 transition border-l border-white/10 pl-4 ml-2">
@@ -361,20 +391,44 @@
   <main class="mx-auto max-w-6xl px-4 pb-24 pt-10 space-y-28">
 
     <!-- HERO -->
-    <section id="hero" class="grid gap-12 md:grid-cols-2 md:items-center">
-      <div class="space-y-6">
-        <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-slate-900/80 px-3 py-1 text-[11px] text-slate-200 shadow-soft backdrop-blur-xs">
-          <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-          好きな曲を「読めない」から一瞬で「歌える」に。
-        </div>
-
-        <div class="space-y-4">
-          <h1 class="text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight text-slate-50">
+    <section id="hero" class="grid gap-6 md:gap-12 md:grid-cols-2 md:items-center">
+      <div class="space-y-4 md:space-y-6">
+        <!-- スマホ: 最小限の情報のみ表示 -->
+        <div class="md:hidden space-y-4">
+          <h1 class="text-2xl font-semibold leading-tight text-slate-50">
             英語の歌詞を、歌いやすい「かな発音」に変換するAI<br />
             <span class="bg-gradient-to-r from-singkana-200 via-fuchsia-200 to-cyan-200 bg-clip-text text-transparent">
-              ― SingKANA（シンカナ）
+              ― SingKANA
             </span>
           </h1>
+          
+          <div class="flex flex-col gap-2">
+            <a href="#studio"
+              class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-3 text-base font-semibold text-white shadow-glow hover:brightness-110 transition">
+              無料でかな変換を試す
+              <span class="text-sm">▶</span>
+            </a>
+            <a href="#romaji-beta"
+              class="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-slate-950/80 px-5 py-2 text-sm font-medium text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition">
+              歌うためのローマ字変換も試す
+            </a>
+          </div>
+        </div>
+
+        <!-- PC: 詳細情報を表示 -->
+        <div class="hidden md:block space-y-6">
+          <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-slate-900/80 px-3 py-1 text-[11px] text-slate-200 shadow-soft backdrop-blur-xs">
+            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+            好きな曲を「読めない」から一瞬で「歌える」に。
+          </div>
+
+          <div class="space-y-4">
+            <h1 class="text-4xl lg:text-5xl font-semibold leading-tight text-slate-50">
+              英語の歌詞を、歌いやすい「かな発音」に変換するAI<br />
+              <span class="bg-gradient-to-r from-singkana-200 via-fuchsia-200 to-cyan-200 bg-clip-text text-transparent">
+                ― SingKANA（シンカナ）
+              </span>
+            </h1>
 
           <!-- サブヘッド（H2相当・人間向け） -->
           <h2 class="text-xl md:text-2xl font-medium text-slate-200 leading-relaxed">
@@ -434,7 +488,7 @@
           </a>
           <a href="#romaji-beta"
             class="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-slate-950/80 px-5 py-2 text-xs font-medium text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition">
-            日本語曲 → Romaji も試す
+            歌うためのローマ字変換も試す
           </a>
         </div>
 
@@ -588,10 +642,10 @@
     <section id="romaji-beta" class="space-y-4">
       <div class="flex items-end justify-between flex-wrap gap-3">
         <div>
-          <h2 class="text-xl md:text-2xl font-semibold">Romaji（β）</h2>
+          <h2 class="text-xl md:text-2xl font-semibold">歌うためのローマ字</h2>
           <p class="text-sm text-slate-300 mt-2">
-            日本語のアニソン歌詞を貼ると、<span class="font-semibold text-slate-100">歌いやすいローマ字</span>に変換します。
-            海外勢向けの入口（MVP）として実装中です。
+            日本語歌詞を<span class="font-semibold text-slate-100">声に出すためのローマ字</span>に変換します。
+            <span class="text-slate-400">意味を訳すツールではありません。歌う・読む・発音するための補助です。</span>
           </p>
         </div>
         <a href="#studio"
@@ -622,9 +676,9 @@
           </div>
 
           <div class="space-y-2">
-            <p class="text-xs text-slate-300">出力（Romaji）</p>
+            <p class="text-xs text-slate-300">出力（ローマ字）</p>
             <textarea id="romaji_out" rows="7" readonly
-              placeholder="Romaji output will appear here"
+              placeholder="ローマ字がここに表示されます"
               class="w-full rounded-2xl border border-white/10 bg-slate-950/30 p-3 text-sm text-slate-100 placeholder:text-slate-600"></textarea>
 
             <p class="text-[11px] text-slate-400 leading-relaxed">
@@ -827,29 +881,35 @@
               ></textarea>
             </div>
 
-            <div class="flex flex-wrap items-center gap-2">
-              <button type="button" class="mini-btn" onclick="saveStudioState()">💾 保存</button>
-              <button type="button" class="mini-btn" onclick="restoreStudioState()">↩ 復元</button>
-              <button type="button" class="mini-btn" onclick="clearStudioState()">🧹 クリア</button>
+            <div class="flex flex-col md:flex-row md:flex-wrap md:items-center gap-2">
+              <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
+                <button type="button" class="mini-btn w-full md:w-auto" onclick="saveStudioState()">💾 保存</button>
+                <button type="button" class="mini-btn w-full md:w-auto" onclick="restoreStudioState()">↩ 復元</button>
+                <button type="button" class="mini-btn w-full md:w-auto" onclick="clearStudioState()">🧹 クリア</button>
+              </div>
 
-              <span class="mx-1 h-4 w-px bg-white/15"></span>
+              <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
 
-              <label class="mini-hint">例文：</label>
-              <button type="button" class="mini-btn" onclick="insertExample('fast')" title="速い英語（詰むやつ）">⚡ 速い英語</button>
-              <button type="button" class="mini-btn" onclick="insertExample('consonant')" title="子音連打（k/t/s）">🔤 子音連打</button>
-              <button type="button" class="mini-btn" onclick="insertExample('vowel')" title="長母音（fly/line/night系）">🎵 長母音</button>
+              <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
+                <label class="mini-hint hidden md:inline">例文：</label>
+                <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('fast')" title="速い英語（詰むやつ）">⚡ 速い英語</button>
+                <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('consonant')" title="子音連打（k/t/s）">🔤 子音連打</button>
+                <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('vowel')" title="長母音（fly/line/night系）">🎵 長母音</button>
+              </div>
 
-              <span class="mx-1 h-4 w-px bg-white/15"></span>
+              <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
 
-              <label class="mini-hint">テンプレ：</label>
-              <select id="template-select" class="mini-select" onchange="applyTemplateFromSelect()">
-                <option value="">選択…</option>
-                <option value="warmup">ウォームアップ（短文）</option>
-                <option value="chorus">サビ練習（汎用）</option>
-                <option value="speech">語尾・子音の練習</option>
-              </select>
+              <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
+                <label class="mini-hint hidden md:inline">テンプレ：</label>
+                <select id="template-select" class="mini-select w-full md:w-auto" onchange="applyTemplateFromSelect()">
+                  <option value="">選択…</option>
+                  <option value="warmup">ウォームアップ（短文）</option>
+                  <option value="chorus">サビ練習（汎用）</option>
+                  <option value="speech">語尾・子音の練習</option>
+                </select>
+              </div>
 
-              <span id="studio-status" class="text-[11px] text-slate-400 ml-auto"></span>
+              <span id="studio-status" class="text-[11px] text-slate-400 md:ml-auto"></span>
             </div>
 
             <button
@@ -879,47 +939,53 @@
                 各行をタップすると、その行だけハイライトされ、音声読み上げでかなを再生します（対応ブラウザのみ）。
               </p>
 
-              <div class="flex flex-wrap items-center gap-2">
-                <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
-                  onclick="copyKanaOnly()">📋 かなだけコピー</button>
+              <div class="flex flex-col md:flex-row md:flex-wrap md:items-center gap-2">
+                <div class="flex flex-col md:flex-row md:items-center gap-2">
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
+                    onclick="copyKanaOnly()">📋 かなだけコピー</button>
 
-                <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
-                  onclick="copyEnKana()">📋 EN+かなコピー</button>
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
+                    onclick="copyEnKana()">📋 EN+かなコピー</button>
 
-                <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
-                  onclick="downloadTxt()">⬇ TXT</button>
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
+                    onclick="downloadTxt()">⬇ TXT</button>
 
-                <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
-                  onclick="downloadSrt()">⬇ SRT(簡易)</button>
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
+                    onclick="downloadSrt()">⬇ SRT(簡易)</button>
+                </div>
 
-                <label for="displayMode" class="inline-flex items-center gap-2 text-[11px] text-slate-300 select-none">
-                  表示
+                <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
+
+                <label for="displayMode" class="flex flex-col md:flex-row md:items-center gap-2 text-[11px] text-slate-300 select-none w-full md:w-auto">
+                  <span class="hidden md:inline">表示</span>
                   <select id="displayMode" 
-                    class="rounded-full bg-slate-950/60 border border-slate-600 px-3 py-1 text-[11px] text-slate-100">
+                    class="rounded-full bg-slate-950/60 border border-slate-600 px-3 py-1 text-[11px] text-slate-100 w-full md:w-auto">
                     <option value="basic">ベーシック（読むためのカタカナ）</option>
                     <option value="natural" selected>ナチュラル（英語っぽく歌う・英語感を残したい人向け）</option>
                     <option value="precise">精密（日本語として歌う・最適・失敗したくない人向け）</option>
                   </select>
                 </label>
 
-                <span class="mx-1 h-4 w-px bg-white/15"></span>
+                <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
 
-                <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
-                  onclick="prevLine()">◀ 前</button>
+                <div class="flex flex-col md:flex-row md:items-center gap-2">
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
+                    onclick="prevLine()">◀ 前</button>
 
-                <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
-                  onclick="nextLine()">次 ▶</button>
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
+                    onclick="nextLine()">次 ▶</button>
 
-                <label class="ml-1 inline-flex items-center gap-2 text-[11px] text-slate-300 select-none">
-                  <input id="auto-scroll" type="checkbox" class="accent-indigo-400" checked />
-                  自動追従
-                </label>
+                  <label class="inline-flex items-center gap-2 text-[11px] text-slate-300 select-none w-full md:w-auto justify-center md:justify-start">
+                    <input id="auto-scroll" type="checkbox" class="accent-indigo-400" checked />
+                    自動追従
+                  </label>
+                </div>
 
-                <span id="export-status" class="text-[11px] text-slate-400 ml-auto"></span>
+                <span id="export-status" class="text-[11px] text-slate-400 md:ml-auto text-center md:text-left"></span>
               </div>
 
-              <div id="result-panel" class="result-panel">
-                <p style="font-size:12px;color:#cbd5f5;">
+              <div id="result-panel" class="result-panel" style="min-height: auto;">
+                <p style="font-size:12px;color:#cbd5f5;margin:0;">
                   歌詞を入力して「この歌詞で変換する」を押すと、ここに結果が表示されます。
                 </p>
               </div>
@@ -957,13 +1023,13 @@
     </section>
 
     <!-- CTA -->
-    <section id="cta-bottom" class="space-y-4 pt-8 border-t border-white/10">
+    <section id="cta-bottom" class="space-y-3 md:space-y-4 pt-4 md:pt-8 border-t border-white/10">
       <h2 class="text-xl md:text-2xl font-semibold">「歌いたい」を、今日「歌えた」に変える。</h2>
-      <p class="text-sm md:text-base text-slate-300 leading-relaxed">
+      <p class="text-sm md:text-base text-slate-300 leading-relaxed hidden md:block">
         英語が読めなくても、発音が苦手でも、あなたの声はもっと自由に歌える。<br />
         SingKANA は <span class="font-semibold text-singkana-100">“音楽と言語の境界線” を溶かす</span>ためのAIです。
       </p>
-      <div class="flex flex-wrap items-center gap-3">
+      <div class="flex flex-col md:flex-row md:flex-wrap md:items-center gap-2 md:gap-3">
         <a href="#studio"
           class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition">
           無料でかな変換を試す
@@ -1107,6 +1173,13 @@
     // =========================
     // Tabs
     // =========================
+    function setResultPlaceholderState(){
+      const rp = document.getElementById("result-panel");
+      if (!rp) return;
+      const onlyP = rp.children.length === 1 && rp.firstElementChild && rp.firstElementChild.tagName === "P";
+      rp.classList.toggle("is-placeholder", !!onlyP);
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       // ユーザープラン（開発者モード含む）を読み込み
       loadUserPlan();
@@ -1131,6 +1204,7 @@
 
       // 起動時に復元（localStorage）
       restoreStudioState(true);
+      setResultPlaceholderState();
 
       // 自動保存
       const songEl = document.getElementById("song-title");
@@ -1160,10 +1234,9 @@
           try { localStorage.setItem("displayMode", mode); } catch(e){}
           __displayModeChangeHandler();
         });
+      }
+    });
 
-
-        }
-      });
     // =========================
     // Romaji (API)
     // =========================
@@ -1190,11 +1263,21 @@
           });
           const j = await res.json().catch(()=> ({}));
           if(!res.ok || !j.ok){
-            $st.textContent = "エラー: " + (j.error || res.status);
+            // 無料制限エラーの場合は特別なメッセージ
+            if(res.status === 402 && j.code === "payment_required"){
+              $st.textContent = `無料制限: ${j.message || "Proプランが必要です"}`;
+            } else {
+              $st.textContent = "エラー: " + (j.message || j.error || res.status);
+            }
             return;
           }
           $out.value = j.romaji || "";
-          $st.textContent = "完了";
+          // メタ情報があれば表示
+          if(j.meta && j.meta.free_limit){
+            $st.textContent = `完了 (${j.meta.text_length}/${j.meta.free_limit}文字)`;
+          } else {
+            $st.textContent = "完了";
+          }
         }catch(e){
           $st.textContent = "ネットワークエラー";
         }
@@ -1396,13 +1479,16 @@
       if (currentActiveBlock) currentActiveBlock.scrollIntoView({ block: "center", behavior: "smooth" });
     }
     
-    // ハッシュリンク（#terms, #privacy）の処理
+    // ハッシュリンク（#terms, #privacy, #faq）の処理
     function showHashSection() {
       const hash = window.location.hash;
-      if (hash === "#terms" || hash === "#privacy") {
+      if (hash === "#terms" || hash === "#privacy" || hash === "#faq") {
         const section = document.querySelector(hash);
         if (section) {
-          section.classList.remove("hidden");
+          // #terms と #privacy は hidden クラスを持つ
+          if (hash === "#terms" || hash === "#privacy") {
+            section.classList.remove("hidden");
+          }
           section.scrollIntoView({ behavior: "smooth", block: "start" });
         }
       }
@@ -1444,16 +1530,16 @@
       const el = document.getElementById("displayMode");
       return el ? el.value : "basic";
     }
-    function renderDisplay(coreText, mode){
+    function _renderDisplayPlainText(coreText, mode){
       if (!coreText) return "";
-      
+
       let t = String(coreText);
       t = t.replace(/\[.*?\]/g, "");
       t = t.replace(/\(.*?\)/g, "");
       t = t.replace(/[|\/]/g, "");
       // 区切り記号を統一（カンマを「｜」に置換）
       t = t.replace(/[,，]/g, "｜");
-      
+
       if (mode === "precise") {
         return t.trim();
       }
@@ -1478,6 +1564,25 @@
       });
       t = t.replace(/\s{2,}/g, " ");
       return t.trim();
+    }
+
+    function renderDisplay(coreText, mode){
+      if (!coreText) return "";
+      const t = String(coreText);
+
+      // HTML（差分ハイライトやタグ）が混ざるケースでは、属性を壊さないよう text node のみ加工
+      if (t.includes("<")) {
+        const tpl = document.createElement("template");
+        tpl.innerHTML = t;
+        const walker = document.createTreeWalker(tpl.content, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          node.nodeValue = _renderDisplayPlainText(node.nodeValue, mode);
+        }
+        return tpl.innerHTML;
+      }
+
+      return _renderDisplayPlainText(t, mode);
     }
 
     function __displayModeChangeHandler(){
@@ -1574,6 +1679,7 @@
       if (!lyrics.trim()) {
         if (resultPanel) {
           resultPanel.innerHTML = "<p style='font-size:12px;color:#cbd5f5;'>歌詞を入力してください。</p>";
+          setResultPlaceholderState();
         }
         return;
       }
@@ -1587,6 +1693,7 @@
         }
         if (resultPanel) {
           resultPanel.innerHTML = "<p style='font-size:12px;color:#ff6b6b;'>変換エンジンが読み込まれていません。ページを再読み込みしてください。</p>";
+          setResultPlaceholderState();
         }
         return;
       }
@@ -1602,6 +1709,7 @@
           window.activeIndex = -1;
           if (resultPanel) {
             resultPanel.innerHTML = "<p style='font-size:12px;color:#cbd5f5;'>有効な行がありませんでした。</p>";
+            setResultPlaceholderState();
           }
           saveStudioState(true);
           return;
@@ -1614,6 +1722,7 @@
         }
         if (resultPanel) {
           resultPanel.innerHTML = `<p style='font-size:12px;color:#ff6b6b;'>変換エラーが発生しました: ${error.message}</p>`;
+          setResultPlaceholderState();
         }
         return;
       }
@@ -1721,6 +1830,7 @@
 
       resultPanel.innerHTML = "";
       resultPanel.appendChild(frag);
+      setResultPlaceholderState();
 
       setActiveIndex(0);
       saveStudioState(true);
@@ -2059,35 +2169,6 @@
       }
       
       return final;
-    }
-
-    // =========================
-    // 例文挿入（1クリックで価値を踏ませる）
-    // =========================
-    function insertExample(type) {
-      const lyricsInput = document.getElementById("lyrics-input");
-      if (!lyricsInput) return;
-      
-      const examples = {
-        fast: "Put your heart on the line, we'll be flying tonight",
-        consonant: "I want you to know that I'm still here",
-        vowel: "Fly me to the moon, let me play among the stars"
-      };
-      
-      const example = examples[type] || examples.fast;
-      
-      // 既にテキストがある場合は確認
-      if (lyricsInput.value.trim()) {
-        if (!confirm("現在の入力内容を置き換えますか？")) {
-          return;
-        }
-      }
-      
-      lyricsInput.value = example;
-      lyricsInput.focus();
-      
-      // 自動変換（オプション）
-      // convertLyrics();
     }
 
     // =========================
