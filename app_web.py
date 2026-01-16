@@ -441,6 +441,8 @@ def _identity_and_plan_bootstrap():
     p = (request.path or "").strip()
     if p in ("/healthz", "/robots.txt"):
         return None
+    if p == "/favicon.ico":
+        return None
     if p.startswith("/assets/"):
         return None
     if p in ("/singkana_core.js", "/paywall_gate.js", "/terms.html", "/privacy.html"):
@@ -504,6 +506,7 @@ def _identity_cookie_commit(resp):
     is_cheap = (
         request.method in ("HEAD", "OPTIONS")
         or p in ("/healthz", "/robots.txt")
+        or p == "/favicon.ico"
         or p.startswith("/assets/")
         or p in ("/singkana_core.js", "/paywall_gate.js", "/terms.html", "/privacy.html")
         or (p == "/api/romaji" and request.method in ("GET", "HEAD"))
@@ -555,6 +558,12 @@ def _identity_cookie_commit(resp):
         resp.headers["Content-Type"] = f"{ct}; charset=utf-8" if ct else "application/json; charset=utf-8"
     
     return resp
+
+@app.get("/favicon.ico")
+def favicon_ico():
+    """Google等が最初に取りに来る favicon.ico を200で返す"""
+    fav_dir = BASE_DIR / "assets" / "favicon"
+    return send_from_directory(str(fav_dir), "favicon.ico", mimetype="image/x-icon")
 
 @app.get("/dev/logout")
 def dev_logout():
