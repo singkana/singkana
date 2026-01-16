@@ -915,7 +915,9 @@
                 </select>
               </div>
 
-              <span id="studio-status" class="text-[11px] text-slate-400 md:ml-auto"></span>
+              <!-- 右寄せは親が制御（ml-auto爆弾を避ける） -->
+              <span class="hidden md:block flex-1"></span>
+              <span id="studio-status" class="text-[11px] text-slate-400 md:text-right"></span>
             </div>
 
             <button
@@ -987,7 +989,9 @@
                   </label>
                 </div>
 
-                <span id="export-status" class="text-[11px] text-slate-400 md:ml-auto text-center md:text-left"></span>
+                <!-- 右寄せは親が制御（ml-auto爆弾を避ける） -->
+                <span class="hidden md:block flex-1"></span>
+                <span id="export-status" class="text-[11px] text-slate-400 text-center md:text-right"></span>
               </div>
 
               <div id="result-panel" class="result-panel" style="min-height: auto;">
