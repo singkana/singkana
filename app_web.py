@@ -16,6 +16,7 @@ import smtplib
 from email.header import Header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr, formatdate, make_msgid
 
 from flask import (
     Flask,
@@ -386,8 +387,18 @@ https://singkana.com
         msg = MIMEMultipart("alternative")
         # ヘッダ（Subject/From等）はASCII前提で落ちやすいので明示的にUTF-8へ
         msg["Subject"] = str(Header(subject, "utf-8"))
-        msg["From"] = from_email
+        # 到達率対策: Gmail SMTPなら From は SMTP_USER と一致させるのが安全（DMARC整合）
+        effective_from = (smtp_user or from_email).strip()
+        if smtp_user and from_email and smtp_user.strip().lower() != from_email.strip().lower():
+            app.logger.warning("SMTP_FROM differs from SMTP_USER; using SMTP_USER for deliverability.")
+        display_name = str(Header("SingKANA", "utf-8"))
+        msg["From"] = formataddr((display_name, effective_from))
         msg["To"] = email
+        msg["Reply-To"] = effective_from
+        msg["Date"] = formatdate(localtime=True)
+        # Message-ID はiCloud到達率で効くことがある（Gmail側でも生成されるが明示しておく）
+        domain = effective_from.split("@", 1)[1] if "@" in effective_from else None
+        msg["Message-ID"] = make_msgid(domain=domain)
         
         part1 = MIMEText(body_text, "plain", "utf-8")
         part2 = MIMEText(body_html, "html", "utf-8")
