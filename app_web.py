@@ -131,6 +131,7 @@ def _origin_ok() -> bool:
         allowed_origins = {
             "https://singkana.com",
             "https://www.singkana.com",
+            "https://en.singkana.com",
             "http://127.0.0.1:5000",
             "http://localhost:5000",
         }
