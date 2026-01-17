@@ -443,6 +443,8 @@ def _identity_and_plan_bootstrap():
         return None
     if p == "/favicon.ico":
         return None
+    if p in ("/romaji", "/romaji/"):
+        return None
     if p.startswith("/assets/"):
         return None
     if p in ("/singkana_core.js", "/paywall_gate.js", "/terms.html", "/privacy.html"):
@@ -507,6 +509,7 @@ def _identity_cookie_commit(resp):
         request.method in ("HEAD", "OPTIONS")
         or p in ("/healthz", "/robots.txt")
         or p == "/favicon.ico"
+        or p in ("/romaji", "/romaji/")
         or p.startswith("/assets/")
         or p in ("/singkana_core.js", "/paywall_gate.js", "/terms.html", "/privacy.html")
         or (p == "/api/romaji" and request.method in ("GET", "HEAD"))
@@ -1099,6 +1102,16 @@ def index() -> Response:
         return send_from_directory(str(BASE_DIR), "index.html")
     except Exception as e:
         app.logger.exception("Error serving index.html: %s", e)
+        raise
+
+@app.get("/romaji")
+@app.get("/romaji/")
+def romaji_en() -> Response:
+    """English: Romaji for Singing Japanese (PH entry)"""
+    try:
+        return send_from_directory(str(BASE_DIR / "romaji"), "index.html")
+    except Exception as e:
+        app.logger.exception("Error serving romaji/index.html: %s", e)
         raise
 
 @app.get("/singkana_core.js")

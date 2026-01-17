@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Romaji for Singing Japanese | SingKANA</title>
+  <meta name="description" content="Convert Japanese lyrics into singable Romaji. This tool is for pronunciation and singing — not translation." />
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
+  <meta name="theme-color" content="#0b1220" />
+
+  <!-- Favicons -->
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon/apple-touch.png?v=3">
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            singkana: {
+              50: '#f7f4ff',
+              100: '#ede7ff',
+              200: '#d9ceff',
+              300: '#c0aeff',
+              400: '#a184ff',
+              500: '#8a5dff',
+              600: '#7441f0',
+              700: '#5c32c4',
+              800: '#472898',
+              900: '#362073'
+            }
+          },
+          boxShadow: {
+            soft: '0 18px 45px rgba(0,0,0,0.35)',
+            glow: '0 0 40px rgba(138,93,255,0.45)'
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    html, body { overflow-x: hidden; }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 antialiased">
+  <!-- Background -->
+  <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+    <div class="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-singkana-500/35 blur-3xl"></div>
+    <div class="absolute top-40 -left-40 h-96 w-96 rounded-full bg-fuchsia-500/25 blur-3xl"></div>
+    <div class="absolute bottom-[-10rem] right-[-5rem] h-80 w-80 rounded-full bg-cyan-400/15 blur-3xl"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="border-b border-white/5 bg-slate-950/70 backdrop-blur-sm sticky top-0 z-30">
+    <div class="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <img src="/assets/favicon/favicon-32.png" alt="SingKANA" class="h-7 w-7 rounded-xl" />
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-lg font-semibold tracking-wide">SingKANA</span>
+            <span class="rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.2em] text-slate-300">beta</span>
+          </div>
+          <p class="text-xs text-slate-400">Romaji for Singing Japanese</p>
+        </div>
+      </div>
+
+      <nav class="flex items-center gap-3 text-sm text-slate-200">
+        <a href="/" class="hover:text-singkana-200 transition">Home</a>
+        <a href="https://singkana.com" target="_blank" rel="noopener" class="hover:text-singkana-200 transition hidden sm:inline">
+          Japanese site
+        </a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-5xl px-4 py-6 md:py-10 space-y-6">
+    <section class="space-y-3">
+      <h1 class="text-2xl md:text-3xl font-semibold leading-tight text-slate-50">
+        Romaji for Singing Japanese
+      </h1>
+      <p class="text-sm md:text-base text-slate-300 leading-relaxed">
+        Convert Japanese lyrics into <span class="font-semibold text-singkana-100">singable Romaji</span>.
+        This tool is for <span class="font-semibold text-singkana-100">pronunciation and singing</span> — not translation.
+      </p>
+      <div class="flex flex-wrap items-center gap-2 text-[11px] text-slate-300">
+        <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/40 px-3 py-1">
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+          Uses the same API as SingKANA
+        </span>
+        <span class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/40 px-3 py-1">
+          Free limit: <span id="free-limit" class="font-semibold text-slate-100">500</span> chars
+        </span>
+      </div>
+    </section>
+
+    <section class="rounded-3xl border border-white/10 bg-slate-900/60 p-4 md:p-6 shadow-soft backdrop-blur-sm">
+      <div class="grid gap-4 md:grid-cols-2">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs text-slate-300">Input (Japanese lyrics)</p>
+            <p class="text-[11px] text-slate-400"><span id="char-count">0</span> chars</p>
+          </div>
+          <textarea
+            id="romaji_in"
+            rows="10"
+            placeholder="Paste Japanese lyrics here&#10;Example: 残酷な天使のテーゼ&#10;少年よ神話になれ"
+            class="w-full rounded-2xl border border-white/10 bg-slate-950/40 p-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-singkana-400/80"
+          ></textarea>
+
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+            <button
+              id="romaji_go"
+              type="button"
+              class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-5 py-2 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition"
+            >
+              Convert
+            </button>
+            <button
+              id="romaji_clear"
+              type="button"
+              class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-950/60 px-5 py-2 text-sm font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition"
+            >
+              Clear
+            </button>
+            <span id="romaji_status" class="text-[11px] text-slate-400 sm:ml-auto"></span>
+          </div>
+
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            Tip: If you hit the free limit, try converting verse by verse.
+          </p>
+        </div>
+
+        <div class="space-y-2">
+          <p class="text-xs text-slate-300">Output (Romaji)</p>
+          <textarea
+            id="romaji_out"
+            rows="10"
+            readonly
+            placeholder="Romaji will appear here"
+            class="w-full rounded-2xl border border-white/10 bg-slate-950/30 p-3 text-sm text-slate-100 placeholder:text-slate-600"
+          ></textarea>
+
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+            <button
+              id="romaji_copy"
+              type="button"
+              class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-950/60 px-5 py-2 text-sm font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition"
+            >
+              Copy
+            </button>
+            <a
+              href="/#waitlist"
+              class="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 px-5 py-2 text-sm font-semibold text-slate-100 border border-white/10 hover:bg-white/15 transition"
+            >
+              Get Pro when launched
+            </a>
+          </div>
+
+          <div class="rounded-2xl border border-white/10 bg-slate-950/30 p-3 text-[11px] text-slate-300 leading-relaxed">
+            <p class="font-semibold text-slate-100 mb-1">Notes</p>
+            <ul class="space-y-1">
+              <li>- Romaji is optimized for singing and pronunciation.</li>
+              <li>- Rhythm, elongation, and breath support will be improved over time.</li>
+              <li>- This is not translation. Meaning is out of scope.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-white/10 bg-slate-950/70">
+    <div class="mx-auto max-w-5xl px-4 py-4 text-[11px] text-slate-400 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+      <p>© <span id="year"></span> SingKANA.</p>
+      <p class="text-slate-500">For Japanese users: <a class="underline hover:text-singkana-200 transition" href="https://singkana.com" target="_blank" rel="noopener">singkana.com</a></p>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    const els = {
+      in: document.getElementById("romaji_in"),
+      out: document.getElementById("romaji_out"),
+      go: document.getElementById("romaji_go"),
+      copy: document.getElementById("romaji_copy"),
+      clear: document.getElementById("romaji_clear"),
+      status: document.getElementById("romaji_status"),
+      count: document.getElementById("char-count"),
+      freeLimit: document.getElementById("free-limit"),
+    };
+
+    const FREE_LIMIT_DEFAULT = 500;
+    els.freeLimit.textContent = String(FREE_LIMIT_DEFAULT);
+
+    function setStatus(msg, tone) {
+      els.status.textContent = msg || "";
+      els.status.className = "text-[11px] " + (tone === "ok"
+        ? "text-emerald-300"
+        : tone === "warn"
+        ? "text-amber-200"
+        : tone === "err"
+        ? "text-rose-200"
+        : "text-slate-400");
+    }
+
+    function updateCount() {
+      const n = (els.in.value || "").length;
+      els.count.textContent = String(n);
+      if (n > FREE_LIMIT_DEFAULT) {
+        setStatus(`Free plan supports up to ${FREE_LIMIT_DEFAULT} characters.`, "warn");
+      } else if (!els.status.textContent || els.status.className.includes("text-amber")) {
+        setStatus("", "");
+      }
+    }
+
+    async function convert() {
+      const text = (els.in.value || "").trim();
+      if (!text) {
+        setStatus("Please paste Japanese lyrics.", "warn");
+        return;
+      }
+
+      setStatus("Converting…", "");
+      els.go.disabled = true;
+      els.go.classList.add("opacity-60", "cursor-not-allowed");
+
+      try {
+        const res = await fetch("/api/romaji", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          const err = (data && (data.error || data.code)) || "error";
+          const freeLimit = data && data.free_limit ? data.free_limit : FREE_LIMIT_DEFAULT;
+          if (err === "payment_required") {
+            setStatus(`Free plan supports up to ${freeLimit} characters. Pro will be unlimited.`, "warn");
+          } else if (err === "empty_text") {
+            setStatus("Please paste Japanese lyrics.", "warn");
+          } else {
+            setStatus("Conversion failed. Please try again.", "err");
+          }
+          return;
+        }
+
+        els.out.value = data.romaji || "";
+        setStatus("Done.", "ok");
+      } catch (e) {
+        setStatus("Network error. Please try again.", "err");
+      } finally {
+        els.go.disabled = false;
+        els.go.classList.remove("opacity-60", "cursor-not-allowed");
+      }
+    }
+
+    async function copyOut() {
+      const text = els.out.value || "";
+      if (!text.trim()) {
+        setStatus("Nothing to copy.", "warn");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus("Copied.", "ok");
+      } catch {
+        // fallback
+        els.out.focus();
+        els.out.select();
+        try {
+          document.execCommand("copy");
+          setStatus("Copied.", "ok");
+        } catch {
+          setStatus("Copy failed. Please copy manually.", "warn");
+        }
+      }
+    }
+
+    function clearAll() {
+      els.in.value = "";
+      els.out.value = "";
+      setStatus("", "");
+      updateCount();
+      els.in.focus();
+    }
+
+    els.in.addEventListener("input", updateCount);
+    els.go.addEventListener("click", convert);
+    els.copy.addEventListener("click", copyOut);
+    els.clear.addEventListener("click", clearAll);
+
+    updateCount();
+  </script>
+</body>
+</html>
