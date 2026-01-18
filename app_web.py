@@ -446,6 +446,10 @@ def _identity_and_plan_bootstrap():
         return None
     if p in ("/romaji", "/romaji/"):
         return None
+    if p in ("/en", "/en/"):
+        return None
+    if p.startswith("/en/"):
+        return None
     if p.startswith("/assets/"):
         return None
     if p in ("/singkana_core.js", "/paywall_gate.js", "/terms.html", "/privacy.html"):
@@ -511,6 +515,8 @@ def _identity_cookie_commit(resp):
         or p in ("/healthz", "/robots.txt")
         or p == "/favicon.ico"
         or p in ("/romaji", "/romaji/")
+        or p in ("/en", "/en/")
+        or p.startswith("/en/")
         or p.startswith("/assets/")
         or p in ("/singkana_core.js", "/paywall_gate.js", "/terms.html", "/privacy.html")
         or (p == "/api/romaji" and request.method in ("GET", "HEAD"))
@@ -1113,6 +1119,33 @@ def romaji_en() -> Response:
         return send_from_directory(str(BASE_DIR / "romaji"), "index.html")
     except Exception as e:
         app.logger.exception("Error serving romaji/index.html: %s", e)
+        raise
+
+
+@app.get("/en")
+def en_redirect() -> Response:
+    """Force trailing slash to avoid relative-path resolution bugs (e.g. ./style.css -> /style.css)."""
+    from flask import redirect
+    return redirect("/en/", code=301)
+
+
+@app.get("/en/")
+def en_landing() -> Response:
+    """English LP (isolated under /en/ to avoid mixing with JP assets/CSS)."""
+    try:
+        return send_from_directory(str(BASE_DIR / "en"), "index.html")
+    except Exception as e:
+        app.logger.exception("Error serving en/index.html: %s", e)
+        raise
+
+
+@app.get("/en/<path:filename>")
+def en_static(filename: str) -> Response:
+    """Serve EN static assets (e.g. /en/style.css)."""
+    try:
+        return send_from_directory(str(BASE_DIR / "en"), filename)
+    except Exception as e:
+        app.logger.exception("Error serving en asset %s: %s", filename, e)
         raise
 
 @app.get("/singkana_core.js")
