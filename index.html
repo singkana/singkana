@@ -1,14 +1,21 @@
 <!doctype html>
 <html lang="ja">
 <head>
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-WV3GHF7D');</script>
+  <!-- End Google Tag Manager -->
   <!-- =========================================================
   0) Basics
   ========================================================== -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>SingKANA β｜英語歌詞を“歌えるかな”に変換（発音・ブレス・ロングトーン対応）</title>
-  <meta name="description" content="SingKANA（シンカナ）は、英語歌詞を“歌えるかな（カタカナ）”に変換するAIスタジオ。発音ガイド・ブレス位置・ロングトーンを可視化し、歌ってみた/練習/収録を高速化します。Global users? Check English LP at en.singkana.com" />
+  <title>SingKANA β｜歌詞を“歌いやすく”最適化するAI｜発音・ブレス・リズム可視化</title>
+  <meta name="description" content="SingKANA（シンカナ）は、歌詞を“歌うため”に最適化するAI。発音・ブレス位置・リズム・伸ばしを可視化し、歌って覚える新しい歌唱体験を提供します。学習よりも、まず歌う。β版公開中。" />
   
   <!-- (任意) canonical / OG / twitter は本番で追加推奨 -->
   <!-- <link rel="canonical" href="https://singkana.com/" /> -->
@@ -34,8 +41,8 @@
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="SingKANA" />
-  <meta property="og:title" content="英語の歌詞を、歌いやすい「かな発音」に変換するAI ― SingKANA（シンカナ）" />
-  <meta property="og:description" content="英語歌詞を“歌えるかな表記”に変換。発音ガイド/ブレス/ロングトーンまで可視化して、好きな曲を好きな言語で歌える世界へ。" />
+  <meta property="og:title" content="SingKANA β｜歌詞を“歌いやすく”最適化するAI｜発音・ブレス・リズム可視化" />
+  <meta property="og:description" content="SingKANA（シンカナ）は、歌詞を“歌うため”に最適化するAI。発音・ブレス位置・リズム・伸ばしを可視化し、歌って覚える新しい歌唱体験を提供します。学習よりも、まず歌う。β版公開中。" />
   <meta property="og:url" content="https://singkana.com/" />
   <meta property="og:image" content="https://singkana.com/assets/og/singkana_og.png" />
   <meta property="og:image:width" content="1200" />
@@ -44,8 +51,8 @@
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="英語の歌詞を、歌いやすい「かな発音」に変換するAI ― SingKANA（シンカナ）" />
-  <meta name="twitter:description" content="英語歌詞を“歌えるかな表記”に変換。発音ガイド/ブレス/ロングトーンまで可視化。" />
+  <meta name="twitter:title" content="SingKANA β｜歌詞を“歌いやすく”最適化するAI｜発音・ブレス・リズム可視化" />
+  <meta name="twitter:description" content="SingKANA（シンカナ）は、歌詞を“歌うため”に最適化するAI。発音・ブレス位置・リズム・伸ばしを可視化し、歌って覚える新しい歌唱体験を提供します。β版公開中。" />
   <meta name="twitter:image" content="https://singkana.com/assets/og/singkana_og.png" />
 
   <!-- 言語（将来 en ページができたら追加） -->
@@ -56,17 +63,6 @@
   <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin />
   <link rel="dns-prefetch" href="https://cdn.tailwindcss.com" />
 
-
-  <!-- =========================================================
-  1) Google Tag Manager (head)
-  ========================================================== -->
-  <script>
-    (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-    })(window,document,'script','dataLayer','GTM-M33GP2KP');
-  </script>
 
   <!-- =========================================================
   2) Theme / CSS (first: your theme switch, then Tailwind, then custom)
@@ -288,6 +284,11 @@
       font-size: 11px;
       color: rgba(148, 163, 184, 0.95);
     }
+
+    /* details/summary（上級例文）のマーカーを消す（スコープ限定・グローバル汚染ゼロ） */
+    details.advanced-examples > summary { list-style: none; cursor: pointer; -webkit-user-select: none; user-select: none; }
+    details.advanced-examples > summary::-webkit-details-marker { display: none; }
+    details.advanced-examples .mini-hint { opacity: 0.85; }
   </style>
 
   <!-- =========================================================
@@ -374,14 +375,10 @@
 </head>
 
 <body data-theme="dark" class="bg-slate-950 text-slate-100 antialiased overflow-x-hidden">
-
-  <!-- =========================================================
-  GTM (noscript)
-  ========================================================== -->
-  <noscript>
-    <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M33GP2KP"
-      height="0" width="0" style="display:none;visibility:hidden"></iframe>
-  </noscript>
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WV3GHF7D"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
 
   <!-- 背景 -->
   <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
@@ -778,7 +775,7 @@
         <div class="rounded-2xl border border-singkana-400/30 bg-slate-950/60 p-5 shadow-glow">
           <p class="text-xs font-semibold uppercase tracking-[0.16em] text-singkana-100">Pro</p>
           <p class="text-sm text-slate-300 mt-2">本格的に歌える形に仕上げたい方向け。</p>
-          <p class="text-[10px] text-slate-400 mt-1">※ 現在準備中（近日利用可能）</p>
+          <p id="pro-checkout-status" class="text-[10px] text-slate-400 mt-1"></p>
 
           <div class="mt-4">
             <p class="text-2xl font-semibold text-slate-50">¥980</p>
@@ -793,24 +790,43 @@
             <li>✅ 制作・録音用途に最適</li>
           </ul>
 
-          <!-- 先行登録・通知受付（課金開放は準備中） -->
-          <a href="#"
-            onclick="openWaitlistModal(); return false;"
-            class="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-singkana-500/20 px-4 py-2 text-xs font-semibold text-singkana-100 border border-singkana-400/40 hover:bg-singkana-500/25 transition">
-            先行利用に登録（準備中）
-          </a>
+          <button
+            id="pro-checkout-btn"
+            type="button"
+            onclick="startCheckout('pro_month')"
+            class="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-singkana-500/90 px-4 py-2 text-xs font-semibold text-white border border-singkana-300/30 hover:bg-singkana-500 transition">
+            Proを購入する
+          </button>
+
+          <div id="pro-active-badge" class="hidden mt-5 w-full rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-200 text-center">
+            Pro 有効
+          </div>
+
+          <button
+            id="billing-portal-btn"
+            type="button"
+            onclick="openBillingPortal()"
+            class="hidden mt-3 inline-flex w-full items-center justify-center rounded-xl bg-slate-100/10 px-4 py-2 text-xs font-semibold text-slate-50 border border-white/10 hover:bg-slate-100/15 transition disabled:opacity-60 disabled:cursor-not-allowed">
+            請求管理（解約・カード変更）
+          </button>
+          <p id="billing-portal-status" class="text-[10px] text-slate-400 mt-1"></p>
 
           <p class="text-[11px] text-slate-400 mt-2">
-            ※ 準備が整い次第、優先的にご案内いたします
+            ※ 決済後、自動でProが有効になります
           </p>
           
-          <div class="mt-4 pt-4 border-t border-singkana-400/20">
+          <div id="pro-preorder-section" class="mt-4 pt-4 border-t border-singkana-400/20">
             <p class="text-[11px] font-semibold text-singkana-200 mb-1">
               🎁 早期ユーザー特典
             </p>
             <p class="text-[10px] text-slate-400 leading-relaxed">
               先行登録者には優先案内＋特典を予定しています。
             </p>
+            <a href="#"
+              onclick="openWaitlistModal(); return false;"
+              class="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-singkana-500/20 px-4 py-2 text-xs font-semibold text-singkana-100 border border-singkana-400/40 hover:bg-singkana-500/25 transition">
+              先行登録（メールで通知）
+            </a>
           </div>
         </div>
 
@@ -939,17 +955,26 @@
               <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
 
               <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
-                <label class="mini-hint hidden md:inline">例文：</label>
-                <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('fast')" title="速い英語（詰むやつ）">⚡ 速い英語</button>
-                <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('consonant')" title="子音連打（k/t/s）">🔤 子音連打</button>
-                <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('vowel')" title="長母音（fly/line/night系）">🎵 長母音</button>
+                <details class="advanced-examples w-full md:w-auto">
+                  <summary class="advanced-examples__summary mini-btn w-full md:w-auto cursor-pointer select-none">🧪 上級例文（英語のつまずき）</summary>
+                  <div class="mt-2 flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
+                    <label class="mini-hint hidden md:inline">例文：</label>
+                    <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('fast')" title="弱形・リダクション（gonna/wanna系）">⚡ 弱形</button>
+                    <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('consonant')" title="子音クラスタ（子音が連続するところ）">🔤 子音クラスタ</button>
+                    <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('vowel')" title="母音を伸ばす（ロングトーン）">🎵 母音伸ばし</button>
+                  </div>
+                  <p class="mini-hint mt-2">
+                    ※ これは「設定」ではなく、つまずきやすい例文を挿入するショートカットです。
+                  </p>
+                </details>
               </div>
 
               <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
 
               <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
                 <label class="mini-hint hidden md:inline">テンプレ：</label>
-                <select id="template-select" class="mini-select w-full md:w-auto" onchange="applyTemplateFromSelect()">
+                <button type="button" class="mini-btn w-full md:w-auto" onclick="applyTemplate('chorus')" title="まずはこれ。サビ練習用の汎用テンプレを挿入します。">📌 サビ練習（汎用）</button>
+                <select id="template-select" class="mini-select w-full md:w-auto" onchange="applyTemplateFromSelect(true)">
                   <option value="">選択…</option>
                   <option value="warmup">ウォームアップ（短文）</option>
                   <option value="chorus">サビ練習（汎用）</option>
@@ -1006,15 +1031,40 @@
 
                 <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
 
-                <label for="displayMode" class="flex flex-col md:flex-row md:items-center gap-2 text-[11px] text-slate-300 select-none w-full md:w-auto">
-                  <span class="hidden md:inline">表示</span>
-                  <select id="displayMode" 
-                    class="rounded-full bg-slate-950/60 border border-slate-600 px-3 py-1 text-[11px] text-slate-100 w-full md:w-auto">
-                    <option value="basic">ベーシック（読むためのカタカナ）</option>
-                    <option value="natural" selected>ナチュラル（英語っぽく歌う・英語感を残したい人向け）</option>
-                    <option value="precise">精密（日本語として歌う・最適・失敗したくない人向け）</option>
-                  </select>
-                </label>
+                <div class="flex flex-col md:flex-row md:items-center gap-2 w-full md:w-auto">
+                  <label for="displayMode" class="flex flex-col md:flex-row md:items-center gap-2 text-[11px] text-slate-300 select-none w-full md:w-auto">
+                    <span class="hidden md:inline">表示</span>
+                    <select id="displayMode" 
+                      class="rounded-full bg-slate-950/60 border border-slate-600 px-3 py-1 text-[11px] text-slate-100 w-full md:w-auto">
+                      <option value="basic">Basic</option>
+                      <option value="natural" selected>Natural（おすすめ）</option>
+                      <option value="precise">Precise</option>
+                    </select>
+                  </label>
+
+                  <div class="w-full md:w-auto text-[10px] text-slate-400 leading-snug md:leading-tight md:mt-0 mt-1">
+                    <div><span class="text-slate-200 font-semibold">Basic</span>：とりあえず歌える / 最短</div>
+                    <div><span class="text-slate-200 font-semibold">Natural</span>：自然に聞こえる / おすすめ</div>
+                    <div><span class="text-slate-200 font-semibold">Precise</span>：原音に近い / 練習向け</div>
+                    <div class="mt-1 text-[10px] text-slate-500">迷ったら Natural。発音寄せたいなら Precise。</div>
+
+                    <div class="mt-2 text-[10px] text-slate-500">例（同じ英語での違い）：Hold on tight in the night</div>
+                    <div class="mt-1 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-300">
+                      <div>
+                        <div class="text-[10px] text-slate-500">Basic</div>
+                        <div class="font-mono text-slate-200/90">ホールド オン タイト イン ザ ナイト</div>
+                      </div>
+                      <div>
+                        <div class="text-[10px] text-slate-500">Natural</div>
+                        <div class="font-mono text-slate-200/90">ホウドン タイッ インナ ナイッ</div>
+                      </div>
+                      <div>
+                        <div class="text-[10px] text-slate-500">Precise</div>
+                        <div class="font-mono text-slate-200/90">ホー ルド オン ターイ ト イン ザ ナーイ ト</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
 
@@ -1156,6 +1206,152 @@
       return PLAN.tier === "pro";
     }
 
+    function setProCheckoutStatus(msg) {
+      const el = document.getElementById("pro-checkout-status");
+      if (!el) return;
+      el.textContent = msg || "";
+    }
+
+    let __checkoutInFlight = false;
+    let __portalInFlight = false;
+
+    function syncProCtas() {
+      const buyBtn = document.getElementById("pro-checkout-btn");
+      const proBadge = document.getElementById("pro-active-badge");
+      const portalBtn = document.getElementById("billing-portal-btn");
+      const portalStatus = document.getElementById("billing-portal-status");
+      const proStartBtn = document.getElementById("pro-start-btn");
+      const preorderSection = document.getElementById("pro-preorder-section");
+
+      if (isPro()) {
+        if (buyBtn) buyBtn.classList.add("hidden");
+        if (proBadge) proBadge.classList.remove("hidden");
+        if (portalBtn) portalBtn.classList.remove("hidden");
+        if (proStartBtn) proStartBtn.classList.add("hidden");
+        // Pro時に「準備中/先行登録」系CTAが残ると矛盾するので必ず隠す
+        if (preorderSection) preorderSection.classList.add("hidden");
+        setProCheckoutStatus("現在 Pro です");
+      } else {
+        if (buyBtn) buyBtn.classList.remove("hidden");
+        if (proBadge) proBadge.classList.add("hidden");
+        if (portalBtn) portalBtn.classList.add("hidden");
+        if (proStartBtn) proStartBtn.classList.remove("hidden");
+        if (preorderSection) preorderSection.classList.remove("hidden");
+        if (portalStatus) portalStatus.textContent = "";
+        // 初期は空（必要時だけ出す）
+      }
+    }
+
+    async function openBillingPortal() {
+      if (__portalInFlight) return;
+      __portalInFlight = true;
+
+      const btn = document.getElementById("billing-portal-btn");
+      const status = document.getElementById("billing-portal-status");
+      const prevText = btn ? btn.textContent : "";
+
+      try {
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "開いています…";
+        }
+        if (status) status.textContent = "";
+
+        const res = await fetch("/api/billing/portal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        });
+
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j.ok || !j.url) {
+          const msg = (j && (j.message || j.error)) ? (j.message || j.error) : "ポータルを開けませんでした。";
+          if (status) status.textContent = msg;
+          return;
+        }
+        window.location.href = j.url;
+      } catch (e) {
+        console.warn(e);
+        if (status) status.textContent = "通信に失敗しました。";
+      } finally {
+        __portalInFlight = false;
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = prevText || "請求管理（解約・カード変更）";
+        }
+      }
+    }
+
+    async function retryPlanSyncAfterCheckoutSuccess() {
+      // Webhook反映のタイミング差を吸収（success時だけ短時間リトライ）
+      const delays = [800, 1600, 3200];
+      for (const d of delays) {
+        if (isPro()) {
+          setProCheckoutStatus("決済完了。Pro が有効になりました");
+          syncProCtas();
+          return;
+        }
+        await new Promise(r => setTimeout(r, d));
+        await loadUserPlan();
+      }
+      if (isPro()) {
+        setProCheckoutStatus("決済完了。Pro が有効になりました");
+        syncProCtas();
+      } else {
+        setProCheckoutStatus("決済完了。反映に少し時間がかかっています（数秒後に再読込してください）");
+      }
+    }
+
+    async function startCheckout(plan = "pro_month") {
+      if (isPro()) {
+        alert("すでに Pro です。");
+        return;
+      }
+
+      if (__checkoutInFlight) {
+        setProCheckoutStatus("処理中です…");
+        return;
+      }
+
+      const btn = document.getElementById("pro-checkout-btn");
+      const prevText = btn ? btn.textContent : "";
+      __checkoutInFlight = true;
+      let didNavigate = false;
+      try {
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = "決済画面を開いています…";
+        }
+        setProCheckoutStatus("決済画面を準備中…");
+
+        const res = await fetch("/api/billing/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plan }),
+        });
+        const j = await res.json();
+        if (!j.ok) {
+          setProCheckoutStatus("");
+          alert(j.message || "決済を開始できませんでした。");
+          return;
+        }
+        didNavigate = true;
+        window.location.href = j.url;
+      } catch (e) {
+        console.warn(e);
+        setProCheckoutStatus("");
+        alert("決済を開始できませんでした。通信環境を確認して再度お試しください。");
+      } finally {
+        if (!didNavigate) {
+          __checkoutInFlight = false;
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = prevText || "Proを購入する";
+          }
+        }
+      }
+    }
+
     // 開発者モード状態を取得（ページ読み込み時）
     async function loadUserPlan() {
       try {
@@ -1197,16 +1393,29 @@
           if (preciseOption) {
             if (isPro()) {
               preciseOption.removeAttribute('disabled');
-              preciseOption.textContent = '精密（日本語として歌う・最適・失敗したくない人向け）';
+              preciseOption.textContent = 'Precise';
             } else {
               preciseOption.setAttribute('disabled', 'disabled');
-              preciseOption.textContent = '精密（日本語として歌う・最適・失敗したくない人向け） [Pro]';
+              preciseOption.textContent = 'Precise [Pro]';
             }
           }
+
+          // Pricing側CTAも同期
+          syncProCtas();
+
+          // 解約予約中の表示（Webhookの subscription.updated が拾えていれば表示できる）
+          try {
+            const sub = data.subscription || null;
+            if (sub && isPro() && sub.cancel_at_period_end) {
+              setProCheckoutStatus("解約予約中（期限までは利用可）");
+            }
+          } catch (e) {}
+          return data;
         }
       } catch (e) {
         console.warn("Failed to load user plan:", e);
       }
+      return null;
     }
 
     function guardDisplayMode(mode) {
@@ -1235,6 +1444,33 @@
     document.addEventListener("DOMContentLoaded", () => {
       // ユーザープラン（開発者モード含む）を読み込み
       loadUserPlan();
+
+      // Checkout戻り（success/cancel）を表示し、URLを掃除
+      try {
+        const url = new URL(window.location.href);
+        const checkout = url.searchParams.get("checkout");
+        const portal = url.searchParams.get("portal");
+        if (checkout === "success") {
+          setProCheckoutStatus("決済完了。Pro状態を確認中…");
+          // もう一度同期（Webhook反映直後のタイミング差を吸収）
+          setTimeout(() => loadUserPlan(), 350);
+          setTimeout(() => retryPlanSyncAfterCheckoutSuccess(), 500);
+        } else if (checkout === "cancel") {
+          setProCheckoutStatus("決済をキャンセルしました。");
+        }
+        if (portal === "return") {
+          const ps = document.getElementById("billing-portal-status");
+          if (ps) ps.textContent = "請求管理から戻りました";
+        }
+        if (checkout) {
+          url.searchParams.delete("checkout");
+          window.history.replaceState({}, "", url.toString());
+        }
+        if (portal) {
+          url.searchParams.delete("portal");
+          window.history.replaceState({}, "", url.toString());
+        }
+      } catch (e) {}
       
       const tabButtons = document.querySelectorAll(".tab-btn");
       const panels = {
@@ -1294,9 +1530,9 @@
     // =========================
     const LS_KEY = "singkana.studio.v1";
     const TEMPLATES = {
-      warmup: { title: "warmup", lyrics: ["Take it easy, keep it steady","Breathe in slow, breathe out ready","Hold the note and let it glow"].join("\n") },
-      chorus: { title: "chorus-practice", lyrics: ["We are rising, we are shining","In the night, we keep on flying","Let it go, and sing it loud"].join("\n") },
-      speech: { title: "consonants", lyrics: ["Just a little bit, step by step","Keep the beat, don't stop, don't slip","Bright light, night ride, right side"].join("\n") }
+      warmup: { label: "ウォームアップ（短文）", title: "warmup", lyrics: ["Take it easy, keep it steady","Breathe in slow, breathe out ready","Hold the note and let it glow"].join("\n") },
+      chorus: { label: "サビ練習（汎用）", title: "chorus-practice", lyrics: ["We are rising, we are shining","In the night, we keep on flying","Let it go, and sing it loud"].join("\n") },
+      speech: { label: "語尾・子音の練習", title: "consonants", lyrics: ["Just a little bit, step by step","Keep the beat, don't stop, don't slip","Bright light, night ride, right side"].join("\n") }
     };
 
     function setStudioStatus(msg) {
@@ -1358,10 +1594,7 @@
       setStudioStatus("クリアしました");
     }
 
-    function applyTemplateFromSelect() {
-      const sel = document.getElementById("template-select");
-      const key = sel ? sel.value : "";
-      if (!key) return;
+    function applyTemplateByKey(key) {
       const t = TEMPLATES[key];
       if (!t) return;
       const songEl = document.getElementById("song-title");
@@ -1369,7 +1602,35 @@
       if (songEl) songEl.value = t.title;
       if (lyrEl)  lyrEl.value = t.lyrics;
       saveStudioState(true);
-      setStudioStatus("テンプレ適用");
+      setStudioStatus(`テンプレ適用：${t.label || key}`);
+    }
+
+    function applyTemplateFromSelect(fromSelect=false) {
+      const sel = document.getElementById("template-select");
+      const key = sel ? sel.value : "";
+      if (!key) return;
+      // select経由だけ confirm（事故防止）
+      const songEl = document.getElementById("song-title");
+      const lyrEl = document.getElementById("lyrics-input");
+      const hasSong = ((songEl && songEl.value) || "").trim().length > 0;
+      const hasLyrics = ((lyrEl && lyrEl.value) || "").trim().length > 0;
+      if (fromSelect && (hasSong || hasLyrics)) {
+        const ok = confirm("現在の入力はテンプレで置き換わります。続行しますか？");
+        if (!ok) {
+          // 選択を戻して“押し間違い”を確定で無かったことにする
+          if (sel) sel.value = "";
+          return;
+        }
+      }
+      applyTemplateByKey(key);
+      // UX保険：適用後は「選択…」に戻す（連打/再選択の混乱防止）
+      if (sel) sel.value = "";
+    }
+
+    function applyTemplate(key) {
+      const sel = document.getElementById("template-select");
+      if (sel) sel.value = "";
+      applyTemplateByKey(key);
     }
 
     // =========================
@@ -1810,10 +2071,10 @@
               <p class="text-sm font-semibold text-singkana-100 mb-1">この品質で変換し続ける</p>
               <p class="text-xs text-slate-300">Proで無制限変換・精密（日本語歌唱最適）・Singability（β）</p>
             </div>
-            <a href="#pricing" class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition whitespace-nowrap">
+            <button type="button" id="pro-start-btn" onclick="startCheckout('pro_month')" class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition whitespace-nowrap">
               <span>Proを開始</span>
               <span class="text-xs">▶</span>
-            </a>
+            </button>
           </div>
         `;
         frag.appendChild(proCta);

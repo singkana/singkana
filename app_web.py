@@ -48,6 +48,10 @@ app = Flask(__name__)
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
+# 外部ライブラリ（Stripe/HTTP）の生ログを抑制（URLやレスポンスbodyがログに残る事故を防ぐ）
+logging.getLogger("stripe").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+
 # 本番で常時ONにすると 404/405 なども巻き込んで運用が荒れるので、
 # 明示的に環境変数で有効化されたときだけ使う。
 if os.getenv("FLASK_DEBUG_HOOK", "0") == "1":
@@ -63,7 +67,8 @@ if os.getenv("FLASK_DEBUG_HOOK", "0") == "1":
 # helpers
 # -------------------------
 def _utc_iso() -> str:
-    return datetime.datetime.utcnow().isoformat() + "Z"
+    # timezone-aware (avoid datetime.utcnow() deprecation)
+    return datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
 
 def _env(name: str, default: str = "") -> str:
     return str(os.getenv(name, default) or "").strip()
@@ -255,6 +260,7 @@ def _stripe_required_env() -> Dict[str, str]:
         "STRIPE_PUBLISHABLE_KEY": _env("STRIPE_PUBLISHABLE_KEY"),
         "STRIPE_PRICE_PRO_MONTHLY": _env("STRIPE_PRICE_PRO_MONTHLY"),
         "STRIPE_PRICE_PRO_YEARLY": _env("STRIPE_PRICE_PRO_YEARLY"),
+        "STRIPE_WEBHOOK_SECRET": _env("STRIPE_WEBHOOK_SECRET"),
         "APP_BASE_URL": _env("APP_BASE_URL"),
     }
 
@@ -302,9 +308,14 @@ def _init_db():
             stripe_subscription_id TEXT,
             status TEXT,
             current_period_end INTEGER,
+            cancel_at_period_end INTEGER DEFAULT 0,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    # schema migration: add cancel_at_period_end if existing DB is old
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(subscriptions)")}
+    if "cancel_at_period_end" not in cols:
+        conn.execute("ALTER TABLE subscriptions ADD COLUMN cancel_at_period_end INTEGER DEFAULT 0")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS waitlist (
             email TEXT PRIMARY KEY,
@@ -617,11 +628,35 @@ def api_me():
         "dotenv_loaded": load_dotenv is not None,
     }
     
+    # subscription snapshot (best-effort; do not fail /api/me if schema is old)
+    sub_info = None
+    try:
+        conn = _db()
+        row = conn.execute(
+            """
+            SELECT stripe_customer_id, stripe_subscription_id, status, current_period_end, cancel_at_period_end
+            FROM subscriptions
+            WHERE user_id=?
+            """,
+            (getattr(g, "user_id", ""),),
+        ).fetchone()
+        if row:
+            sub_info = {
+                "stripe_customer_id_present": bool(row["stripe_customer_id"]),
+                "stripe_subscription_id_present": bool(row["stripe_subscription_id"]),
+                "status": row["status"],
+                "current_period_end": row["current_period_end"],
+                "cancel_at_period_end": bool(row["cancel_at_period_end"]),
+            }
+    except Exception:
+        sub_info = None
+
     return jsonify({
         "ok": True,
         "user_id": getattr(g, "user_id", ""),
         "plan": getattr(g, "user_plan", "free"),
         "dev_pro_override": getattr(g, "dev_pro_override", False),  # UI表示用
+        "subscription": sub_info,
         "time": _utc_iso(),
         "debug": debug_info,  # デバッグ情報（常に返す）
     })
@@ -909,20 +944,67 @@ def stripe_webhook():
             conn.execute(
                 """
                 INSERT INTO subscriptions
-                  (user_id, stripe_customer_id, stripe_subscription_id, status, current_period_end)
-                VALUES (?, ?, ?, ?, ?)
+                  (user_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, cancel_at_period_end)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
                   stripe_customer_id=excluded.stripe_customer_id,
                   stripe_subscription_id=excluded.stripe_subscription_id,
                   status=excluded.status,
                   current_period_end=excluded.current_period_end,
+                  cancel_at_period_end=excluded.cancel_at_period_end,
                   updated_at=CURRENT_TIMESTAMP
                 """,
-                (user_id, customer_id, subscription_id, "active", None),
+                (user_id, customer_id, subscription_id, "active", None, 0),
             )
             conn.commit()
 
-    # 2) 解約・失効（安全側に倒してfreeへ）
+    # 2) サブスク更新（解約予約/ステータス遷移を拾う）
+    elif etype == "customer.subscription.updated":
+        sub = event["data"]["object"]
+
+        sub_id = sub.get("id")
+        customer_id = sub.get("customer")
+        status = sub.get("status")
+        current_period_end = sub.get("current_period_end")
+        cancel_at_period_end = 1 if sub.get("cancel_at_period_end") else 0
+
+        user_id = (sub.get("metadata") or {}).get("user_id")
+        conn = _db()
+
+        # metadataに無い場合はDBから逆引き（保険）
+        if not user_id:
+            row = conn.execute(
+                """
+                SELECT user_id FROM subscriptions
+                WHERE stripe_subscription_id=? OR stripe_customer_id=?
+                """,
+                (sub_id, customer_id),
+            ).fetchone()
+            user_id = (row["user_id"] if row else None)
+
+        if user_id:
+            # ステータスに応じてFreeへ落とす（支払い失敗/失効など）
+            if status in ("canceled", "unpaid", "incomplete_expired", "paused"):
+                _set_plan(conn, user_id, "free")
+
+            conn.execute(
+                """
+                INSERT INTO subscriptions
+                  (user_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, cancel_at_period_end)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET
+                  stripe_customer_id=excluded.stripe_customer_id,
+                  stripe_subscription_id=excluded.stripe_subscription_id,
+                  status=excluded.status,
+                  current_period_end=excluded.current_period_end,
+                  cancel_at_period_end=excluded.cancel_at_period_end,
+                  updated_at=CURRENT_TIMESTAMP
+                """,
+                (user_id, customer_id, sub_id, status, current_period_end, cancel_at_period_end),
+            )
+            conn.commit()
+
+    # 3) 解約・失効（安全側に倒してfreeへ）
     elif etype in ("customer.subscription.deleted", "customer.subscription.paused"):
         sub = event["data"]["object"]
         user_id = (sub.get("metadata") or {}).get("user_id")
@@ -932,15 +1014,17 @@ def stripe_webhook():
             conn.execute(
                 """
                 INSERT INTO subscriptions
-                  (user_id, stripe_subscription_id, status, current_period_end)
-                VALUES (?, ?, ?, ?)
+                  (user_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, cancel_at_period_end)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
+                  stripe_customer_id=excluded.stripe_customer_id,
                   stripe_subscription_id=excluded.stripe_subscription_id,
                   status=excluded.status,
                   current_period_end=excluded.current_period_end,
+                  cancel_at_period_end=excluded.cancel_at_period_end,
                   updated_at=CURRENT_TIMESTAMP
                 """,
-                (user_id, sub.get("id"), sub.get("status"), None),
+                (user_id, sub.get("customer"), sub.get("id"), sub.get("status"), sub.get("current_period_end"), 1),
             )
             conn.commit()
 
@@ -1094,11 +1178,67 @@ def api_billing_checkout():
             allow_promotion_codes=True,
             client_reference_id=uid,
             metadata={"user_id": uid},
+            subscription_data={"metadata": {"user_id": uid}},
         )
         return jsonify({"ok": True, "url": session.url, "id": session.id, "plan": plan})
     except Exception as e:
         traceback.print_exc()
         return _json_error(500, "stripe_error", "Failed to create checkout session.", detail=str(e))
+
+
+@app.post("/api/billing/portal")
+def api_billing_portal():
+    data, err = _require_json()
+    if err:
+        return err
+
+    envs = _stripe_required_env()
+    secret = envs["STRIPE_SECRET_KEY"]
+    if not secret:
+        return _json_error(
+            400,
+            "stripe_not_configured",
+            "Stripe env is missing.",
+            missing=["STRIPE_SECRET_KEY"],
+        )
+
+    stripe, import_err = _stripe_import()
+    if stripe is None:
+        return _json_error(501, "stripe_sdk_missing", "stripe package is not installed.", detail=import_err)
+
+    uid = getattr(g, "user_id", "")
+    if not uid:
+        return _json_error(400, "no_user", "User identity missing.")
+
+    # subscriptions から customer_id を取得（SSOT）
+    conn = _db()
+    row = conn.execute(
+        "SELECT stripe_customer_id FROM subscriptions WHERE user_id=?",
+        (uid,),
+    ).fetchone()
+
+    customer_id = (row["stripe_customer_id"] if row and row["stripe_customer_id"] else "")
+    if not customer_id:
+        return _json_error(
+            402,
+            "payment_required",
+            "Billing portal is available after purchase.",
+            user_plan=getattr(g, "user_plan", "free"),
+        )
+
+    base = (_env("APP_BASE_URL") or "https://singkana.com").rstrip("/")
+    return_url = _env("STRIPE_PORTAL_RETURN_URL", f"{base}/?portal=return")
+
+    try:
+        stripe.api_key = secret
+        session = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=return_url,
+        )
+        return jsonify({"ok": True, "url": session.url})
+    except Exception as e:
+        app.logger.exception("Failed to create billing portal session: %s", e)
+        return _json_error(500, "stripe_error", "Failed to create billing portal session.", detail=str(e))
 
 # ======================================================================
 # Static files / Screens
