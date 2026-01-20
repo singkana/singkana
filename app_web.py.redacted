@@ -13,10 +13,8 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
 import smtplib
-from email.header import Header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.utils import formataddr, formatdate, make_msgid
 
 from flask import (
     Flask,
@@ -52,15 +50,12 @@ logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("stripe").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-# 本番で常時ONにすると 404/405 なども巻き込んで運用が荒れるので、
-# 明示的に環境変数で有効化されたときだけ使う。
-if os.getenv("FLASK_DEBUG_HOOK", "0") == "1":
-    app.config["PROPAGATE_EXCEPTIONS"] = True
+app.config["PROPAGATE_EXCEPTIONS"] = True
 
-    @app.errorhandler(Exception)
-    def _debug_any_exception(e):
-        app.logger.exception("Unhandled exception: %s", e)
-        raise  # let debugger/console see the original traceback
+@app.errorhandler(Exception)
+def _debug_any_exception(e):
+    app.logger.exception("Unhandled exception: %s", e)
+    raise  # let debugger/console see the original traceback
 # -------------------------------------------------------------
 
 # -------------------------
@@ -136,7 +131,6 @@ def _origin_ok() -> bool:
         allowed_origins = {
             "https://singkana.com",
             "https://www.singkana.com",
-            "https://en.singkana.com",
             "http://127.0.0.1:5000",
             "http://localhost:5000",
         }
@@ -331,13 +325,6 @@ _init_db()
 def _send_waitlist_confirmation_email(email: str) -> bool:
     """先行登録完了メールを送信"""
     try:
-        def _is_ascii(s: str) -> bool:
-            try:
-                s.encode("ascii")
-                return True
-            except Exception:
-                return False
-
         # SMTP設定を環境変数から取得
         smtp_enabled = _env("SMTP_ENABLED", "0") == "1"
         if not smtp_enabled:
@@ -352,15 +339,6 @@ def _send_waitlist_confirmation_email(email: str) -> bool:
         
         if not smtp_user or not smtp_password:
             app.logger.warning("SMTP credentials not configured, skipping email")
-            return False
-
-        # SMTP AUTH は基本ASCII前提。非ASCIIが混ざると smtplib が UnicodeEncodeError で落ちるので、
-        # ここで検知してスキップ（登録自体は成功扱い）。
-        if (not _is_ascii(smtp_user)) or (not _is_ascii(smtp_password)):
-            app.logger.warning(
-                "SMTP credentials contain non-ASCII characters; skipping email. "
-                "Check /etc/singkana/secrets.env (SMTP_USER/SMTP_PASSWORD)."
-            )
             return False
         
         app.logger.info(f"Attempting to send waitlist confirmation email to {email} via {smtp_host}:{smtp_port}")
@@ -397,20 +375,9 @@ https://singkana.com
         
         # メール作成
         msg = MIMEMultipart("alternative")
-        # ヘッダ（Subject/From等）はASCII前提で落ちやすいので明示的にUTF-8へ
-        msg["Subject"] = str(Header(subject, "utf-8"))
-        # 到達率対策: Gmail SMTPなら From は SMTP_USER と一致させるのが安全（DMARC整合）
-        effective_from = (smtp_user or from_email).strip()
-        if smtp_user and from_email and smtp_user.strip().lower() != from_email.strip().lower():
-            app.logger.warning("SMTP_FROM differs from SMTP_USER; using SMTP_USER for deliverability.")
-        display_name = str(Header("SingKANA", "utf-8"))
-        msg["From"] = formataddr((display_name, effective_from))
+        msg["Subject"] = subject
+        msg["From"] = from_email
         msg["To"] = email
-        msg["Reply-To"] = effective_from
-        msg["Date"] = formatdate(localtime=True)
-        # Message-ID はiCloud到達率で効くことがある（Gmail側でも生成されるが明示しておく）
-        domain = effective_from.split("@", 1)[1] if "@" in effective_from else None
-        msg["Message-ID"] = make_msgid(domain=domain)
         
         part1 = MIMEText(body_text, "plain", "utf-8")
         part2 = MIMEText(body_html, "html", "utf-8")
@@ -445,30 +412,6 @@ def _set_plan(conn, user_id: str, plan: str):
 
 @app.before_request
 def _identity_and_plan_bootstrap():
-    # ---- fast path: do not touch DB for cheap endpoints ----
-    # 監視/プロキシ/ブラウザが投げるHEAD/OPTIONSでDBに触る必要はない
-    if request.method in ("HEAD", "OPTIONS"):
-        return None
-
-    p = (request.path or "").strip()
-    if p in ("/healthz", "/robots.txt"):
-        return None
-    if p == "/favicon.ico":
-        return None
-    if p in ("/romaji", "/romaji/"):
-        return None
-    if p in ("/en", "/en/"):
-        return None
-    if p.startswith("/en/"):
-        return None
-    if p.startswith("/assets/"):
-        return None
-    if p in ("/singkana_core.js", "/paywall_gate.js", "/terms.html", "/privacy.html"):
-        return None
-    # /api/romaji のGET/HEADは監視/事前問い合わせ用（DB不要）
-    if p == "/api/romaji" and request.method in ("GET", "HEAD"):
-        return None
-    # ---------------------------------------------------------
     try:
         # 開発者モード: URLトークンを受けたらCookieに保存してリダイレクト
         dev_pro_token = request.args.get("dev_pro", "").strip()
@@ -517,34 +460,6 @@ def _identity_and_plan_bootstrap():
 
 @app.after_request
 def _identity_cookie_commit(resp):
-    # ---- cheap endpoints: do not add Cookie/Vary/cache-control noise ----
-    # before_request でDBを触らない系（監視/静的/プローブ）は、
-    # Vary: Cookie 等でキャッシュが割れたりログが汚れるのを避ける。
-    p = (request.path or "").strip()
-    is_cheap = (
-        request.method in ("HEAD", "OPTIONS")
-        or p in ("/healthz", "/robots.txt")
-        or p == "/favicon.ico"
-        or p in ("/romaji", "/romaji/")
-        or p in ("/en", "/en/")
-        or p.startswith("/en/")
-        or p.startswith("/assets/")
-        or p in ("/singkana_core.js", "/paywall_gate.js", "/terms.html", "/privacy.html")
-        or (p == "/api/romaji" and request.method in ("GET", "HEAD"))
-    )
-
-    if is_cheap:
-        # /api/romaji のHEADは監視が見るので JSON に統一
-        if p == "/api/romaji" and request.method == "HEAD":
-            resp.headers["Content-Type"] = "application/json; charset=utf-8"
-
-        # JSONレスポンスのcharsetを明示（環境/ログ表示の文字化け対策）
-        ct = resp.headers.get("Content-Type", "") or ""
-        if ct.startswith("application/json") and "charset=" not in ct.lower():
-            resp.headers["Content-Type"] = f"{ct}; charset=utf-8" if ct else "application/json; charset=utf-8"
-
-        return resp
-
     uid = getattr(g, "_set_uid_cookie", None)
     if uid:
         resp.set_cookie(
@@ -579,12 +494,6 @@ def _identity_cookie_commit(resp):
         resp.headers["Content-Type"] = f"{ct}; charset=utf-8" if ct else "application/json; charset=utf-8"
     
     return resp
-
-@app.get("/favicon.ico")
-def favicon_ico():
-    """Google等が最初に取りに来る favicon.ico を200で返す"""
-    fav_dir = BASE_DIR / "assets" / "favicon"
-    return send_from_directory(str(fav_dir), "favicon.ico", mimetype="image/x-icon")
 
 @app.get("/dev/logout")
 def dev_logout():
@@ -815,9 +724,8 @@ def to_romaji(text: str, for_singing: bool = True) -> str:
 @app.route("/api/romaji", methods=["GET", "HEAD"])
 def api_romaji_probe():
     """監視/事前問い合わせ用（HEADが500になるのを防ぐ）"""
-    # HEADはボディ無しで200（ただしContent-TypeはGETに寄せておく）
     if request.method == "HEAD":
-        return Response("", status=200, mimetype="application/json")
+        return ("", 200)
     return jsonify(ok=True, method="GET", hint="POST JSON {text} to convert"), 200
 
 @app.route("/api/romaji", methods=["POST"])
@@ -1275,43 +1183,6 @@ def index() -> Response:
         app.logger.exception("Error serving index.html: %s", e)
         raise
 
-@app.get("/romaji")
-@app.get("/romaji/")
-def romaji_en() -> Response:
-    """English: Romaji for Singing Japanese (PH entry)"""
-    try:
-        return send_from_directory(str(BASE_DIR / "romaji"), "index.html")
-    except Exception as e:
-        app.logger.exception("Error serving romaji/index.html: %s", e)
-        raise
-
-
-@app.get("/en")
-def en_redirect() -> Response:
-    """Force trailing slash to avoid relative-path resolution bugs (e.g. ./style.css -> /style.css)."""
-    from flask import redirect
-    return redirect("/en/", code=301)
-
-
-@app.get("/en/")
-def en_landing() -> Response:
-    """English LP (isolated under /en/ to avoid mixing with JP assets/CSS)."""
-    try:
-        return send_from_directory(str(BASE_DIR / "en"), "index.html")
-    except Exception as e:
-        app.logger.exception("Error serving en/index.html: %s", e)
-        raise
-
-
-@app.get("/en/<path:filename>")
-def en_static(filename: str) -> Response:
-    """Serve EN static assets (e.g. /en/style.css)."""
-    try:
-        return send_from_directory(str(BASE_DIR / "en"), filename)
-    except Exception as e:
-        app.logger.exception("Error serving en asset %s: %s", filename, e)
-        raise
-
 @app.get("/singkana_core.js")
 def singkana_core_js() -> Response:
     resp = send_from_directory(
@@ -1413,3 +1284,4 @@ def health():
 if __name__ == "__main__":
     # 開発用サーバー（本番は gunicorn＋nginx 経由）
     app.run(host="127.0.0.1", port=5000, debug=True)
+
