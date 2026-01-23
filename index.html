@@ -777,9 +777,37 @@
           <p class="text-sm text-slate-300 mt-2">本格的に歌える形に仕上げたい方向け。</p>
           <p id="pro-checkout-status" class="text-[10px] text-slate-400 mt-1"></p>
 
-          <div class="mt-4">
-            <p class="text-2xl font-semibold text-slate-50">¥980</p>
-            <p class="text-[11px] text-slate-400 mt-1">月額 / 無制限変換</p>
+          <!-- 価格表示（月額/年額） -->
+          <div class="mt-4 space-y-3">
+            <div class="rounded-xl border border-singkana-400/20 bg-slate-900/50 p-3">
+              <div class="flex items-baseline justify-between gap-2">
+                <div>
+                  <p class="text-2xl font-semibold text-slate-50">¥980</p>
+                  <p class="text-[11px] text-slate-400 mt-0.5">月額 / 無制限変換</p>
+                </div>
+                <button
+                  type="button"
+                  onclick="startCheckout('pro_month')"
+                  class="rounded-lg bg-singkana-500/90 px-3 py-1.5 text-[11px] font-semibold text-white border border-singkana-300/30 hover:bg-singkana-500 transition whitespace-nowrap">
+                  選択
+                </button>
+              </div>
+            </div>
+            <div class="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-3 relative">
+              <span class="absolute -top-2 left-3 rounded-full bg-emerald-500 px-2 py-0.5 text-[9px] font-semibold text-white">2か月分お得</span>
+              <div class="flex items-baseline justify-between gap-2 mt-1">
+                <div>
+                  <p class="text-2xl font-semibold text-emerald-100">¥9,600</p>
+                  <p class="text-[11px] text-emerald-300/80 mt-0.5">年額（月額換算¥800）</p>
+                </div>
+                <button
+                  type="button"
+                  onclick="startCheckout('pro_year')"
+                  class="rounded-lg bg-emerald-500/90 px-3 py-1.5 text-[11px] font-semibold text-white border border-emerald-300/30 hover:bg-emerald-500 transition whitespace-nowrap">
+                  選択
+                </button>
+              </div>
+            </div>
           </div>
 
           <ul class="mt-4 space-y-2 text-xs text-slate-200">
@@ -795,11 +823,16 @@
             type="button"
             onclick="startCheckout('pro_month')"
             class="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-singkana-500/90 px-4 py-2 text-xs font-semibold text-white border border-singkana-300/30 hover:bg-singkana-500 transition">
-            Proを購入する
+            今すぐProで歌える
           </button>
+          
+          <p class="text-[10px] text-slate-400 mt-2 text-center">
+            ✅ いつでも解約可能
+          </p>
 
-          <div id="pro-active-badge" class="hidden mt-5 w-full rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-200 text-center">
-            Pro 有効
+          <div id="pro-active-badge" class="hidden mt-5 w-full rounded-xl border-2 border-emerald-400/50 bg-emerald-500/20 px-4 py-3 text-xs font-semibold text-emerald-100 text-center shadow-glow">
+            ✅ Pro 有効中
+            <p class="text-[10px] text-emerald-300/80 mt-1 font-normal">いつでも解約可能</p>
           </div>
 
           <button
@@ -810,6 +843,34 @@
             請求管理（解約・カード変更）
           </button>
           <p id="billing-portal-status" class="text-[10px] text-slate-400 mt-1"></p>
+
+          <div class="mt-3 rounded-xl border border-white/10 bg-slate-900/40 p-3">
+            <p class="text-[11px] font-semibold text-slate-100">別ブラウザへ引き継ぐ</p>
+
+            <div id="transfer-issue-box" class="hidden mt-2">
+              <button
+                type="button"
+                onclick="issueTransferCode()"
+                class="inline-flex w-full items-center justify-center rounded-lg bg-slate-100/10 px-3 py-2 text-[11px] font-semibold text-slate-50 border border-white/10 hover:bg-slate-100/15 transition disabled:opacity-60 disabled:cursor-not-allowed">
+                引き継ぎコードを発行（10分・1回限り）
+              </button>
+              <p id="transfer-issue-status" class="text-[10px] text-slate-400 mt-1"></p>
+              <p id="transfer-code-display" class="text-sm font-mono text-emerald-200 mt-1"></p>
+            </div>
+
+            <div class="mt-3">
+              <label class="text-[10px] text-slate-400">引き継ぎコードを入力</label>
+              <div class="mt-1 flex gap-2">
+                <input id="transfer-code-input" type="text" inputmode="latin" placeholder="例: ABCD2345EF"
+                  class="w-full rounded-lg bg-slate-950/60 border border-white/10 px-3 py-2 text-[12px] text-slate-100 placeholder:text-slate-500" />
+                <button type="button" onclick="claimTransferCode()"
+                  class="rounded-lg bg-emerald-500/90 px-3 py-2 text-[11px] font-semibold text-white border border-emerald-300/30 hover:bg-emerald-500 transition whitespace-nowrap">
+                  引き継ぐ
+                </button>
+              </div>
+              <p id="transfer-claim-status" class="text-[10px] text-slate-400 mt-1"></p>
+            </div>
+          </div>
 
           <p class="text-[11px] text-slate-400 mt-2">
             ※ 決済後、自動でProが有効になります
@@ -1222,6 +1283,7 @@
       const portalStatus = document.getElementById("billing-portal-status");
       const proStartBtn = document.getElementById("pro-start-btn");
       const preorderSection = document.getElementById("pro-preorder-section");
+      const transferIssueBox = document.getElementById("transfer-issue-box");
 
       if (isPro()) {
         if (buyBtn) buyBtn.classList.add("hidden");
@@ -1230,6 +1292,7 @@
         if (proStartBtn) proStartBtn.classList.add("hidden");
         // Pro時に「準備中/先行登録」系CTAが残ると矛盾するので必ず隠す
         if (preorderSection) preorderSection.classList.add("hidden");
+        if (transferIssueBox) transferIssueBox.classList.remove("hidden");
         setProCheckoutStatus("現在 Pro です");
       } else {
         if (buyBtn) buyBtn.classList.remove("hidden");
@@ -1237,8 +1300,71 @@
         if (portalBtn) portalBtn.classList.add("hidden");
         if (proStartBtn) proStartBtn.classList.remove("hidden");
         if (preorderSection) preorderSection.classList.remove("hidden");
+        if (transferIssueBox) transferIssueBox.classList.add("hidden");
         if (portalStatus) portalStatus.textContent = "";
         // 初期は空（必要時だけ出す）
+      }
+    }
+
+    let __transferIssueInFlight = false;
+    let __transferClaimInFlight = false;
+
+    async function issueTransferCode() {
+      if (__transferIssueInFlight) return;
+      __transferIssueInFlight = true;
+
+      const status = document.getElementById("transfer-issue-status");
+      const out = document.getElementById("transfer-code-display");
+      try {
+        if (status) status.textContent = "発行中…";
+        if (out) out.textContent = "";
+        const res = await fetch("/api/transfer/issue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j.ok || !j.code) {
+          if (status) status.textContent = (j && (j.message || j.error)) ? (j.message || j.error) : "発行できませんでした。";
+          return;
+        }
+        if (out) out.textContent = j.code;
+        if (status) status.textContent = "このコードを別ブラウザに入力してください。";
+      } catch (e) {
+        console.warn(e);
+        if (status) status.textContent = "通信に失敗しました。";
+      } finally {
+        __transferIssueInFlight = false;
+      }
+    }
+
+    async function claimTransferCode() {
+      if (__transferClaimInFlight) return;
+      __transferClaimInFlight = true;
+
+      const input = document.getElementById("transfer-code-input");
+      const status = document.getElementById("transfer-claim-status");
+      const code = (input && input.value) ? input.value : "";
+
+      try {
+        if (status) status.textContent = "引き継ぎ中…";
+        const res = await fetch("/api/transfer/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j.ok) {
+          if (status) status.textContent = (j && (j.message || j.error)) ? (j.message || j.error) : "引き継げませんでした。";
+          return;
+        }
+        if (status) status.textContent = "完了。再読み込みします…";
+        window.location.reload();
+      } catch (e) {
+        console.warn(e);
+        if (status) status.textContent = "通信に失敗しました。";
+      } finally {
+        __transferClaimInFlight = false;
       }
     }
 
@@ -1287,16 +1413,28 @@
       const delays = [800, 1600, 3200];
       for (const d of delays) {
         if (isPro()) {
-          setProCheckoutStatus("決済完了。Pro が有効になりました");
+          setProCheckoutStatus("✅ 決済完了。Pro が有効になりました");
           syncProCtas();
+          // 決済完了時に緑バッジを強調表示
+          const badge = document.getElementById("pro-active-badge");
+          if (badge) {
+            badge.classList.remove("hidden");
+            badge.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
           return;
         }
         await new Promise(r => setTimeout(r, d));
         await loadUserPlan();
       }
       if (isPro()) {
-        setProCheckoutStatus("決済完了。Pro が有効になりました");
+        setProCheckoutStatus("✅ 決済完了。Pro が有効になりました");
         syncProCtas();
+        // 決済完了時に緑バッジを強調表示
+        const badge = document.getElementById("pro-active-badge");
+        if (badge) {
+          badge.classList.remove("hidden");
+          badge.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
       } else {
         setProCheckoutStatus("決済完了。反映に少し時間がかかっています（数秒後に再読込してください）");
       }
@@ -1324,6 +1462,15 @@
         }
         setProCheckoutStatus("決済画面を準備中…");
 
+        // 計測: checkout_click
+        if (typeof dataLayer !== 'undefined') {
+          dataLayer.push({
+            event: 'checkout_click',
+            plan: plan,
+            timestamp: new Date().toISOString()
+          });
+        }
+
         const res = await fetch("/api/billing/checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1346,7 +1493,7 @@
           __checkoutInFlight = false;
           if (btn) {
             btn.disabled = false;
-            btn.textContent = prevText || "Proを購入する";
+            btn.textContent = prevText || "今すぐProで歌える";
           }
         }
       }
@@ -1452,6 +1599,15 @@
         const portal = url.searchParams.get("portal");
         if (checkout === "success") {
           setProCheckoutStatus("決済完了。Pro状態を確認中…");
+          
+          // 計測: checkout_success
+          if (typeof dataLayer !== 'undefined') {
+            dataLayer.push({
+              event: 'checkout_success',
+              timestamp: new Date().toISOString()
+            });
+          }
+          
           // もう一度同期（Webhook反映直後のタイミング差を吸収）
           setTimeout(() => loadUserPlan(), 350);
           setTimeout(() => retryPlanSyncAfterCheckoutSuccess(), 500);
@@ -2072,7 +2228,7 @@
               <p class="text-xs text-slate-300">Proで無制限変換・精密（日本語歌唱最適）・Singability（β）</p>
             </div>
             <button type="button" id="pro-start-btn" onclick="startCheckout('pro_month')" class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition whitespace-nowrap">
-              <span>Proを開始</span>
+              <span>今すぐProで歌える</span>
               <span class="text-xs">▶</span>
             </button>
           </div>
