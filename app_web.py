@@ -9,6 +9,8 @@ import re
 import sqlite3
 import datetime
 import traceback
+import time
+import secrets
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
@@ -272,6 +274,10 @@ COOKIE_NAME_DEV_PRO = "sk_dev_pro"  # 開発者モード用Cookie
 UID_RE = re.compile(r"^sk_[0-9A-HJKMNP-TV-Z]{26}$")  # ULID base32 26 chars
 COOKIE_SECURE = _env("COOKIE_SECURE", "1") == "1"     # 本番=1 / ローカルhttp検証=0
 DB_PATH = _env("SINGKANA_DB_PATH", str(BASE_DIR / "singkana.db"))
+# 引き継ぎコード（ログイン無し運用のための「端末移行」）
+TRANSFER_CODE_TTL_SEC = int(_env("TRANSFER_CODE_TTL_SEC", "600"))  # 10分
+TRANSFER_CODE_LEN = int(_env("TRANSFER_CODE_LEN", "10"))
+TRANSFER_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"  # 0/O, 1/I/L 等を除外
 
 def _db():
     if "db" not in g:
@@ -310,8 +316,22 @@ def _init_db():
             current_period_end INTEGER,
             cancel_at_period_end INTEGER DEFAULT 0,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS transfer_codes (
+            code TEXT PRIMARY KEY,
+            owner_user_id TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL,
+            used_at INTEGER,
+            used_by_user_id TEXT,
+            used_by_ip TEXT
         )
     """)
+
+    
     # schema migration: add cancel_at_period_end if existing DB is old
     cols = {r[1] for r in conn.execute("PRAGMA table_info(subscriptions)")}
     if "cancel_at_period_end" not in cols:
@@ -327,6 +347,27 @@ def _init_db():
     conn.close()
 
 _init_db()
+
+def _now_ts() -> int:
+    return int(time.time())
+
+def _normalize_transfer_code(s: str) -> str:
+    return "".join([c for c in (s or "").upper().strip() if c.isalnum()])
+
+def _gen_transfer_code() -> str:
+    return "".join(secrets.choice(TRANSFER_CODE_ALPHABET) for _ in range(max(6, TRANSFER_CODE_LEN)))
+
+def _set_uid_cookie_on_response(resp, uid: str):
+    resp.set_cookie(
+        COOKIE_NAME_UID,
+        uid,
+        max_age=60 * 60 * 24 * 365 * 5,
+        httponly=True,
+        samesite="Lax",
+        secure=COOKIE_SECURE,
+        path="/",
+    )
+    return resp
 
 def _send_waitlist_confirmation_email(email: str) -> bool:
     """先行登録完了メールを送信"""
@@ -1263,6 +1304,84 @@ def api_billing_portal():
     except Exception as e:
         app.logger.exception("Failed to create billing portal session: %s", e)
         return _json_error(500, "stripe_error", "Failed to create billing portal session.", detail=str(e))
+
+# ======================================================================
+# Transfer: 引き継ぎコード（Proの購入状態を別ブラウザへ移す）
+# ======================================================================
+@app.post("/api/transfer/issue")
+def api_transfer_issue():
+    if getattr(g, "user_plan", "free") != "pro":
+        return _json_error(402, "payment_required", "Transfer code is available on Pro plan only.")
+
+    uid = getattr(g, "user_id", "")
+    if not uid:
+        return _json_error(400, "no_user", "User identity missing.")
+
+    now = _now_ts()
+    expires_at = now + max(60, TRANSFER_CODE_TTL_SEC)
+
+    conn = _db()
+    try:
+        conn.execute("DELETE FROM transfer_codes WHERE expires_at < ?", (now - 60,))
+        conn.commit()
+    except Exception:
+        pass
+
+    for _i in range(5):
+        code = _gen_transfer_code()
+        try:
+            conn.execute(
+                "INSERT INTO transfer_codes (code, owner_user_id, created_at, expires_at) VALUES (?, ?, ?, ?)",
+                (code, uid, now, expires_at),
+            )
+            conn.commit()
+            app.logger.info("transfer_issue: owner_user_id=%s expires_at=%s", uid, expires_at)
+            return jsonify({"ok": True, "code": code, "expires_at": expires_at})
+        except sqlite3.IntegrityError:
+            continue
+
+    return _json_error(500, "transfer_issue_failed", "Failed to issue transfer code.")
+
+@app.post("/api/transfer/claim")
+def api_transfer_claim():
+    data, err = _require_json()
+    if err:
+        return err
+
+    code = _normalize_transfer_code(str(data.get("code") or ""))
+    if not code or len(code) < 6:
+        return _json_error(400, "bad_code", "引き継ぎコードが短すぎます。")
+
+    now = _now_ts()
+    conn = _db()
+    row = conn.execute(
+        "SELECT owner_user_id, expires_at, used_at FROM transfer_codes WHERE code=?",
+        (code,),
+    ).fetchone()
+
+    if not row:
+        return _json_error(404, "invalid_code", "引き継ぎコードが見つかりません。")
+
+    owner_user_id = row["owner_user_id"]
+    expires_at = int(row["expires_at"] or 0)
+
+    if expires_at and now > expires_at:
+        return _json_error(410, "expired_code", "引き継ぎコードの有効期限が切れました。")
+
+    if row["used_at"]:
+        return _json_error(409, "already_used", "この引き継ぎコードは使用済みです。")
+
+    used_by_uid = getattr(g, "user_id", "") or ""
+    used_by_ip = _client_ip()
+    conn.execute(
+        "UPDATE transfer_codes SET used_at=?, used_by_user_id=?, used_by_ip=? WHERE code=? AND used_at IS NULL",
+        (now, used_by_uid, used_by_ip, code),
+    )
+    conn.commit()
+
+    resp = jsonify({"ok": True, "user_id": owner_user_id, "message": "引き継ぎが完了しました。再読み込みします。"})
+    _set_uid_cookie_on_response(resp, owner_user_id)
+    return resp
 
 # ======================================================================
 # Static files / Screens
