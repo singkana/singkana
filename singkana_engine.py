@@ -5,14 +5,59 @@
 from __future__ import annotations
 
 import datetime as dt
+import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List
 
 # ===== ログ設定 ======================================================
 
-LOG_DIR = Path("Logs")
-LOG_DIR.mkdir(exist_ok=True)
+BASE_DIR = Path(__file__).resolve().parent
+
+def _resolve_log_dir() -> Path:
+    """
+    ログ出力先ディレクトリを決める。
+    - 本番は基本 /var/log/singkana（www-data書き込み可能）を推奨
+    - 環境変数 SINGKANA_LOG_DIR（互換で LOG_DIR）で上書き可能
+    - どれも作れない/書けない場合でも、起動自体は落とさない（worker boot 事故防止）
+    """
+    env = (os.getenv("SINGKANA_LOG_DIR") or os.getenv("LOG_DIR") or "").strip()
+
+    candidates: List[Path] = []
+    if env:
+        candidates.append(Path(env))
+
+    # 推奨: OS側のログ領域（systemd/nginx運用と分離）
+    candidates.append(Path("/var/log/singkana"))
+    # 最後の保険: /tmp（最悪でもサービス起動は継続させる）
+    candidates.append(Path("/tmp/singkana/Logs"))
+    # 開発/ローカル互換
+    candidates.append(BASE_DIR / "Logs")
+    candidates.append(Path.cwd() / "Logs")
+
+    seen: set[str] = set()
+    for p in candidates:
+        try:
+            p = p.expanduser()
+        except Exception:
+            pass
+
+        key = str(p)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        try:
+            p.mkdir(parents=True, exist_ok=True)
+            return p
+        except Exception:
+            continue
+
+    # ここに来ても、_safe_log 側で例外は握るのでworkerは生きる
+    return Path(".")
+
+
+LOG_DIR = _resolve_log_dir()
 
 CONVERT_LOG = LOG_DIR / "convert.log"
 FEEDBACK_LOG = LOG_DIR / "feedback.log"

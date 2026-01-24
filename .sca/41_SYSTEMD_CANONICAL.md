@@ -16,6 +16,7 @@ User=www-data
 Group=www-data
 WorkingDirectory=/var/www/singkana
 EnvironmentFile=/etc/singkana/secrets.env
+Environment=SINGKANA_LOG_DIR=/var/log/singkana
 ExecStart=/var/www/singkana/venv/bin/gunicorn --bind 127.0.0.1:5000 --workers 2 app_web:app
 Restart=on-failure
 RestartSec=3

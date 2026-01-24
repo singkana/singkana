@@ -82,6 +82,11 @@ sudo mkdir -p /var/lib/singkana /var/log/singkana
 sudo chown -R www-data:www-data /var/lib/singkana /var/log/singkana
 ```
 
+**ログ出力先（重要）**
+- エンジンのログ出力先は、環境変数 `SINGKANA_LOG_DIR` で指定可能
+- 本番推奨は **`/var/log/singkana`**（`/var/www/singkana` 配下へ書かせない）
+- systemd で `Environment=SINGKANA_LOG_DIR=/var/log/singkana` を指定する
+
 **既存DBがあるなら移動：**
 
 ```bash
