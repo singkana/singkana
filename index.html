@@ -16,6 +16,9 @@
 
   <title>SingKANA β｜歌詞を“歌いやすく”最適化するAI｜発音・ブレス・リズム可視化</title>
   <meta name="description" content="SingKANA（シンカナ）は、歌詞を“歌うため”に最適化するAI。発音・ブレス位置・リズム・伸ばしを可視化し、歌って覚える新しい歌唱体験を提供します。学習よりも、まず歌う。β版公開中。" />
+  <meta name="keywords" content="英語歌詞, かな変換, 発音, 歌ってみた, ボーカル, 歌唱, SingKANA" />
+  <meta name="author" content="SingKANA" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   
   <!-- (任意) canonical / OG / twitter は本番で追加推奨 -->
   <!-- <link rel="canonical" href="https://singkana.com/" /> -->
@@ -57,6 +60,7 @@
 
   <!-- 言語（将来 en ページができたら追加） -->
   <link rel="alternate" href="https://singkana.com/" hreflang="ja" />
+  <link rel="alternate" href="https://en.singkana.com/" hreflang="en" />
   <link rel="alternate" href="https://singkana.com/" hreflang="x-default" />
 
   <!-- パフォーマンス（CDNに preconnect） -->
@@ -299,16 +303,39 @@
     "@context": "https://schema.org",
     "@graph": [
       {
+        "@type": "Organization",
+        "@id": "https://singkana.com/#organization",
+        "name": "SingKANA",
+        "url": "https://singkana.com/",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://singkana.com/assets/favicon/apple-touch.png"
+        }
+      },
+      {
         "@type": "WebSite",
         "@id": "https://singkana.com/#website",
         "url": "https://singkana.com/",
         "name": "SingKANA",
-        "description": "英語歌詞を“歌えるかな表記”に変換するAIスタジオ。発音ガイド、ブレス位置、ロングトーン、ニュアンスまで可視化。",
+        "description": "英語歌詞を“歌える発音（かな）”に変換するAIスタジオ。発音ガイド、ブレス、伸ばし、リズムの目印で練習と収録を効率化。",
         "inLanguage": "ja",
-        "potentialAction": {
-          "@type": "SearchAction",
-          "target": "https://singkana.com/?q={search_term_string}",
-          "query-input": "required name=search_term_string"
+        "publisher": { "@id": "https://singkana.com/#organization" }
+      },
+      {
+        "@type": "WebPage",
+        "@id": "https://singkana.com/#webpage",
+        "url": "https://singkana.com/",
+        "name": "SingKANA β｜歌詞を“歌いやすく”最適化するAI｜発音・ブレス・リズム可視化",
+        "description": "SingKANA（シンカナ）は、歌詞を“歌うため”に最適化するAI。英語歌詞を歌唱向けの「かな発音」に変換し、ブレス位置・リズム・伸ばしを可視化します。",
+        "inLanguage": "ja",
+        "isPartOf": { "@id": "https://singkana.com/#website" },
+        "about": { "@id": "https://singkana.com/#app" },
+        "publisher": { "@id": "https://singkana.com/#organization" },
+        "primaryImageOfPage": {
+          "@type": "ImageObject",
+          "url": "https://singkana.com/assets/og/singkana_og.png",
+          "width": 1200,
+          "height": 630
         }
       },
       {
@@ -318,7 +345,7 @@
         "applicationCategory": "MultimediaApplication",
         "operatingSystem": "Web",
         "url": "https://singkana.com/",
-        "description": "英語歌詞を“歌えるかな表記”に変換。発音ガイド/ブレス/ロングトーンまで可視化して練習と収録を効率化。",
+        "description": "英語歌詞を歌唱向けの「かな発音」に変換し、ブレス/伸ばし/揺らし等の目印で練習と収録を効率化。",
         "offers": [
           {
             "@type": "Offer",
@@ -344,10 +371,34 @@
         "mainEntity": [
           {
             "@type": "Question",
+            "name": "SingKANAは何をするサービスですか？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "英語歌詞を、歌唱向けの「かな発音」に変換し、ブレス位置（BR）・伸ばし（HLD）・揺らし（VIB）などの目印で“歌いやすさ”を整えるAIスタジオです。翻訳ではなく、歌うための発音ガイド生成に特化しています。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "入力した歌詞はサーバーに送られますか？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "現在のβ仕様では、変換処理はお使いのブラウザ内で行われます（入力テキストは変換のためにサーバーへ送信されません）。先行登録（waitlist）のメールアドレス送信のみ、フォームからサーバーに送信されます。"
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "出力には何が含まれますか？",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "英語原文に対応した「かな発音」出力に加えて、行ごとのハイライト、コピー/TXT/SRT（簡易）書き出し、ブレス（BR）・伸ばし（HLD）・揺らし（VIB）などの歌唱マーク表示（β）を提供します。"
+            }
+          },
+          {
+            "@type": "Question",
             "name": "著作権は大丈夫ですか？",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "SingKANAは歌詞テキストの“かな変換”を行うツールです。歌詞そのものの権利は権利者に帰属します。利用規約と法令の範囲で、個人の練習用途を想定してご利用ください。"
+              "text": "SingKANAは歌詞テキストの「かな発音ガイド化」を行うツールです。歌詞そのものの権利は権利者に帰属します。利用規約と法令の範囲で、個人の練習用途を想定してご利用ください。"
             }
           },
           {
@@ -360,15 +411,16 @@
           },
           {
             "@type": "Question",
-            "name": "フィードバック送信はどこに届きますか？",
+            "name": "Proはいつから使えますか？案内はどう受け取れますか？",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "現状は準備中です。API未接続のため送信に失敗する場合があります。"
+              "text": "Proは順次提供予定です。先行登録（waitlist）にメールアドレスを登録いただくと、準備が整い次第、優先的にご案内します。"
             }
           }
         ]
       }
     ]
+  }
   </script>
 
 
@@ -433,104 +485,61 @@
 
     <!-- HERO -->
     <section id="hero" class="grid gap-8 md:gap-10 lg:gap-14 lg:grid-cols-2 lg:items-center">
-      <div class="space-y-4 md:space-y-6">
-        <!-- スマホ: 最小限の情報のみ表示 -->
-        <div class="md:hidden space-y-4">
-          <h1 class="text-2xl font-semibold leading-tight text-slate-50">
-            英語の歌詞を、歌いやすい「かな発音」に変換するAI<br />
-            <span class="bg-gradient-to-r from-singkana-200 via-fuchsia-200 to-cyan-200 bg-clip-text text-transparent">
-              ― SingKANA
-            </span>
-          </h1>
-          
-          <div class="flex flex-col gap-2">
-            <a href="#studio"
-              class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-3 text-base font-semibold text-white shadow-glow hover:brightness-110 transition">
-              無料でかな変換を試す
-              <span class="text-sm">▶</span>
-            </a>
-          </div>
+      <div class="space-y-5 md:space-y-7">
+        <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-slate-900/80 px-3 py-1 text-[11px] text-slate-200 shadow-soft backdrop-blur-xs">
+          <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+          β公開中 / AI歌唱サポート
         </div>
 
-        <!-- PC: 詳細情報を表示 -->
-        <div class="hidden md:block space-y-6">
-          <div class="inline-flex items-center gap-2 rounded-full border border-white/15 bg-slate-900/80 px-3 py-1 text-[11px] text-slate-200 shadow-soft backdrop-blur-xs">
-            <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-            好きな曲を「読めない」から一瞬で「歌える」に。
-          </div>
+        <h1 class="text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight text-slate-50">
+          英語歌詞を「歌える発音（かな）」へ。<br />
+          <span class="bg-gradient-to-r from-singkana-200 via-fuchsia-200 to-cyan-200 bg-clip-text text-transparent">
+            SingKANA（シンカナ）
+          </span>
+        </h1>
 
-          <div class="space-y-4">
-            <h1 class="text-4xl lg:text-5xl font-semibold leading-tight text-slate-50">
-              英語の歌詞を、歌いやすい「かな発音」に変換するAI<br />
-              <span class="bg-gradient-to-r from-singkana-200 via-fuchsia-200 to-cyan-200 bg-clip-text text-transparent">
-                ― SingKANA（シンカナ）
-              </span>
-            </h1>
+        <p class="text-sm md:text-base text-slate-300 leading-relaxed">
+          翻訳ではなく、<strong class="text-singkana-100">“歌うための発音ガイド”</strong>を作るAIスタジオ。
+          英語の音のつながり・脱落・強弱を考慮して、口が動く形に整えます。
+        </p>
 
-          <!-- サブヘッド（H2相当・人間向け） -->
-          <h2 class="text-xl md:text-2xl font-medium text-slate-200 leading-relaxed">
-            聞こえたまま、口が動く。<br />
-            ネイティブの発音を"歌える日本語"に。
-          </h2>
-
-          <!-- 説明文（リード文｜SEO本文に食い込ませる） -->
-          <div class="space-y-3 text-sm md:text-base text-slate-300 leading-relaxed">
-            <p>
-              SingKANA（シンカナ）は、<strong class="text-singkana-100">英語の歌詞を、日本人が実際に歌いやすい「かな発音」に変換するAIサービス</strong>です。
-            </p>
-            <p>
-              学校英語のカタカナ発音ではなく、<strong class="text-singkana-100">音のつながり・脱落・強弱を考慮した"歌唱専用"の発音表記</strong>を生成。
-            </p>
-            <p>
-              英語の歌を歌いたい人、「歌ってみた」動画を作る人、正確な発音で表現力を高めたいシンガーのために設計されています。
-            </p>
-          </div>
-        </div>
-
-        <!-- 機能要約（AI・検索エンジンが拾いやすい構造） -->
         <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
-          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 mb-2">主な機能</p>
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 mb-2">この1ページでできること</p>
           <ul class="space-y-1.5 text-sm text-slate-300">
             <li class="flex items-start gap-2">
               <span class="text-singkana-400 mt-0.5">•</span>
-              <span>英語歌詞を <strong class="text-singkana-100">歌唱向けかな発音</strong> に自動変換</span>
+              <span>英語歌詞を <strong class="text-singkana-100">歌唱向け「かな発音」</strong> に自動変換</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="text-singkana-400 mt-0.5">•</span>
-              <span>ネイティブ発音を意識した <strong class="text-singkana-100">音変化・リエゾン対応</strong></span>
+              <span><strong class="text-singkana-100">BR / HLD / VIB</strong> などの目印で歌い方を可視化（β）</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="text-singkana-400 mt-0.5">•</span>
-              <span>ブラウザ完結・インストール不要</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="text-singkana-400 mt-0.5">•</span>
-              <span>無料で試せる / 高精度変換はProプラン対応</span>
+              <span>行タップでハイライト、コピー/TXT/SRT（簡易）で台本化</span>
             </li>
           </ul>
         </div>
 
-        <!-- 権威性・独自性（SAO対策で重要） -->
-        <div class="rounded-2xl border border-singkana-400/30 bg-slate-900/50 p-4">
-          <p class="text-sm font-semibold text-singkana-100 mb-1">SingKANAは「翻訳ツール」ではありません。</p>
-          <p class="text-xs text-slate-300">歌うために設計された、発音特化AIです。</p>
-        </div>
-
         <div class="flex flex-wrap items-center gap-3">
-            <span class="font-semibold text-singkana-100">“歌えるかな表記”</span>
           <a href="#studio"
             class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition">
-            無料でかな変換を試す
+            今すぐ無料で試す
             <span class="text-xs">▶</span>
           </a>
+          <button type="button"
+            onclick="openWaitlistModal(); return false;"
+            class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-950/70 px-6 py-2.5 text-sm font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition">
+            Pro先行案内を受け取る
+          </button>
         </div>
 
         <p class="text-[11px] text-slate-400">
-          ブラウザだけで完結 / PC・スマホ対応 / FreeはBasic / Natural利用可能
+          ブラウザ完結 / PC・スマホ対応 / 変換は端末内処理（β） / 先行登録はメール送信のみ
         </p>
       </div>
 
-      <!-- Demo / Visual（PCで右側を“体験”で埋める） -->
+      <!-- Demo / Visual（右側を“体験”で埋める） -->
       <div class="relative w-full max-w-xl lg:max-w-none lg:w-[560px] lg:justify-self-end">
         <div class="absolute -top-6 -left-4 h-20 w-20 rounded-full border border-slate-500/30 bg-gradient-to-br from-slate-900/10 via-slate-900/40 to-slate-900/80 blur-2xl"></div>
         <div class="absolute -bottom-10 -right-6 h-28 w-28 rounded-full bg-gradient-to-tr from-fuchsia-500/30 via-singkana-400/20 to-cyan-300/20 blur-3xl"></div>
@@ -552,7 +561,6 @@
             </div>
           </div>
 
-          <!-- “操作できそう感” -->
           <div class="flex flex-wrap items-center gap-2 mb-3">
             <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
               <span class="hero-demo-caret"></span>
@@ -569,14 +577,14 @@
 
           <div class="grid gap-3 text-[11px]">
             <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-3">
-              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">Original Lyrics</p>
+              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">Input (Lyrics)</p>
               <p class="text-slate-200">
                 Put your <span class="underline decoration-dotted">heart</span> on the line, we’ll be <span class="underline decoration-dotted">flying</span> tonight...
               </p>
             </div>
 
             <div class="rounded-2xl border border-singkana-400/40 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-slate-900/90 p-3 shadow-glow">
-              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-300 mb-1.5">SingKANA Output</p>
+              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-300 mb-1.5">Output (Singable Kana)</p>
               <div class="grid grid-cols-[1fr_auto] gap-2 items-start">
                 <p class="font-medium text-slate-100 leading-relaxed">
                   <span class="inline-flex items-center gap-2 rounded-lg bg-singkana-500/15 border border-singkana-400/30 px-2 py-1">
@@ -612,7 +620,7 @@
 
             <div class="grid gap-3 sm:grid-cols-2">
               <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
-                <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">EN → かな (β)</p>
+                <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">EN → かな（歌唱向け）</p>
                 <p class="text-slate-200 leading-relaxed">
                   プッ ユア ハート オン ザ ライン<br />
                   ウィー ビー フライイン トゥナイッ
@@ -678,6 +686,50 @@
         言語の壁を越えて歌える、<br class="hidden md:block" />
         “歌詞翻訳ではない” 新しい体験。
       </h2>
+
+      <!-- SingKANAとは？（定義ブロック） -->
+      <div class="rounded-2xl border border-white/10 bg-slate-900/60 p-5">
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">SingKANAとは？</p>
+        <dl class="mt-4 grid gap-4 md:grid-cols-2">
+          <div class="space-y-1">
+            <dt class="text-[11px] font-semibold text-slate-300">定義</dt>
+            <dd class="text-sm text-slate-200 leading-relaxed">
+              英語歌詞を <span class="font-semibold text-singkana-100">歌唱向けの「かな発音」</span>に変換し、“歌いやすさ”を整えるAIスタジオ。
+            </dd>
+          </div>
+          <div class="space-y-1">
+            <dt class="text-[11px] font-semibold text-slate-300">入力</dt>
+            <dd class="text-sm text-slate-200 leading-relaxed">
+              英語の歌詞テキスト（行ごとに貼り付け）。
+            </dd>
+          </div>
+          <div class="space-y-1">
+            <dt class="text-[11px] font-semibold text-slate-300">出力</dt>
+            <dd class="text-sm text-slate-200 leading-relaxed">
+              かな発音 + 歌唱マーク（例：BR / HLD / VIB） + 行ハイライト + コピー/TXT/SRT（簡易）。
+            </dd>
+          </div>
+          <div class="space-y-1">
+            <dt class="text-[11px] font-semibold text-slate-300">提供形態</dt>
+            <dd class="text-sm text-slate-200 leading-relaxed">
+              ブラウザ完結（PC・スマホ）。インストール不要。
+            </dd>
+          </div>
+          <div class="space-y-1">
+            <dt class="text-[11px] font-semibold text-slate-300">データの扱い（β）</dt>
+            <dd class="text-sm text-slate-200 leading-relaxed">
+              変換処理は端末内で実行（入力歌詞は変換のためにサーバーへ送信しません）。
+            </dd>
+          </div>
+          <div class="space-y-1">
+            <dt class="text-[11px] font-semibold text-slate-300">対象ユーザー</dt>
+            <dd class="text-sm text-slate-200 leading-relaxed">
+              英語の歌を歌いたい人、歌ってみた制作、発音と表現力を磨きたいシンガー/ボーカル。
+            </dd>
+          </div>
+        </dl>
+      </div>
+
       <p class="text-sm md:text-base text-slate-300 leading-relaxed">
         SingKANA は英語歌詞を日本語かなに変換するだけのツールではありません。<br />
         <span class="font-semibold text-singkana-100">声が自然に乗る「歌いやすさ」</span>を基準に、
@@ -944,24 +996,45 @@
 
     <!-- FAQ -->
     <section id="faq" class="space-y-5">
-      <h2 class="text-xl md:text-2xl font-semibold">よくある質問</h2>
+      <h2 class="text-xl md:text-2xl font-semibold">AI向けFAQ（仕様と利用条件）</h2>
+      <p class="text-sm text-slate-300">
+        ページ内の内容と一致する形で、構造化データ（FAQPage）にも対応しています。
+      </p>
       <div class="space-y-3">
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+          <p class="text-sm font-semibold text-slate-50 mb-1">Q. SingKANAは何をするサービスですか？</p>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            英語歌詞を、歌唱向けの「かな発音」に変換し、ブレス位置（BR）・伸ばし（HLD）・揺らし（VIB）などの目印で“歌いやすさ”を整えるAIスタジオです。翻訳ではなく、歌うための発音ガイド生成に特化しています。
+          </p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+          <p class="text-sm font-semibold text-slate-50 mb-1">Q. 入力した歌詞はサーバーに送られますか？</p>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            現在のβ仕様では、変換処理はお使いのブラウザ内で行われます（入力テキストは変換のためにサーバーへ送信されません）。先行登録（waitlist）のメールアドレス送信のみ、フォームからサーバーに送信されます。
+          </p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+          <p class="text-sm font-semibold text-slate-50 mb-1">Q. 出力には何が含まれますか？</p>
+          <p class="text-xs text-slate-300 leading-relaxed">
+            英語原文に対応した「かな発音」出力に加えて、行ごとのハイライト、コピー/TXT/SRT（簡易）書き出し、ブレス（BR）・伸ばし（HLD）・揺らし（VIB）などの歌唱マーク表示（β）を提供します。
+          </p>
+        </div>
         <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
           <p class="text-sm font-semibold text-slate-50 mb-1">Q. 著作権は大丈夫ですか？</p>
           <p class="text-xs text-slate-300 leading-relaxed">
-            SingKANA は「歌詞テキストのかな変換」ツールです。歌詞そのものの権利は権利者に帰属します。利用規約と法令の範囲で使用してください。
+            SingKANAは歌詞テキストの「かな発音ガイド化」を行うツールです。歌詞そのものの権利は権利者に帰属します。利用規約と法令の範囲で、個人の練習用途を想定してご利用ください。
           </p>
         </div>
         <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
           <p class="text-sm font-semibold text-slate-50 mb-1">Q. スマホだけでも使えますか？</p>
           <p class="text-xs text-slate-300 leading-relaxed">
-            はい。ブラウザで使えます。推奨は最新版の Chrome / Safari / Edge。
+            はい。ブラウザで利用できます。推奨は最新版の Chrome / Safari / Edge です。
           </p>
         </div>
         <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-          <p class="text-sm font-semibold text-slate-50 mb-1">Q. フィードバック送信はどこに届きますか？</p>
+          <p class="text-sm font-semibold text-slate-50 mb-1">Q. Proはいつから使えますか？案内はどう受け取れますか？</p>
           <p class="text-xs text-slate-300 leading-relaxed">
-            現状は準備中です（API未接続）。テキスト欄は今後のために残しています。
+            Proは順次提供予定です。先行登録（waitlist）にメールアドレスを登録いただくと、準備が整い次第、優先的にご案内します。
           </p>
         </div>
       </div>
