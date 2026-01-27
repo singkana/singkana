@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SingKANA Admin Dashboard</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, sans-serif; margin: 24px; color: #0f172a; }
+    h1 { font-size: 18px; margin: 0 0 8px; }
+    .meta { color: #475569; font-size: 12px; margin-bottom: 16px; }
+    table { border-collapse: collapse; width: 100%; font-size: 12px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: right; white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; }
+    thead th { position: sticky; top: 0; background: #f8fafc; }
+    .sub { color: #64748b; font-size: 11px; }
+    .kpi { font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>直近30日ファネル（日別）</h1>
+  <div class="meta">生成時刻: {{ generated_at }}</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>日付(UTC)</th>
+        {% for name in funnel %}
+          <th>
+            <div class="kpi">{{ name }}</div>
+            <div class="sub">CVR</div>
+          </th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        <tr>
+          <td>{{ r.date }}</td>
+          {% for name in funnel %}
+            <td>
+              {{ r.counts[name] }}<br />
+              <span class="sub">{{ r.cvrs[name] }}</span>
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>
