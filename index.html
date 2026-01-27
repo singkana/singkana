@@ -69,6 +69,7 @@
   ========================================================== -->
   <link rel="stylesheet" href="/assets/themes/theme.switch.css" />
   <script defer src="/assets/js/theme_manager.js"></script>
+  <script defer src="/static/js/analytics.js"></script>
 
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -437,9 +438,9 @@
         <!-- スマホ: 最小限の情報のみ表示 -->
         <div class="md:hidden space-y-4">
           <h1 class="text-2xl font-semibold leading-tight text-slate-50">
-            英語の歌詞を、歌いやすい「かな発音」に変換するAI<br />
+            歌えるローマ字/カナに一発変換<br />
             <span class="bg-gradient-to-r from-singkana-200 via-fuchsia-200 to-cyan-200 bg-clip-text text-transparent">
-              ― SingKANA
+              通常のローマ字 vs SingKANA（歌唱最適化）
             </span>
           </h1>
           
@@ -461,16 +462,15 @@
 
           <div class="space-y-4">
             <h1 class="text-4xl lg:text-5xl font-semibold leading-tight text-slate-50">
-              英語の歌詞を、歌いやすい「かな発音」に変換するAI<br />
+              歌えるローマ字/カナに一発変換<br />
               <span class="bg-gradient-to-r from-singkana-200 via-fuchsia-200 to-cyan-200 bg-clip-text text-transparent">
-                ― SingKANA（シンカナ）
+                ― SingKANA
               </span>
             </h1>
 
           <!-- サブヘッド（H2相当・人間向け） -->
           <h2 class="text-xl md:text-2xl font-medium text-slate-200 leading-relaxed">
-            聞こえたまま、口が動く。<br />
-            ネイティブの発音を"歌える日本語"に。
+            通常のローマ字 vs SingKANA（歌唱最適化）
           </h2>
 
           <!-- 説明文（リード文｜SEO本文に食い込ませる） -->
@@ -569,22 +569,22 @@
 
           <div class="grid gap-3 text-[11px]">
             <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-3">
-              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">Original Lyrics</p>
+              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">通常のローマ字</p>
               <p class="text-slate-200">
-                Put your <span class="underline decoration-dotted">heart</span> on the line, we’ll be <span class="underline decoration-dotted">flying</span> tonight...
+                kitto kimi wa waraeru yo
               </p>
             </div>
 
             <div class="rounded-2xl border border-singkana-400/40 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-slate-900/90 p-3 shadow-glow">
-              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-300 mb-1.5">SingKANA Output</p>
+              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-300 mb-1.5">SingKANA（歌唱最適化）</p>
               <div class="grid grid-cols-[1fr_auto] gap-2 items-start">
                 <p class="font-medium text-slate-100 leading-relaxed">
                   <span class="inline-flex items-center gap-2 rounded-lg bg-singkana-500/15 border border-singkana-400/30 px-2 py-1">
                     <span class="text-[10px] uppercase tracking-[0.16em] text-singkana-200">Natural</span>
                   </span>
                   <br />
-                  プッ ユア <span class="text-singkana-200">ハート</span> オン ザ ライン<br />
-                  ウィー ビー <span class="text-singkana-200">フライイン</span> トゥナイッ
+                  ki tto / ki mi wa / wa ra e ru<br />
+                  yo<span class="text-singkana-200">—</span> <span class="text-slate-300">(BR)</span>
                 </p>
                 <div class="hidden sm:flex flex-col items-end gap-1">
                   <div class="hero-demo-wave flex items-end gap-1 h-6">

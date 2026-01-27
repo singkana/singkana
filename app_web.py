@@ -11,6 +11,11 @@ import datetime
 import traceback
 import time
 import secrets
+import json
+import hashlib
+import base64
+import uuid
+from functools import wraps
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
@@ -27,6 +32,7 @@ from flask import (
     send_from_directory,
     Response,
     g,
+    render_template,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -267,13 +273,196 @@ def _stripe_required_env() -> Dict[str, str]:
     }
 
 # ======================================================================
+# Analytics (TikTok funnel tracking)
+# - PII: IPはhash化して保存（平文保存しない）
+# - 失敗しても例外で落とさない（try/except）
+# ======================================================================
+try:
+    from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, func, select  # type: ignore
+    from sqlalchemy.orm import declarative_base, sessionmaker  # type: ignore
+except Exception as _sa_exc:  # pragma: no cover
+    create_engine = None
+    Column = Integer = String = DateTime = Text = func = select = None  # type: ignore
+    declarative_base = None  # type: ignore
+    sessionmaker = None  # type: ignore
+    _SA_IMPORT_ERR = str(_sa_exc)
+else:
+    _SA_IMPORT_ERR = ""
+
+AnalyticsBase = declarative_base() if declarative_base else None
+
+AnalyticsEvent = None
+AnalyticsAttribution = None
+
+if AnalyticsBase:
+    class _AnalyticsEvent(AnalyticsBase):  # type: ignore[misc]
+        __tablename__ = "analytics_events"
+
+        id = Column(Integer, primary_key=True, autoincrement=True)  # type: ignore[arg-type]
+        created_at = Column(DateTime(timezone=True), nullable=False, index=True)  # type: ignore[arg-type]
+        sk_uid = Column(String(64), nullable=False, index=True)  # type: ignore[arg-type]
+        name = Column(String(64), nullable=False, index=True)  # type: ignore[arg-type]
+        props_json = Column(Text, nullable=False, default="{}")  # type: ignore[arg-type]
+        ip_hash = Column(String(64), nullable=True)  # type: ignore[arg-type]
+
+    class _AnalyticsAttribution(AnalyticsBase):  # type: ignore[misc]
+        __tablename__ = "analytics_attributions"
+
+        id = Column(Integer, primary_key=True, autoincrement=True)  # type: ignore[arg-type]
+        created_at = Column(DateTime(timezone=True), nullable=False, index=True)  # type: ignore[arg-type]
+        sk_uid = Column(String(64), nullable=False, index=True)  # type: ignore[arg-type]
+        ttclid = Column(String(128), nullable=True, index=True)  # type: ignore[arg-type]
+        utm_source = Column(String(128), nullable=True, index=True)  # type: ignore[arg-type]
+        utm_medium = Column(String(128), nullable=True, index=True)  # type: ignore[arg-type]
+        utm_campaign = Column(String(128), nullable=True, index=True)  # type: ignore[arg-type]
+        utm_content = Column(String(256), nullable=True)  # type: ignore[arg-type]
+        utm_term = Column(String(256), nullable=True)  # type: ignore[arg-type]
+        landing_path = Column(String(512), nullable=True)  # type: ignore[arg-type]
+        ip_hash = Column(String(64), nullable=True)  # type: ignore[arg-type]
+
+    AnalyticsEvent = _AnalyticsEvent
+    AnalyticsAttribution = _AnalyticsAttribution
+
+# ======================================================================
 # Identity + DB (Sovereign Billing Layer minimal)
 # ======================================================================
 COOKIE_NAME_UID = "sk_uid"
 COOKIE_NAME_DEV_PRO = "sk_dev_pro"  # 開発者モード用Cookie
-UID_RE = re.compile(r"^sk_[0-9A-HJKMNP-TV-Z]{26}$")  # ULID base32 26 chars
+# 互換: 旧ULID形式(sk_...) + 新UUID形式（要件: cookie sk_uid は uuid）
+UID_RE = re.compile(
+    r"^(sk_[0-9A-HJKMNP-TV-Z]{26}|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$",
+    re.IGNORECASE,
+)
 COOKIE_SECURE = _env("COOKIE_SECURE", "1") == "1"     # 本番=1 / ローカルhttp検証=0
 DB_PATH = _env("SINGKANA_DB_PATH", str(BASE_DIR / "singkana.db"))
+# ---- Analytics env ----
+ANALYTICS_ENABLED = _env("ANALYTICS_ENABLED", "1") == "1"
+ANALYTICS_IP_SALT = _env("ANALYTICS_IP_SALT", "")
+ANALYTICS_MAX_PROPS_BYTES = int(_env("ANALYTICS_MAX_PROPS_BYTES", "20000"))  # 20KB
+ANALYTICS_DEDUPE_WINDOW_SEC = int(_env("ANALYTICS_DEDUPE_WINDOW_SEC", "86400"))  # 24h (server-only)
+
+# SQLAlchemy (analytics) session
+_ANALYTICS_ENGINE = None
+_AnalyticsSession = None
+
+def _utcnow_dt() -> datetime.datetime:
+    return datetime.datetime.now(datetime.timezone.utc)
+
+def _hash_ip(ip: str) -> str:
+    """PII対策: IPはhashのみ保存（平文は保存しない）"""
+    ip = (ip or "").strip()
+    if not ip:
+        return ""
+    salt = ANALYTICS_IP_SALT or ""
+    return hashlib.sha256(f"{salt}|{ip}".encode("utf-8")).hexdigest()
+
+def _analytics_init():
+    """analytics用テーブル初期化（失敗しても落とさない）"""
+    global _ANALYTICS_ENGINE, _AnalyticsSession
+    if not ANALYTICS_ENABLED:
+        return
+    if (create_engine is None) or (AnalyticsBase is None) or (sessionmaker is None) or (AnalyticsEvent is None) or (AnalyticsAttribution is None):
+        # requirements未導入など
+        app.logger.warning("Analytics disabled: SQLAlchemy not available (%s)", _SA_IMPORT_ERR)
+        return
+    if _ANALYTICS_ENGINE is not None and _AnalyticsSession is not None:
+        return
+    try:
+        # 既存DB（sqlite3）と同一ファイルへ追記する
+        _ANALYTICS_ENGINE = create_engine(
+            f"sqlite:///{DB_PATH}",
+            connect_args={"check_same_thread": False},
+            future=True,
+        )
+        _AnalyticsSession = sessionmaker(bind=_ANALYTICS_ENGINE, expire_on_commit=False, future=True)
+        AnalyticsBase.metadata.create_all(_ANALYTICS_ENGINE)
+    except Exception as e:
+        app.logger.warning("Analytics init failed (ignored): %s", e)
+        _ANALYTICS_ENGINE = None
+        _AnalyticsSession = None
+
+def _analytics_session():
+    _analytics_init()
+    if _AnalyticsSession is None:
+        return None
+    try:
+        return _AnalyticsSession()
+    except Exception:
+        return None
+
+def _normalize_event_name(name: str) -> str:
+    name = str(name or "").strip().lower()
+    # allow: a-z, 0-9, underscore
+    if not name:
+        return ""
+    if not re.match(r"^[a-z0-9_]{1,64}$", name):
+        return ""
+    return name[:64]
+
+def _safe_props_json(props: Any) -> str:
+    if not isinstance(props, dict):
+        props = {}
+    try:
+        s = json.dumps(props, ensure_ascii=False, separators=(",", ":"))
+    except Exception:
+        s = "{}"
+    # サイズ制限（DB肥大化防止）
+    if len(s.encode("utf-8")) > ANALYTICS_MAX_PROPS_BYTES:
+        s = json.dumps({"_truncated": True}, ensure_ascii=False, separators=(",", ":"))
+    return s
+
+def _track_event(name: str, props: Optional[Dict[str, Any]] = None, *, sk_uid: Optional[str] = None, dedupe_window_sec: int = 0):
+    """イベント記録（失敗しても例外で落とさない）"""
+    try:
+        if not ANALYTICS_ENABLED:
+            return False
+        n = _normalize_event_name(name)
+        if not n:
+            return False
+        uid = (sk_uid or getattr(g, "user_id", "") or "").strip()
+        if not uid:
+            return False
+        sess = _analytics_session()
+        if sess is None or AnalyticsEvent is None:
+            return False
+
+        now = _utcnow_dt()
+        ip_h = _hash_ip(_client_ip())
+        props_json = _safe_props_json(props or {})
+
+        # server-only dedupe（例: trial_start/subscribe を毎回カウントしない）
+        if dedupe_window_sec and select is not None and func is not None:
+            try:
+                since = now - datetime.timedelta(seconds=int(dedupe_window_sec))
+                q = select(func.count()).select_from(AnalyticsEvent).where(  # type: ignore[misc]
+                    AnalyticsEvent.sk_uid == uid,
+                    AnalyticsEvent.name == n,
+                    AnalyticsEvent.created_at >= since,
+                )
+                c = sess.execute(q).scalar_one()
+                if c and int(c) > 0:
+                    sess.close()
+                    return True
+            except Exception:
+                pass
+
+        ev = AnalyticsEvent(  # type: ignore[call-arg]
+            created_at=now,
+            sk_uid=uid,
+            name=n,
+            props_json=props_json,
+            ip_hash=ip_h or None,
+        )
+        sess.add(ev)
+        sess.commit()
+        sess.close()
+        return True
+    except Exception as e:
+        try:
+            app.logger.warning("Analytics track failed (ignored): %s", e)
+        except Exception:
+            pass
+        return False
 # 引き継ぎコード（ログイン無し運用のための「端末移行」）
 TRANSFER_CODE_TTL_SEC = int(_env("TRANSFER_CODE_TTL_SEC", "600"))  # 10分
 TRANSFER_CODE_LEN = int(_env("TRANSFER_CODE_LEN", "10"))
@@ -347,6 +536,7 @@ def _init_db():
     conn.close()
 
 _init_db()
+_analytics_init()
 
 def _now_ts() -> int:
     return int(time.time())
@@ -472,9 +662,8 @@ https://singkana.com
         return False
 
 def _generate_user_id() -> str:
-    # dependency: pip install ulid-py
-    import ulid
-    return f"sk_{ulid.new()}"
+    # 要件: cookie sk_uid は uuid（匿名ユーザー識別）
+    return str(uuid.uuid4())
 
 def _ensure_user_exists(conn, user_id: str):
     conn.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
@@ -503,6 +692,8 @@ def _identity_and_plan_bootstrap():
     if p.startswith("/en/"):
         return None
     if p.startswith("/assets/"):
+        return None
+    if p.startswith("/static/"):
         return None
     if p in ("/singkana_core.js", "/paywall_gate.js", "/terms.html", "/privacy.html"):
         return None
@@ -570,6 +761,7 @@ def _identity_cookie_commit(resp):
         or p in ("/en", "/en/")
         or p.startswith("/en/")
         or p.startswith("/assets/")
+        or p.startswith("/static/")
         or p in ("/singkana_core.js", "/paywall_gate.js", "/terms.html", "/privacy.html")
         or (p == "/api/romaji" and request.method in ("GET", "HEAD"))
     )
@@ -703,6 +895,121 @@ def api_me():
     })
 
 # ======================================================================
+# Analytics API (client events + attribution)
+# ======================================================================
+
+@app.post("/api/track")
+def api_track():
+    """
+    フロント/サーバのイベント受信:
+      { "name": "landing_click", "props": {...} }
+    """
+    data, err = _require_json()
+    if err:
+        return err
+
+    name = str(data.get("name") or "").strip()
+    props = data.get("props")
+    if props is None:
+        props = {}
+    if not isinstance(props, dict):
+        props = {"_props_type": str(type(props))}
+
+    stored = False
+    try:
+        stored = bool(_track_event(name, props))  # 失敗しても落ちない
+    except Exception:
+        stored = False
+
+    return jsonify({"ok": True, "stored": stored})
+
+
+@app.post("/api/attribution")
+def api_attribution():
+    """
+    LPアクセス時の流入情報保存:
+      { utm_*, ttclid, landing_path }
+    """
+    data, err = _require_json()
+    if err:
+        return err
+
+    uid = (getattr(g, "user_id", "") or "").strip()
+    if not uid:
+        return jsonify({"ok": True, "stored": False})
+
+    def _s(k: str, max_len: int) -> Optional[str]:
+        v = (data.get(k) or "")
+        if v is None:
+            return None
+        v = str(v).strip()
+        if not v:
+            return None
+        return v[:max_len]
+
+    ttclid = _s("ttclid", 128)
+    utm_source = _s("utm_source", 128)
+    utm_medium = _s("utm_medium", 128)
+    utm_campaign = _s("utm_campaign", 128)
+    utm_content = _s("utm_content", 256)
+    utm_term = _s("utm_term", 256)
+    landing_path = _s("landing_path", 512) or (request.path or "/")
+
+    stored = False
+    try:
+        if not ANALYTICS_ENABLED or AnalyticsAttribution is None or select is None or func is None:
+            return jsonify({"ok": True, "stored": False})
+
+        sess = _analytics_session()
+        if sess is None:
+            return jsonify({"ok": True, "stored": False})
+
+        now = _utcnow_dt()
+        ip_h = _hash_ip(_client_ip())
+
+        # ゆるい重複防止: 同一 uid + (ttclid/utm_campaign/utm_source) が24h以内にあればスキップ
+        try:
+            since = now - datetime.timedelta(seconds=ANALYTICS_DEDUPE_WINDOW_SEC)
+            q = select(func.count()).select_from(AnalyticsAttribution).where(  # type: ignore[misc]
+                AnalyticsAttribution.sk_uid == uid,
+                AnalyticsAttribution.created_at >= since,
+                AnalyticsAttribution.ttclid == ttclid,
+                AnalyticsAttribution.utm_source == utm_source,
+                AnalyticsAttribution.utm_campaign == utm_campaign,
+            )
+            c = sess.execute(q).scalar_one()
+            if c and int(c) > 0:
+                sess.close()
+                return jsonify({"ok": True, "stored": True, "deduped": True})
+        except Exception:
+            pass
+
+        row = AnalyticsAttribution(  # type: ignore[call-arg]
+            created_at=now,
+            sk_uid=uid,
+            ttclid=ttclid,
+            utm_source=utm_source,
+            utm_medium=utm_medium,
+            utm_campaign=utm_campaign,
+            utm_content=utm_content,
+            utm_term=utm_term,
+            landing_path=landing_path,
+            ip_hash=ip_h or None,
+        )
+        sess.add(row)
+        sess.commit()
+        sess.close()
+        stored = True
+    except Exception as e:
+        try:
+            app.logger.warning("Attribution store failed (ignored): %s", e)
+        except Exception:
+            pass
+        stored = False
+
+    return jsonify({"ok": True, "stored": stored})
+
+# ======================================================================
 # Static: robots.txt
 # ======================================================================
 
@@ -772,6 +1079,12 @@ def api_convert():
             "Conversion failed.",
             detail=str(e),
         )
+
+    # サーバ側でも必ず変換成功イベントを記録（二重OK）
+    try:
+        _track_event("convert_success", {"via": "api_convert", "text_len": len(lyrics)})
+    except Exception:
+        pass
 
     return jsonify({"ok": True, "result": result})
 
@@ -1051,6 +1364,35 @@ def stripe_webhook():
             )
             conn.commit()
 
+            # Funnel events（Webhook側で必ず記録）
+            try:
+                if status == "trialing":
+                    _track_event(
+                        "trial_start",
+                        {
+                            "via": "stripe_webhook",
+                            "stripe_event": etype,
+                            "stripe_subscription_status": status,
+                            "stripe_subscription_id_present": bool(sub_id),
+                        },
+                        sk_uid=user_id,
+                        dedupe_window_sec=ANALYTICS_DEDUPE_WINDOW_SEC,
+                    )
+                if status == "active":
+                    _track_event(
+                        "subscribe",
+                        {
+                            "via": "stripe_webhook",
+                            "stripe_event": etype,
+                            "stripe_subscription_status": status,
+                            "stripe_subscription_id_present": bool(sub_id),
+                        },
+                        sk_uid=user_id,
+                        dedupe_window_sec=ANALYTICS_DEDUPE_WINDOW_SEC,
+                    )
+            except Exception:
+                pass
+
     # 3) 解約・失効（安全側に倒してfreeへ）
     elif etype in ("customer.subscription.deleted", "customer.subscription.paused"):
         sub = event["data"]["object"]
@@ -1235,6 +1577,12 @@ def api_billing_checkout():
         # user_id をStripeへ紐付け（Webhookで取り出すための鍵）
         uid = getattr(g, "user_id", "")
 
+        # Funnel: billing_open（サーバ側でも記録。フロントの二重OK）
+        try:
+            _track_event("billing_open", {"via": "api_billing_checkout", "plan": plan}, sk_uid=uid)
+        except Exception:
+            pass
+
         session = stripe.checkout.Session.create(
             mode="subscription",
             line_items=[{"price": price_id, "quantity": 1}],
@@ -1382,6 +1730,110 @@ def api_transfer_claim():
     resp = jsonify({"ok": True, "user_id": owner_user_id, "message": "引き継ぎが完了しました。再読み込みします。"})
     _set_uid_cookie_on_response(resp, owner_user_id)
     return resp
+
+# ======================================================================
+# Admin: Funnel dashboard (last 30 days)
+# ======================================================================
+
+def _admin_basic_ok() -> bool:
+    """Basic認証（is_admin 相当）。設定が無い場合は常にFalse。"""
+    user = _env("SINGKANA_ADMIN_USER", "")
+    pw = _env("SINGKANA_ADMIN_PASS", "")
+    if not user or not pw:
+        return False
+
+    auth = (request.headers.get("Authorization") or "").strip()
+    if not auth.startswith("Basic "):
+        return False
+    b64 = auth.split(" ", 1)[1].strip()
+    try:
+        raw = base64.b64decode(b64).decode("utf-8", errors="ignore")
+        if ":" not in raw:
+            return False
+        u, p = raw.split(":", 1)
+        return secrets.compare_digest(u, user) and secrets.compare_digest(p, pw)
+    except Exception:
+        return False
+
+def _admin_unauthorized():
+    resp = Response("Unauthorized", status=401)
+    resp.headers["WWW-Authenticate"] = 'Basic realm="SingKANA Admin"'
+    return resp
+
+def require_admin(fn):
+    @wraps(fn)
+    def _wrap(*args, **kwargs):
+        if not _admin_basic_ok():
+            return _admin_unauthorized()
+        g.is_admin = True
+        return fn(*args, **kwargs)
+    return _wrap
+
+@app.get("/admin/dashboard")
+@require_admin
+def admin_dashboard():
+    funnel = ["landing_click", "convert_success", "billing_open", "trial_start", "subscribe"]
+    days = 30
+    today = _utcnow_dt().date()
+    start_date = today - datetime.timedelta(days=days - 1)
+    start_dt = datetime.datetime.combine(start_date, datetime.time.min, tzinfo=datetime.timezone.utc)
+
+    # 日付配列
+    date_list = [(start_date + datetime.timedelta(days=i)) for i in range(days)]
+    date_keys = [d.isoformat() for d in date_list]
+    counts: Dict[str, Dict[str, int]] = {dk: {n: 0 for n in funnel} for dk in date_keys}
+
+    if ANALYTICS_ENABLED and AnalyticsEvent is not None and select is not None and func is not None:
+        try:
+            sess = _analytics_session()
+            if sess is not None:
+                q = (
+                    select(
+                        func.date(AnalyticsEvent.created_at).label("d"),  # sqlite: 'YYYY-MM-DD'
+                        AnalyticsEvent.name.label("name"),
+                        func.count().label("c"),
+                    )
+                    .where(AnalyticsEvent.created_at >= start_dt)
+                    .where(AnalyticsEvent.name.in_(funnel))
+                    .group_by("d", "name")
+                )
+                for row in sess.execute(q).all():
+                    d = str(row.d)
+                    n = str(row.name)
+                    c = int(row.c or 0)
+                    if d in counts and n in counts[d]:
+                        counts[d][n] = c
+                sess.close()
+        except Exception as e:
+            try:
+                app.logger.warning("Dashboard query failed (ignored): %s", e)
+            except Exception:
+                pass
+
+    def _cvr(numer: int, denom: int) -> str:
+        if denom <= 0:
+            return "-"
+        return f"{(numer / denom) * 100:.1f}%"
+
+    rows = []
+    for dk in reversed(date_keys):  # 最新日を上に
+        row_counts = counts.get(dk, {n: 0 for n in funnel})
+        row = {"date": dk, "counts": row_counts, "cvrs": {}}
+        prev = None
+        for n in funnel:
+            if prev is None:
+                row["cvrs"][n] = "-"
+            else:
+                row["cvrs"][n] = _cvr(int(row_counts.get(n, 0)), int(row_counts.get(prev, 0)))
+            prev = n
+        rows.append(row)
+
+    return render_template(
+        "admin_dashboard.html",
+        rows=rows,
+        funnel=funnel,
+        generated_at=_utc_iso(),
+    )
 
 # ======================================================================
 # Static files / Screens
