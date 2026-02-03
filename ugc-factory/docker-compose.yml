@@ -1,0 +1,146 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ugc_factory
+      POSTGRES_USER: ugc
+      POSTGRES_PASSWORD: ugc_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ugc -d ugc_factory"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio_password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/ready >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  minio_init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio_password
+      S3_BUCKET: ugc-factory
+    entrypoint: ["/bin/sh", "-lc"]
+    command: >
+      "
+      mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD;
+      mc mb -p local/$$S3_BUCKET || true;
+      mc anonymous set download local/$$S3_BUCKET || true;
+      echo 'MinIO bucket ensured';
+      "
+    restart: "no"
+
+  api:
+    build: ./api
+    environment:
+      APP_ENV: dev
+      DATABASE_URL: postgresql+psycopg://ugc:ugc_password@postgres:5432/ugc_factory
+      REDIS_URL: redis://redis:6379/0
+
+      # LLM
+      LLM_PROVIDER: ${LLM_PROVIDER:-openai}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+
+      # TTS
+      TTS_PROVIDER: ${TTS_PROVIDER:-openai}
+      OPENAI_TTS_MODEL: ${OPENAI_TTS_MODEL:-gpt-4o-mini-tts}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+
+      # VIDEO
+      VIDEO_PROVIDER: ${VIDEO_PROVIDER:-dummy}
+      HEYGEN_API_KEY: ${HEYGEN_API_KEY:-}
+      HEYGEN_AVATAR_ID: ${HEYGEN_AVATAR_ID:-}
+      HEYGEN_POLL_TIMEOUT_SEC: ${HEYGEN_POLL_TIMEOUT_SEC:-600}
+
+      # STORAGE (MinIO=S3互換)
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ugc-factory
+      S3_ACCESS_KEY: minio
+      S3_SECRET_KEY: minio_password
+      S3_REGION: us-east-1
+
+      # API security
+      API_KEY: ${API_KEY:-dev_api_key_change_me}
+
+      # Finalize/Worker
+      FINALIZE_PROVIDER: ${FINALIZE_PROVIDER:-worker}
+      REDIS_QUEUE_KEY: ${REDIS_QUEUE_KEY:-ugc:finalize}
+      FINALIZE_INTERNAL_TOKEN: ${FINALIZE_INTERNAL_TOKEN:-}
+
+      # Retry/Idempotency
+      MAX_RETRIES: "3"
+      IDEMPOTENCY_TTL_SEC: "86400"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio_init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health >/dev/null || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  worker:
+    build: ./worker
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      REDIS_QUEUE_KEY: ${REDIS_QUEUE_KEY:-ugc:finalize}
+      API_BASE_URL: http://api:8080
+      API_INTERNAL_URL: http://api:8080/v1/internal/finalize
+      FINALIZE_INTERNAL_TOKEN: ${FINALIZE_INTERNAL_TOKEN:-}
+      API_KEY: ${API_KEY:-dev_api_key_change_me}
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: ugc-factory
+      S3_ACCESS_KEY: minio
+      S3_SECRET_KEY: minio_password
+      S3_REGION: us-east-1
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  minio:

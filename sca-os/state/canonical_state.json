@@ -1,0 +1,18 @@
+{
+  "sca_os_version": "42.x",
+  "canonical": {
+    "scc_core": "SCC_v42_CORE",
+    "tbjson": "2.1",
+    "tbjson_linter": "1.0"
+  },
+  "locks": [
+    {
+      "product": "SingKANA",
+      "version": "v1.9.0-feedback-stable",
+      "locked_at": "2025-12-16T00:00:00+09:00",
+      "notes": "feedback機構 + secrets.env + systemd 経路固定"
+    }
+  ],
+  "registry_ref": "state/registry.json"
+}
+

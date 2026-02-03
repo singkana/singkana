@@ -1,0 +1,33 @@
+name: TB-JSON Lint
+
+on:
+  pull_request:
+    paths:
+      - "patches/**.json"
+      - "tools/**"
+      - "canon/**"
+      - "state/**"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          pip install jsonschema pyyaml
+
+      - name: Lint all TB-JSON in patches/
+        run: |
+          set -e
+          for f in $(find patches -type f -name "*.json"); do
+            echo "== Lint: $f =="
+            python tools/tbjson_linter/lint.py "$f"
+          done
+

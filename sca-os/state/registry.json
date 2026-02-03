@@ -1,0 +1,45 @@
+{
+  "adoptions": [
+    {
+      "adopted_at": "2026-01-19T23:33:23.706472+09:00",
+      "proposal_id": "TB-20260104-0001",
+      "state_target": "SAND",
+      "mode": "PROD",
+      "diff_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "rollback_ref": "RB-20260104-0001",
+      "legacy": true,
+      "legacy_note": "pre-hash-chain era (legacy entry)"
+    },
+    {
+      "adopted_at": "2026-01-20T01:05:57.105196+09:00",
+      "proposal_id": "TB-20260104-0001",
+      "state_target": "SAND",
+      "mode": "PROD",
+      "diff_hash": "sha256:6e3e8e73363efa140d70e36d7fac127a32dd8e93cb4ebb93be1fa5a8563314aa",
+      "rollback_ref": "RB-20260104-0001",
+      "legacy": true,
+      "legacy_note": "pre-hash-chain era (legacy entry)"
+    },
+    {
+      "adopted_at": "2026-01-20T10:19:19.733787+09:00",
+      "proposal_id": "TB-20260104-0001",
+      "state_target": "SAND",
+      "mode": "PROD",
+      "diff_hash": "sha256:6e3e8e73363efa140d70e36d7fac127a32dd8e93cb4ebb93be1fa5a8563314aa",
+      "rollback_ref": "RB-20260104-0001",
+      "prev_hash": "LEGACY",
+      "entry_hash": "sha256:8a60a6fbd2e2d3a4537ec8b422b6acf652133cae07208cccd6fca600f6e23fd8"
+    }
+  ],
+  "rejections": [
+    {
+      "rejected_at": "2026-01-20T01:04:52.664794+09:00",
+      "proposal_id": "TB-20260104-0001",
+      "gate": "GATE",
+      "reason_code": "DIFF_HASH_MISMATCH",
+      "severity": "BLOCK",
+      "legacy": true,
+      "legacy_note": "pre-hash-chain era (legacy entry)"
+    }
+  ]
+}

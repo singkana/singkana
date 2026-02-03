@@ -1,0 +1,48 @@
+{
+  "tb_version": "2.1",
+  "mode": "PROD",
+  "proposal_id": "TB-20260104-0001",
+  "change_type": "ADD",
+  "scope": ["SCA-Patch", "TB-JSON Linter"],
+  "state_target": "SAND",
+  "summary": "TB-JSON Linter導入の最小骨格を追加します。",
+  "claims": [
+    {
+      "claim_id": "C-001",
+      "text": "TB-JSONはDecision Gate直前でLintされる。",
+      "uncertainty_type": "VERIFIED",
+      "evidence_refs": ["EV-20260104-0001"],
+      "test_refs": []
+    }
+  ],
+  "risk": {
+    "adoption_risk": "LOW",
+    "reversibility": "EASY",
+    "rollback_ref": "RB-20260104-0001"
+  },
+  "fhb_gate": {
+    "boundary_first": true,
+    "least_privilege": true,
+    "explicit_state": true,
+    "data_classification": "PUBLIC",
+    "pii_handling": "NONE",
+    "attack_surface_change": "NO"
+  },
+  "hsp": {
+    "requires_human_approval": false,
+    "approved_by_human": false
+  },
+  "artifacts": {
+    "diff_hash": "sha256:6e3e8e73363efa140d70e36d7fac127a32dd8e93cb4ebb93be1fa5a8563314aa",
+    "diff_paths": ["patches/TB-20260104-0001.sample.diff"],
+    "apply_ops": [
+      {
+        "op": "WRITE_TEXT",
+        "path": "state/sand/TB-20260104-0001.applied.txt",
+        "content": "Applied: TB-20260104-0001\n",
+        "overwrite": true
+      }
+    ]
+  }
+}
+

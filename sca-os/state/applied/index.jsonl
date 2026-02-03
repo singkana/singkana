@@ -1,0 +1,2 @@
+
+{"applied_at": "2026-01-20T10:19:20.986478+09:00", "proposal_id": "TB-20260104-0001", "state_target": "SAND", "diff_hash": "sha256:6e3e8e73363efa140d70e36d7fac127a32dd8e93cb4ebb93be1fa5a8563314aa", "apply_ops_count": 1, "applied_files": [{"path": "state/sand/TB-20260104-0001.applied.txt", "backed_up": false}]}

@@ -1,0 +1,6 @@
+{
+  "sca_os_version": "42.x",
+  "sand": {},
+  "note": "SANDは実験用。CanonicalへはTB-JSON + Lint + Gate必須。"
+}
+

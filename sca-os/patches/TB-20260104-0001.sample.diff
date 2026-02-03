@@ -1,0 +1,5 @@
++ Add TB-JSON Linter skeleton
+  - canon/TBJSON_v2.1.schema.json
+  - tools/tbjson_linter/rules.yaml
+  - tools/tbjson_linter/lint.py
+

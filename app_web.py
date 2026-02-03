@@ -11,6 +11,8 @@ import datetime
 import traceback
 import time
 import secrets
+import json
+import hashlib
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
@@ -271,6 +273,7 @@ def _stripe_required_env() -> Dict[str, str]:
 # ======================================================================
 COOKIE_NAME_UID = "sk_uid"
 COOKIE_NAME_DEV_PRO = "sk_dev_pro"  # 開発者モード用Cookie
+COOKIE_NAME_REF = "sk_ref"          # ref_code cookie（流入計測）
 UID_RE = re.compile(r"^sk_[0-9A-HJKMNP-TV-Z]{26}$")  # ULID base32 26 chars
 COOKIE_SECURE = _env("COOKIE_SECURE", "1") == "1"     # 本番=1 / ローカルhttp検証=0
 DB_PATH = _env("SINGKANA_DB_PATH", str(BASE_DIR / "singkana.db"))
@@ -278,6 +281,15 @@ DB_PATH = _env("SINGKANA_DB_PATH", str(BASE_DIR / "singkana.db"))
 TRANSFER_CODE_TTL_SEC = int(_env("TRANSFER_CODE_TTL_SEC", "600"))  # 10分
 TRANSFER_CODE_LEN = int(_env("TRANSFER_CODE_LEN", "10"))
 TRANSFER_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"  # 0/O, 1/I/L 等を除外
+
+# ref_code
+REF_CODE_LEN = int(_env("REF_CODE_LEN", "6"))
+REF_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+REF_CODE_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{4,12}$")
+
+# UGC
+UGC_RETENTION_DAYS = int(_env("UGC_RETENTION_DAYS", "7"))
+UGC_STATIC_DIR = (BASE_DIR / "static" / "ugc").resolve()
 
 def _db():
     if "db" not in g:
@@ -303,6 +315,7 @@ def _init_db():
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             user_id TEXT PRIMARY KEY,
+            ref_code TEXT,
             plan TEXT NOT NULL DEFAULT 'free',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -343,6 +356,57 @@ def _init_db():
             notified INTEGER DEFAULT 0
         )
     """)
+
+    # schema migration: add ref_code if existing DB is old
+    user_cols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
+    if "ref_code" not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN ref_code TEXT")
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_ref_code ON users(ref_code)")
+
+    # UGC assets (generated image/scripts)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ugc_assets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            asset_type TEXT NOT NULL,
+            content_hash TEXT NOT NULL,
+            file_path TEXT,
+            text TEXT,
+            created_at INTEGER NOT NULL
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ugc_assets_user_created ON ugc_assets(user_id, created_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ugc_assets_hash ON ugc_assets(content_hash)")
+
+    # UGC posts (optional user-submitted URLs)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS ugc_posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            platform TEXT NOT NULL,
+            post_url TEXT NOT NULL,
+            ref_code TEXT,
+            status TEXT NOT NULL DEFAULT 'new',
+            created_at INTEGER NOT NULL
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ugc_posts_created ON ugc_posts(created_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ugc_posts_ref_code ON ugc_posts(ref_code)")
+
+    # events (lightweight product analytics; no PII)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT,
+            name TEXT NOT NULL,
+            ref_code TEXT,
+            meta_json TEXT,
+            created_at INTEGER NOT NULL
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_events_name_created ON events(name, created_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_events_ref_created ON events(ref_code, created_at)")
+
     conn.commit()
     conn.close()
 
@@ -368,6 +432,95 @@ def _set_uid_cookie_on_response(resp, uid: str):
         path="/",
     )
     return resp
+
+def _set_ref_cookie_on_response(resp, ref_code: str):
+    # ref計測用: httpOnlyではなくても良いが、最小実装としてhttpOnlyで保持（JSで読む必要なし）
+    resp.set_cookie(
+        COOKIE_NAME_REF,
+        ref_code,
+        max_age=60 * 60 * 24 * 30,  # 30日
+        httponly=True,
+        samesite="Lax",
+        secure=COOKIE_SECURE,
+        path="/",
+    )
+    return resp
+
+def _normalize_ref_code(s: str) -> str:
+    return "".join([c for c in (s or "").upper().strip() if c.isalnum()])
+
+def _gen_ref_code() -> str:
+    return "".join(secrets.choice(REF_CODE_ALPHABET) for _ in range(max(4, REF_CODE_LEN)))
+
+def _ensure_ref_code(conn, user_id: str) -> str:
+    row = conn.execute("SELECT ref_code FROM users WHERE user_id=?", (user_id,)).fetchone()
+    cur = (row["ref_code"] if row else None)
+    if cur and isinstance(cur, str) and REF_CODE_RE.match(cur):
+        return cur
+
+    # generate + ensure uniqueness
+    for _i in range(20):
+        code = _gen_ref_code()
+        try:
+            conn.execute("UPDATE users SET ref_code=? WHERE user_id=?", (code, user_id))
+            conn.commit()
+            # unique index enforces collision safety; but UPDATE won't throw.
+            # Verify no duplicates.
+            dup = conn.execute("SELECT user_id FROM users WHERE ref_code=? LIMIT 2", (code,)).fetchall()
+            if len(dup) == 1 and dup[0]["user_id"] == user_id:
+                return code
+        except sqlite3.IntegrityError:
+            continue
+        except Exception:
+            continue
+
+    # last resort: deterministic-ish (still no PII)
+    fallback = hashlib.sha256(user_id.encode("utf-8")).hexdigest().upper()[0:6]
+    try:
+        conn.execute("UPDATE users SET ref_code=? WHERE user_id=?", (fallback, user_id))
+        conn.commit()
+    except Exception:
+        pass
+    return fallback
+
+def _ref_cookie_value() -> str:
+    v = (request.cookies.get(COOKIE_NAME_REF) or "").strip().upper()
+    return v if REF_CODE_RE.match(v) else ""
+
+def _track_event(name: str, ref_code: str = "", meta: Optional[Dict[str, Any]] = None):
+    # no PII, keep meta small
+    try:
+        now = _now_ts()
+        uid = getattr(g, "user_id", "") or ""
+        rc = (ref_code or "").strip().upper()
+        if rc and not REF_CODE_RE.match(rc):
+            rc = ""
+        mj = ""
+        if meta:
+            # cap keys/values lightly
+            safe = {}
+            for k, v in meta.items():
+                if not isinstance(k, str):
+                    continue
+                if len(k) > 64:
+                    continue
+                if isinstance(v, (str, int, float, bool)) or v is None:
+                    sv = v
+                else:
+                    sv = str(v)
+                if isinstance(sv, str) and len(sv) > 300:
+                    sv = sv[:300]
+                safe[k] = sv
+            mj = json.dumps(safe, ensure_ascii=False, separators=(",", ":"))
+        conn = _db()
+        conn.execute(
+            "INSERT INTO events (user_id, name, ref_code, meta_json, created_at) VALUES (?, ?, ?, ?, ?)",
+            (uid, name, rc or None, mj or None, now),
+        )
+        conn.commit()
+    except Exception:
+        # analytics must never break product
+        pass
 
 def _send_waitlist_confirmation_email(email: str) -> bool:
     """先行登録完了メールを送信"""
@@ -479,6 +632,11 @@ def _generate_user_id() -> str:
 def _ensure_user_exists(conn, user_id: str):
     conn.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
     conn.commit()
+    # ensure ref_code exists (best-effort)
+    try:
+        _ensure_ref_code(conn, user_id)
+    except Exception:
+        pass
 
 def _set_plan(conn, user_id: str, plan: str):
     conn.execute("UPDATE users SET plan=? WHERE user_id=?", (plan, user_id))
@@ -545,6 +703,17 @@ def _identity_and_plan_bootstrap():
         _ensure_user_exists(conn, uid)
         row = conn.execute("SELECT plan FROM users WHERE user_id=?", (uid,)).fetchone()
         g.user_plan = (row["plan"] if row else "free")
+
+        # ref capture: ?ref=XXXX (landing / shared links)
+        try:
+            ref = _normalize_ref_code(str(request.args.get("ref") or ""))
+            if ref and REF_CODE_RE.match(ref):
+                g._set_ref_cookie = ref
+                _track_event("ref_landing", ref_code=ref)
+            else:
+                g._set_ref_cookie = None
+        except Exception:
+            g._set_ref_cookie = None
         
         # 開発者モード: Pro上書き（3段ロック通過時のみ）
         if is_pro_override():
@@ -596,6 +765,9 @@ def _identity_cookie_commit(resp):
             samesite="Lax",
             secure=COOKIE_SECURE,
         )
+    ref = getattr(g, "_set_ref_cookie", None)
+    if ref:
+        _set_ref_cookie_on_response(resp, ref)
     resp.headers["X-SingKANA-Plan"] = getattr(g, "user_plan", "free")
     
     # キャッシュ禁止ヘッダー（Pro判定が混ざる事故を防ぐ）
@@ -620,6 +792,410 @@ def _identity_cookie_commit(resp):
         resp.headers["Content-Type"] = f"{ct}; charset=utf-8" if ct else "application/json; charset=utf-8"
     
     return resp
+
+def _app_base_url() -> str:
+    base = (_env("APP_BASE_URL") or "").strip().rstrip("/")
+    if base:
+        return base
+    # fallback: request.host_url includes trailing slash
+    try:
+        return (request.host_url or "").rstrip("/")
+    except Exception:
+        return "https://singkana.com"
+
+def _ugc_static_url(filename: str) -> str:
+    return f"{_app_base_url()}/static/ugc/{filename}"
+
+def _ugc_cleanup_old_files():
+    # best-effort cleanup; do not fail requests
+    try:
+        if not UGC_STATIC_DIR.exists():
+            return
+        cutoff = time.time() - (max(1, UGC_RETENTION_DAYS) * 86400)
+        for p in UGC_STATIC_DIR.glob("*.png"):
+            try:
+                st = p.stat()
+                if st.st_mtime < cutoff:
+                    p.unlink(missing_ok=True)
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+def _pillow_import():
+    try:
+        from PIL import Image, ImageDraw, ImageFont  # type: ignore
+        return Image, ImageDraw, ImageFont, None
+    except Exception as e:
+        return None, None, None, str(e)
+
+def _find_font_path() -> Optional[Path]:
+    # Prefer Noto Sans JP (if installed), fallback to DejaVu.
+    candidates = [
+        Path("/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"),
+        Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
+        Path("/usr/share/fonts/truetype/noto/NotoSansJP-Regular.otf"),
+        Path("/usr/share/fonts/opentype/noto/NotoSansJP-Regular.otf"),
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+    ]
+    for p in candidates:
+        try:
+            if p.exists():
+                return p
+        except Exception:
+            continue
+    return None
+
+def _ugc_render_image_1080x1920(
+    hook: str,
+    before_text: str,
+    after_text: str,
+    share_url: str,
+) -> bytes:
+    Image, ImageDraw, ImageFont, err = _pillow_import()
+    if Image is None:
+        raise RuntimeError(f"Pillow not available: {err}")
+
+    W, H = 1080, 1920
+    img = Image.new("RGB", (W, H), (11, 18, 32))
+    draw = ImageDraw.Draw(img)
+
+    # background accents
+    draw.rectangle([0, 0, W, H], fill=(11, 18, 32))
+    draw.ellipse([-260, -260, 520, 520], fill=(110, 65, 240))
+    draw.ellipse([W - 520, 120, W + 260, 900], fill=(236, 72, 153))
+
+    font_path = _find_font_path()
+    if font_path:
+        font_title = ImageFont.truetype(str(font_path), 56)
+        font_h = ImageFont.truetype(str(font_path), 42)
+        font_b = ImageFont.truetype(str(font_path), 34)
+        font_s = ImageFont.truetype(str(font_path), 26)
+        font_xs = ImageFont.truetype(str(font_path), 22)
+    else:
+        font_title = ImageFont.load_default()
+        font_h = ImageFont.load_default()
+        font_b = ImageFont.load_default()
+        font_s = ImageFont.load_default()
+        font_xs = ImageFont.load_default()
+
+    # helper: wrap
+    def wrap(text: str, max_chars: int) -> str:
+        t = (text or "").strip()
+        if not t:
+            return ""
+        lines = []
+        for raw in t.splitlines():
+            s = raw.strip()
+            while len(s) > max_chars:
+                lines.append(s[:max_chars])
+                s = s[max_chars:]
+            if s:
+                lines.append(s)
+        return "\n".join(lines[:8])
+
+    hook = wrap(hook or "この歌詞、歌えない", 18)
+    before_text = wrap(before_text, 24)
+    after_text = wrap(after_text, 24)
+
+    # header
+    pad = 72
+    draw.text((pad, 80), "SingKANA", font=font_h, fill=(255, 255, 255))
+    draw.text((pad, 150), hook, font=font_title, fill=(255, 255, 255))
+
+    # cards
+    def card(y0: int, title: str, body: str, accent: tuple[int, int, int]):
+        x0, x1 = pad, W - pad
+        y1 = y0 + 520
+        draw.rounded_rectangle([x0, y0, x1, y1], radius=28, fill=(2, 6, 23), outline=(255, 255, 255), width=2)
+        draw.rounded_rectangle([x0, y0, x1, y0 + 12], radius=10, fill=accent)
+        draw.text((x0 + 28, y0 + 28), title, font=font_b, fill=(226, 232, 240))
+        draw.text((x0 + 28, y0 + 84), body or "—", font=font_s, fill=(226, 232, 240))
+
+    card(520, "Before", before_text, (148, 163, 184))
+    card(1120, "After (SingKANA)", after_text, (167, 139, 250))
+
+    # footer
+    footer = (share_url or "").strip()
+    if footer:
+        footer = footer[:80]
+    draw.text((pad, H - 90), footer, font=font_xs, fill=(203, 213, 225))
+    draw.text((W - pad - 240, H - 90), "singkana.com", font=font_xs, fill=(203, 213, 225))
+
+    from io import BytesIO
+    buf = BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+def _ugc_make_scripts(before_label: str, after_label: str, share_url: str) -> Dict[str, str]:
+    before_label = (before_label or "Before").strip()
+    after_label = (after_label or "After").strip()
+    share_url = (share_url or "").strip()
+    cta = f"👉 使ってみて：{share_url}" if share_url else "👉 singkana.com"
+    return {
+        "6s": f"（2秒）「この歌詞、歌えない」\n（2秒）{before_label}\n（2秒）{after_label}\n{cta}",
+        "8s": f"（2秒）「英語の歌、発音が詰む」\n（2秒）{before_label}\n（2秒）{after_label}\n（2秒）{cta}",
+        "15s": f"（2秒）フック：「この歌詞、歌えない」\n（4秒）Before：{before_label}\n（5秒）After：{after_label}\n（4秒）CTA：{cta}",
+    }
+
+def _content_hash_for_ugc(user_id: str, before_text: str, after_text: str, hook: str) -> str:
+    raw = json.dumps(
+        {"u": user_id, "b": before_text, "a": after_text, "h": hook},
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+def _admin_allowed() -> bool:
+    token = _env("SINGKANA_ADMIN_TOKEN", "")
+    if token:
+        req = (request.args.get("token") or request.headers.get("X-Admin-Token") or "").strip()
+        return req == token
+    # fallback: local/private only
+    try:
+        ip = _client_ip()
+        if ip in ("127.0.0.1", "::1"):
+            return True
+        import ipaddress
+        return ipaddress.ip_address(ip).is_private
+    except Exception:
+        return False
+
+@app.get("/static/ugc/<path:filename>")
+def ugc_static(filename: str) -> Response:
+    # serve generated UGC images
+    try:
+        return send_from_directory(str(UGC_STATIC_DIR), filename)
+    except Exception as e:
+        app.logger.exception("Error serving ugc static %s: %s", filename, e)
+        return _json_error(404, "not_found", "not found")
+
+@app.get("/api/me/ref")
+def api_me_ref():
+    uid = getattr(g, "user_id", "") or ""
+    if not uid:
+        return _json_error(400, "no_user", "User identity missing.")
+    conn = _db()
+    ref_code = _ensure_ref_code(conn, uid)
+    share_url = f"{_app_base_url()}/?ref={ref_code}"
+    return jsonify({"ok": True, "ref_code": ref_code, "share_url": share_url})
+
+@app.post("/api/events")
+def api_events():
+    # lightweight tracking for UI actions (ugc_* only)
+    if not _origin_ok():
+        return _json_error(403, "invalid_origin", "このページからのみ送信できます。")
+    data, err = _require_json()
+    if err:
+        return err
+    name = str(data.get("name") or "").strip()
+    meta = data.get("meta") if isinstance(data.get("meta"), dict) else None
+    allowed = name.startswith("ugc_") or name in ("convert_success",)
+    if not allowed:
+        return _json_error(400, "bad_event", "invalid event name")
+    _track_event(name, ref_code=_ref_cookie_value(), meta=meta)
+    return jsonify({"ok": True})
+
+@app.post("/api/ugc/generate")
+def api_ugc_generate():
+    if not _origin_ok():
+        return _json_error(403, "invalid_origin", "このページからのみ生成できます。")
+    data, err = _require_json()
+    if err:
+        return err
+
+    uid = getattr(g, "user_id", "") or ""
+    if not uid:
+        return _json_error(400, "no_user", "User identity missing.")
+
+    before_text = str(data.get("before_text") or "").strip()
+    after_text = str(data.get("after_text") or "").strip()
+    hook = str(data.get("hook") or "このローマ字、歌えない").strip()
+    if not before_text or not after_text:
+        return _json_error(400, "bad_input", "before_text / after_text are required.")
+
+    conn = _db()
+    ref_code = _ensure_ref_code(conn, uid)
+    share_url = f"{_app_base_url()}/?ref={ref_code}"
+
+    # cleanup (best-effort)
+    _ugc_cleanup_old_files()
+
+    h = _content_hash_for_ugc(uid, before_text, after_text, hook)
+    now = _now_ts()
+
+    # dedupe: same user + same content_hash + image asset
+    row = conn.execute(
+        "SELECT file_path FROM ugc_assets WHERE user_id=? AND asset_type=? AND content_hash=? ORDER BY id DESC LIMIT 1",
+        (uid, "image_1080x1920", h),
+    ).fetchone()
+    if row and row["file_path"]:
+        image_url = _ugc_static_url(Path(row["file_path"]).name)
+        scripts = _ugc_make_scripts("Before", "After (SingKANA)", share_url)
+        return jsonify({"ok": True, "image_url": image_url, "scripts": scripts, "ref_code": ref_code, "share_url": share_url})
+
+    # render image
+    try:
+        UGC_STATIC_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    try:
+        png = _ugc_render_image_1080x1920(hook, before_text, after_text, share_url)
+    except Exception as e:
+        return _json_error(500, "ugc_generate_failed", "UGC生成に失敗しました。", detail=str(e))
+
+    # filename
+    short = uid.replace("sk_", "")[:6]
+    fname = f"ugc_{now}_{short}_{h[:10]}.png"
+    fpath = (UGC_STATIC_DIR / fname)
+    try:
+        fpath.write_bytes(png)
+    except Exception as e:
+        return _json_error(500, "ugc_write_failed", "UGC画像の保存に失敗しました。", detail=str(e))
+
+    # persist assets
+    try:
+        conn.execute(
+            "INSERT INTO ugc_assets (user_id, asset_type, content_hash, file_path, text, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (uid, "image_1080x1920", h, str(fpath), None, now),
+        )
+        scripts = _ugc_make_scripts("Before", "After (SingKANA)", share_url)
+        conn.execute(
+            "INSERT INTO ugc_assets (user_id, asset_type, content_hash, file_path, text, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (uid, "script_6s", h, None, scripts["6s"], now),
+        )
+        conn.execute(
+            "INSERT INTO ugc_assets (user_id, asset_type, content_hash, file_path, text, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (uid, "script_8s", h, None, scripts["8s"], now),
+        )
+        conn.execute(
+            "INSERT INTO ugc_assets (user_id, asset_type, content_hash, file_path, text, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (uid, "script_15s", h, None, scripts["15s"], now),
+        )
+        conn.commit()
+    except Exception:
+        pass
+
+    _track_event("ugc_asset_generate", ref_code=_ref_cookie_value(), meta={"asset_type": "image_1080x1920"})
+
+    image_url = _ugc_static_url(fname)
+    scripts = _ugc_make_scripts("Before", "After (SingKANA)", share_url)
+    return jsonify({"ok": True, "image_url": image_url, "scripts": scripts, "ref_code": ref_code, "share_url": share_url})
+
+@app.post("/api/ugc/submit")
+def api_ugc_submit():
+    if not _origin_ok():
+        return _json_error(403, "invalid_origin", "このページからのみ送信できます。")
+    data, err = _require_json()
+    if err:
+        return err
+
+    uid = getattr(g, "user_id", "") or ""
+    if not uid:
+        return _json_error(400, "no_user", "User identity missing.")
+
+    platform = str(data.get("platform") or "other").strip().lower()
+    post_url = str(data.get("post_url") or "").strip()
+    if platform not in ("tiktok", "ig", "yt", "other"):
+        platform = "other"
+    try:
+        u = urlparse(post_url)
+        if u.scheme not in ("http", "https") or not u.netloc:
+            return _json_error(400, "bad_url", "URLの形式が正しくありません。")
+    except Exception:
+        return _json_error(400, "bad_url", "URLの形式が正しくありません。")
+
+    conn = _db()
+    ref_code = ""
+    try:
+        ref_code = _ensure_ref_code(conn, uid)
+    except Exception:
+        ref_code = ""
+
+    now = _now_ts()
+    conn.execute(
+        "INSERT INTO ugc_posts (user_id, platform, post_url, ref_code, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (uid, platform, post_url, ref_code or None, "new", now),
+    )
+    conn.commit()
+    _track_event("ugc_post_submit", ref_code=_ref_cookie_value(), meta={"platform": platform})
+    return jsonify({"ok": True})
+
+@app.get("/admin/ugc")
+def admin_ugc():
+    if not _admin_allowed():
+        return _json_error(403, "forbidden", "admin only")
+    conn = _db()
+    rows = conn.execute(
+        "SELECT id, platform, post_url, ref_code, status, created_at FROM ugc_posts ORDER BY created_at DESC LIMIT 500"
+    ).fetchall()
+    def _h(s: str) -> str:
+        return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    out = []
+    out.append("<!doctype html><meta charset='utf-8'><title>UGC Posts</title>")
+    out.append("<style>body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:24px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;font-size:12px}th{background:#f5f5f5;text-align:left}</style>")
+    out.append("<h2>UGC投稿一覧</h2>")
+    out.append("<p><a href='/admin/dashboard'>dashboard</a></p>")
+    out.append("<table><thead><tr><th>id</th><th>platform</th><th>post_url</th><th>ref_code</th><th>status</th><th>created_at</th></tr></thead><tbody>")
+    for r in rows:
+        out.append("<tr>")
+        out.append(f"<td>{r['id']}</td>")
+        out.append(f"<td>{_h(r['platform'] or '')}</td>")
+        url = _h(r["post_url"] or "")
+        out.append(f"<td><a href='{url}' target='_blank' rel='noopener'>{url}</a></td>")
+        out.append(f"<td>{_h(r['ref_code'] or '')}</td>")
+        out.append(f"<td>{_h(r['status'] or '')}</td>")
+        out.append(f"<td>{int(r['created_at'] or 0)}</td>")
+        out.append("</tr>")
+    out.append("</tbody></table>")
+    return Response("\n".join(out), mimetype="text/html; charset=utf-8")
+
+@app.get("/admin/dashboard")
+def admin_dashboard():
+    if not _admin_allowed():
+        return _json_error(403, "forbidden", "admin only")
+    conn = _db()
+    # last 14 days funnel counts
+    now = _now_ts()
+    start = now - (14 * 86400)
+    names = ["ugc_panel_open", "ugc_asset_generate", "ugc_link_copy", "convert_success", "subscribe", "ugc_post_submit"]
+    # group by day (YYYY-MM-DD) in JST-like by localtime of server; good enough for v1
+    rows = conn.execute(
+        """
+        SELECT name, date(datetime(created_at, 'unixepoch')) AS d, COUNT(*) AS c
+        FROM events
+        WHERE created_at >= ? AND name IN (%s)
+        GROUP BY name, d
+        ORDER BY d DESC
+        """ % (",".join(["?"] * len(names))),
+        (start, *names),
+    ).fetchall()
+    by_day = {}
+    for r in rows:
+        d = r["d"] or ""
+        by_day.setdefault(d, {})[r["name"]] = int(r["c"] or 0)
+
+    days = sorted(by_day.keys(), reverse=True)
+    def cell(d: str, name: str) -> int:
+        return int(by_day.get(d, {}).get(name, 0))
+
+    out = []
+    out.append("<!doctype html><meta charset='utf-8'><title>UGC Dashboard</title>")
+    out.append("<style>body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:24px}table{border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;font-size:12px}th{background:#f5f5f5;text-align:left}</style>")
+    out.append("<h2>UGCファネル（日次 / 直近14日）</h2>")
+    out.append("<p><a href='/admin/ugc'>ugc posts</a></p>")
+    out.append("<table><thead><tr><th>day</th>")
+    for n in names:
+        out.append(f"<th>{n}</th>")
+    out.append("</tr></thead><tbody>")
+    for d in days:
+        out.append("<tr>")
+        out.append(f"<td>{d}</td>")
+        for n in names:
+            out.append(f"<td>{cell(d,n)}</td>")
+        out.append("</tr>")
+    out.append("</tbody></table>")
+    return Response("\n".join(out), mimetype="text/html; charset=utf-8")
 
 @app.get("/favicon.ico")
 def favicon_ico():
@@ -773,6 +1349,8 @@ def api_convert():
             detail=str(e),
         )
 
+    # 計測: convert_success（ref cookieがあれば紐付け）
+    _track_event("convert_success", ref_code=_ref_cookie_value(), meta={"endpoint": "/api/convert"})
     return jsonify({"ok": True, "result": result})
 
 # --- Romaji (Phase 1 MVP: 歌うためのローマ字) ----------------------------

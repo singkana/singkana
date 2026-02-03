@@ -1,0 +1,133 @@
+linter: TBJSON_LINTER
+version: "1.0"
+
+required:
+  tb_version: "2.1"
+  allowed_modes: ["PROD", "SDH"]
+  allowed_change_type: ["ADD", "MODIFY", "REMOVE"]
+  allowed_state_target: ["Canonical", "SAND"]
+
+required_paths:
+  - "tb_version"
+  - "mode"
+  - "proposal_id"
+  - "change_type"
+  - "scope"
+  - "state_target"
+  - "summary"
+  - "claims"
+  - "risk.adoption_risk"
+  - "risk.reversibility"
+  - "risk.rollback_ref"
+  - "fhb_gate.boundary_first"
+  - "fhb_gate.least_privilege"
+  - "fhb_gate.explicit_state"
+  - "fhb_gate.data_classification"
+  - "fhb_gate.pii_handling"
+  - "fhb_gate.attack_surface_change"
+  - "hsp.requires_human_approval"
+  - "hsp.approved_by_human"
+  - "artifacts.diff_hash"
+  - "artifacts.diff_paths"
+
+review_top5_keys:
+  - "risk.adoption_risk"
+  - "risk.reversibility"
+  - "risk.rollback_ref"
+  - "truth_flags"
+  - "fhb_gate.attack_surface_change"
+
+rules:
+  - id: LINT_TB_VERSION
+    severity: BLOCK
+    msg: "tb_version must be 2.1"
+    check: "tb.tb_version == '2.1'"
+
+  - id: LINT_MODE_INVALID
+    severity: BLOCK
+    msg: "mode must be PROD or SDH for TB"
+    check: "tb.mode in ['PROD','SDH']"
+
+  - id: LINT_CANONICAL_MODE_REQUIRED
+    severity: BLOCK
+    msg: "Canonical update requires PROD/SDH mode"
+    check: "not (tb.state_target == 'Canonical' and tb.mode not in ['PROD','SDH'])"
+
+  - id: LINT_NO_CLAIMS
+    severity: BLOCK
+    msg: "claims must not be empty"
+    check: "len(tb.claims) > 0"
+
+  - id: LINT_DUPLICATE_CLAIM_ID
+    severity: BLOCK
+    msg: "claim_id must be unique"
+    check: "unique(claims[].claim_id)"
+
+  - id: LINT_DIFF_HASH_REQUIRED
+    severity: BLOCK
+    msg: "diff_hash required with sha256: prefix"
+    check: "startswith(tb.artifacts.diff_hash, 'sha256:')"
+
+  - id: LINT_SUMMARY_TOO_LONG
+    severity: WARN
+    msg: "summary too long; avoid persuasive text"
+    check: "lines(tb.summary) <= 2 and chars(tb.summary) <= 200"
+
+truth_rules:
+  - id: LINT_VERIFIED_WITHOUT_EVIDENCE
+    severity: BLOCK
+    msg: "VERIFIED requires evidence_refs or test_refs"
+    check: "no_verified_without_evidence"
+
+  - id: LINT_CANONICAL_NEEDS_SDH_VERIFICATION
+    severity: HOLD
+    msg: "Canonical update requires SDH verification for UNKNOWN/CONFLICT"
+    check: "no_unknown_conflict_in_canonical"
+
+  - id: LINT_INFERRED_NEEDS_TEST
+    severity: HOLD
+    msg: "INFERRED requires at least one test_refs"
+    check: "no_inferred_without_test"
+
+  - id: LINT_BAD_REF_FORMAT
+    severity: BLOCK
+    msg: "Evidence/Test ref format invalid"
+    check: "refs_format_ok"
+
+fhb_rules:
+  - id: LINT_FHB_GATE_FAIL
+    severity: BLOCK
+    msg: "FHB gate must pass (all true)"
+    check: "tb.fhb_gate.boundary_first and tb.fhb_gate.least_privilege and tb.fhb_gate.explicit_state"
+
+  - id: LINT_BAD_DATA_CLASSIFICATION
+    severity: BLOCK
+    msg: "Invalid data_classification"
+    check: "tb.fhb_gate.data_classification in ['PUBLIC','PROTECTED','SECRET']"
+
+  - id: LINT_BAD_PII_HANDLING
+    severity: BLOCK
+    msg: "Invalid pii_handling"
+    check: "tb.fhb_gate.pii_handling in ['NONE','ANON','CONSENTED_SHORT_TERM']"
+
+  - id: LINT_PII_REQUIRES_HSP
+    severity: BLOCK
+    msg: "PII consent requires human approval"
+    check: "not (tb.fhb_gate.pii_handling == 'CONSENTED_SHORT_TERM' and tb.hsp.requires_human_approval != true)"
+
+  - id: LINT_ATTACK_SURFACE_MAJOR
+    severity: WARN
+    msg: "Major attack surface change (human review strongly recommended)"
+    check: "tb.fhb_gate.attack_surface_change != 'MAJOR'"
+
+hsp_rules:
+  - id: LINT_HSP_APPROVAL_REQUIRED
+    severity: HOLD
+    msg: "Human approval required"
+    check: "not (tb.hsp.requires_human_approval == true and tb.hsp.approved_by_human != true)"
+
+  - id: LINT_SUGGEST_HUMAN_REVIEW
+    severity: WARN
+    msg: "Suggest human review for Canonical when risk not LOW"
+    check: "not (tb.hsp.requires_human_approval == false and tb.state_target == 'Canonical' and tb.risk.adoption_risk != 'LOW')"
+

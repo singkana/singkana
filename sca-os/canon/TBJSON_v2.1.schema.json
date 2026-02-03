@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TB-JSON v2.1",
+  "type": "object",
+  "required": [
+    "tb_version",
+    "mode",
+    "proposal_id",
+    "change_type",
+    "scope",
+    "state_target",
+    "summary",
+    "claims",
+    "risk",
+    "fhb_gate",
+    "hsp",
+    "artifacts"
+  ],
+  "properties": {
+    "tb_version": { "const": "2.1" },
+    "mode": { "type": "string", "enum": ["PROD", "SDH", "SAND", "OBS"] },
+    "proposal_id": { "type": "string", "minLength": 6 },
+    "change_type": { "type": "string", "enum": ["ADD", "MODIFY", "REMOVE"] },
+    "scope": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "state_target": { "type": "string", "enum": ["Canonical", "SAND"] },
+    "summary": { "type": "string", "minLength": 1 },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["claim_id", "text", "uncertainty_type", "evidence_refs", "test_refs"],
+        "properties": {
+          "claim_id": { "type": "string", "minLength": 3 },
+          "text": { "type": "string", "minLength": 1 },
+          "uncertainty_type": {
+            "type": "string",
+            "enum": ["UNKNOWN", "INFERRED", "VERIFIED", "CONFLICT"]
+          },
+          "evidence_refs": { "type": "array", "items": { "type": "string" } },
+          "test_refs": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "risk": {
+      "type": "object",
+      "required": ["adoption_risk", "reversibility", "rollback_ref"],
+      "properties": {
+        "adoption_risk": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] },
+        "reversibility": { "type": "string", "enum": ["EASY", "MEDIUM", "HARD"] },
+        "rollback_ref": { "type": "string", "minLength": 3 }
+      }
+    },
+    "fhb_gate": {
+      "type": "object",
+      "required": [
+        "boundary_first",
+        "least_privilege",
+        "explicit_state",
+        "data_classification",
+        "pii_handling",
+        "attack_surface_change"
+      ],
+      "properties": {
+        "boundary_first": { "type": "boolean" },
+        "least_privilege": { "type": "boolean" },
+        "explicit_state": { "type": "boolean" },
+        "data_classification": { "type": "string", "enum": ["PUBLIC", "PROTECTED", "SECRET"] },
+        "pii_handling": { "type": "string", "enum": ["NONE", "ANON", "CONSENTED_SHORT_TERM"] },
+        "attack_surface_change": { "type": "string", "enum": ["NO", "MINOR", "MAJOR"] }
+      }
+    },
+    "hsp": {
+      "type": "object",
+      "required": ["requires_human_approval", "approved_by_human"],
+      "properties": {
+        "requires_human_approval": { "type": "boolean" },
+        "approved_by_human": { "type": "boolean" }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "required": ["diff_hash", "diff_paths"],
+      "properties": {
+        "diff_hash": { "type": "string", "minLength": 8 },
+        "diff_paths": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "apply_ops": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["op", "path", "content"],
+            "properties": {
+              "op": { "type": "string", "enum": ["WRITE_TEXT"] },
+              "path": { "type": "string", "minLength": 1 },
+              "content": { "type": "string" },
+              "overwrite": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
