@@ -296,14 +296,14 @@
       display:flex;
       justify-content:center;
       align-items:flex-start;
-      min-height:420px;
+      min-height:600px;
       padding-top: 6px;
     }
 
     .glass-wrap{
       position:relative;
-      width: min(520px, 92vw);
-      height: 520px;
+      width: min(640px, 92vw);
+      height: min(600px, 92vw);
       perspective: 900px;
       pointer-events:none;
     }
@@ -393,7 +393,8 @@
       gap:10px;
       color: rgba(255,255,255,.92);
       z-index: 3;
-      transform: translateZ(20px);
+      transform: translateZ(20px) scale(1.04);
+      transform-origin: center;
       backface-visibility: hidden;
       text-rendering: geometricPrecision;
       overflow:hidden;
@@ -524,9 +525,16 @@
       50%     { transform: translateX(32%) rotate(12deg);  opacity:.82; }
     }
 
+    @media (max-width: 1024px){
+      .hero-visual{ min-height: 520px; }
+      .glass-wrap{ width: min(560px, 92vw); height: min(520px, 92vw); }
+      .glass-ui{ transform: translateZ(20px) scale(1.02); }
+    }
+
     @media (max-width: 768px){
-      .hero-visual{ min-height: 320px; }
-      .glass-wrap{ width: min(360px, 92vw); height: 360px; }
+      .hero-visual{ min-height: 360px; }
+      .glass-wrap{ width: min(360px, 92vw); height: min(360px, 92vw); }
+      .glass-ui{ transform: translateZ(20px) scale(1); }
     }
 
     @media (max-width: 900px){
@@ -534,6 +542,11 @@
         width: min(520px, 92vw);
         height: 500px;
       }
+    }
+
+    @media (min-width: 1024px){
+      .hero-right{ margin-left: -40px; }
+      .hero-left{ max-width: 560px; }
     }
 
     @media (prefers-reduced-motion: reduce){
@@ -682,7 +695,7 @@
 
     <!-- HERO -->
     <section id="hero" class="grid gap-8 md:gap-10 lg:gap-14 lg:grid-cols-2 lg:items-center">
-      <div class="space-y-4 md:space-y-6">
+      <div class="space-y-4 md:space-y-6 hero-left">
         <!-- スマホ: 最小限の情報のみ表示 -->
         <div class="md:hidden space-y-4">
           <h1 class="text-2xl font-semibold leading-tight text-slate-50">
@@ -781,7 +794,7 @@
     </div>
 
       <!-- Demo / Visual（PCで右側を“体験”で埋める） -->
-      <div class="relative w-full max-w-xl lg:max-w-none lg:w-[560px] lg:justify-self-end">
+      <div class="relative w-full max-w-xl lg:max-w-none lg:w-[640px] lg:justify-self-end hero-right">
         <div class="absolute -top-6 -left-4 h-20 w-20 rounded-full border border-slate-500/30 bg-gradient-to-br from-slate-900/10 via-slate-900/40 to-slate-900/80 blur-2xl"></div>
         <div class="absolute -bottom-10 -right-6 h-28 w-28 rounded-full bg-gradient-to-tr from-fuchsia-500/30 via-singkana-400/20 to-cyan-300/20 blur-3xl"></div>
 
