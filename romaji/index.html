@@ -185,9 +185,23 @@
   </main>
 
   <footer class="border-t border-white/10 bg-slate-950/70">
-    <div class="mx-auto max-w-5xl px-4 py-4 text-[11px] text-slate-400 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-      <p>© <span id="year"></span> SingKANA.</p>
-      <p class="text-slate-500">For Japanese users: <a class="underline hover:text-singkana-200 transition" href="https://singkana.com" target="_blank" rel="noopener">singkana.com</a></p>
+    <div class="mx-auto max-w-5xl px-4 py-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <p class="text-[11px] text-slate-400">© <span id="year"></span> SingKANA.</p>
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-[11px]">
+        <div class="flex flex-wrap items-center gap-3 text-slate-400">
+          <a href="/tokusho.html" target="_blank" rel="noopener" class="hover:text-singkana-200 transition">特定商取引法に基づく表記</a>
+          <a href="/terms.html" target="_blank" rel="noopener" class="hover:text-singkana-200 transition">利用規約</a>
+          <a href="/privacy.html" target="_blank" rel="noopener" class="hover:text-singkana-200 transition">プライバシーポリシー</a>
+        </div>
+        <div class="flex items-center gap-4">
+          <a class="text-slate-500 hover:text-singkana-200 transition underline underline-offset-2 decoration-slate-500/60" href="https://singkana.com" target="_blank" rel="noopener">
+            For Japanese users: singkana.com
+          </a>
+          <a href="/whitepaper" target="_blank" rel="noopener" class="text-slate-500 hover:text-singkana-200 transition underline underline-offset-2 decoration-slate-500/60">
+            Powered by Sovereign Cognitive Architecture.
+          </a>
+        </div>
+      </div>
     </div>
   </footer>
 
