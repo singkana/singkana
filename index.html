@@ -439,6 +439,19 @@
       transform: scale(.96);
       transform-origin: left top;
       opacity: .9;
+      width: 100%;
+      justify-content: space-between;
+    }
+    .glass-wrap .hero-demo-tags-left{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .glass-wrap .hero-demo-tags-right{
+      margin-left: auto;
+      display:flex;
+      align-items:center;
     }
 
     .glass-wrap .hero-demo-label{
@@ -796,6 +809,24 @@
                           No install
                         </span>
                       </div>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-wrap items-center gap-2 mb-2 hero-demo-tags">
+                    <div class="hero-demo-tags-left">
+                      <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
+                        <span class="hero-demo-caret"></span>
+                        行タップでハイライト
+                      </span>
+                      <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
+                        <span class="h-1.5 w-1.5 rounded-full bg-singkana-300"></span>
+                        BR / HLD / VIB
+                      </span>
+                      <span class="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
+                        出力：Basic / Natural / Precise
+                      </span>
+                    </div>
+                    <div class="hero-demo-tags-right">
                       <div class="hero-demo-meter hero-demo-wave flex items-end gap-1 h-3" aria-hidden="true">
                         <span style="height:4px"></span>
                         <span style="height:7px"></span>
@@ -807,20 +838,6 @@
                         <span style="height:8px"></span>
                       </div>
                     </div>
-                  </div>
-
-                  <div class="flex flex-wrap items-center gap-2 mb-2 hero-demo-tags">
-                    <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
-                      <span class="hero-demo-caret"></span>
-                      行タップでハイライト
-                    </span>
-                    <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
-                      <span class="h-1.5 w-1.5 rounded-full bg-singkana-300"></span>
-                      BR / HLD / VIB
-                    </span>
-                    <span class="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
-                      出力：Basic / Natural / Precise
-                    </span>
                   </div>
 
                   <div class="grid gap-3 text-[11px]">
