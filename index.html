@@ -295,14 +295,15 @@
     .hero-visual{
       display:flex;
       justify-content:center;
-      align-items:center;
+      align-items:flex-start;
       min-height:420px;
+      padding-top: 6px;
     }
 
     .glass-wrap{
       position:relative;
-      width:min(520px, 92vw);
-      height: 520px;
+      width:min(540px, 92vw);
+      height: 540px;
       perspective: 900px;
       pointer-events:none;
     }
@@ -315,7 +316,8 @@
       position:absolute;
       inset:0;
       transform-style: preserve-3d;
-      animation: floaty 6.5s ease-in-out infinite;
+      animation: floaty 7.2s ease-in-out infinite;
+      will-change: transform;
     }
 
     .glass-card{
@@ -367,8 +369,8 @@
         rgba(255,255,255,.22) 50%,
         rgba(255,255,255,0) 60%
       );
-      transform: translateX(-30%) rotate(12deg);
-      animation: sheen 5.8s ease-in-out infinite;
+      transform: translateX(-32%) rotate(12deg);
+      animation: sheen 7.5s ease-in-out infinite;
       mix-blend-mode: screen;
       z-index: 2;
     }
@@ -395,16 +397,19 @@
       backface-visibility: hidden;
       text-rendering: geometricPrecision;
       overflow:hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      letter-spacing: 0.01em;
     }
 
     @keyframes floaty{
-      0%,100% { transform: translateY(0px) rotateX(0deg) rotateY(0deg); }
-      50%     { transform: translateY(-10px) rotateX(1deg) rotateY(-1deg); }
+      0%,100% { transform: translateY(0px); }
+      50%     { transform: translateY(-8px); }
     }
 
     @keyframes sheen{
-      0%,100% { transform: translateX(-35%) rotate(12deg); opacity:.70; }
-      50%     { transform: translateX(35%) rotate(12deg);  opacity:.95; }
+      0%,100% { transform: translateX(-32%) rotate(12deg); opacity:.55; }
+      50%     { transform: translateX(32%) rotate(12deg);  opacity:.82; }
     }
 
     @media (max-width: 768px){
@@ -3473,8 +3478,11 @@
       wrap.style.pointerEvents = "auto";
 
       const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
-      const maxTilt = 10;
-      const maxMove = 10;
+      const maxTilt = 6;
+      const maxMove = 6;
+      let rafId = null;
+      let lastX = 0;
+      let lastY = 0;
 
       function setVars(moveX, moveY, tiltX, tiltY){
         card.style.setProperty("--glass-move-x", `${moveX}px`);
@@ -3484,16 +3492,22 @@
       }
 
       function onMove(e){
-        const r = wrap.getBoundingClientRect();
-        const x = (e.clientX - r.left) / r.width;
-        const y = (e.clientY - r.top) / r.height;
+        lastX = e.clientX;
+        lastY = e.clientY;
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          const r = wrap.getBoundingClientRect();
+          const x = (lastX - r.left) / r.width;
+          const y = (lastY - r.top) / r.height;
 
-        const tiltY = clamp((x - 0.5) * 2 * maxTilt, -maxTilt, maxTilt);
-        const tiltX = clamp((0.5 - y) * 2 * maxTilt, -maxTilt, maxTilt);
+          const tiltY = clamp((x - 0.5) * 2 * maxTilt, -maxTilt, maxTilt);
+          const tiltX = clamp((0.5 - y) * 2 * maxTilt, -maxTilt, maxTilt);
 
-        const moveX = (x - 0.5) * 2 * maxMove;
-        const moveY = (y - 0.5) * 2 * maxMove;
-        setVars(moveX, moveY, tiltX, tiltY);
+          const moveX = (x - 0.5) * 2 * maxMove;
+          const moveY = (y - 0.5) * 2 * maxMove;
+          setVars(moveX, moveY, tiltX, tiltY);
+        });
       }
 
       function onLeave(){
