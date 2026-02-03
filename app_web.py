@@ -2045,6 +2045,17 @@ def privacy_html():
         app.logger.exception("Error serving privacy.html: %s", e)
         return _json_error(500, "file_not_found", "プライバシーポリシーページが見つかりません。"), 500
 
+@app.get("/tokusho")
+@app.get("/tokusho/")
+@app.get("/tokusho.html")
+def tokusho_html():
+    """特定商取引法に基づく表記"""
+    try:
+        return send_from_directory(str(BASE_DIR), "tokusho.html")
+    except Exception as e:
+        app.logger.exception("Error serving tokusho.html: %s", e)
+        return _json_error(500, "file_not_found", "特定商取引法ページが見つかりません。"), 500
+
 # ======================================================================
 # Health
 # ======================================================================
