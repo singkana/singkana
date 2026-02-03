@@ -343,9 +343,27 @@
       transform: rotateY(180deg);
     }
 
-    /* 事故防止：裏返し無効（is-flipped が付いても反転しない） */
-    .flip-inner{
-      transform: none !important;
+    /* ===== Flip behavior ===== */
+    /* PC: 3D flip is allowed only when .is-flipped is set */
+    .flip-card.is-flipped .flip-inner{
+      transform: rotateY(180deg);
+    }
+
+    /* Mobile: disable 3D transforms; swap faces by display */
+    @media (max-width: 768px){
+      .flip-inner{
+        transform: none !important;
+        transition: none !important;
+      }
+
+      .flip-face{ display: none; }
+      .flip-card .flip-front{ display: block; }
+      .flip-card.is-flipped .flip-front{ display: none; }
+      .flip-card.is-flipped .flip-back{ display: block; }
+
+      /* iOSの描画安定化（保険） */
+      .flip-face{ backface-visibility: visible; }
+      .flip-back{ transform: none !important; }
     }
 
     .glass-card{
@@ -3764,6 +3782,9 @@
 
       wrap.addEventListener("mousemove", onMove, { passive: true });
       wrap.addEventListener("mouseleave", onLeave, { passive: true });
+      wrap.addEventListener("click", () => {
+        card.classList.toggle("is-flipped");
+      }, { passive: true });
     })();
   </script>
 </body>
