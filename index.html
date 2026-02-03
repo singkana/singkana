@@ -544,10 +544,6 @@
       transform: rotateY(180deg);
     }
 
-    /* タッチ環境の疑似hoverでも反転しない */
-    @media (hover: none), (pointer: coarse){
-      .flip-inner{ transform: none !important; }
-    }
 
     @keyframes floaty{
       0%,100% { transform: translateY(0px); }
@@ -3767,8 +3763,6 @@
       wrap.addEventListener("mousemove", onMove, { passive: true });
       wrap.addEventListener("mouseleave", onLeave, { passive: true });
       wrap.addEventListener("click", () => {
-        const isHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-        if (isHover) return;
         card.classList.toggle("is-flipped");
       });
     })();
