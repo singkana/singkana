@@ -306,6 +306,8 @@
       height: min(600px, 92vw);
       perspective: 900px;
       user-select: none;
+      cursor: pointer;
+      touch-action: manipulation;
     }
 
     .glass-float{
@@ -3782,7 +3784,9 @@
 
       wrap.addEventListener("mousemove", onMove, { passive: true });
       wrap.addEventListener("mouseleave", onLeave, { passive: true });
-      wrap.addEventListener("click", () => {
+
+      wrap.addEventListener("pointerup", (e) => {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
         card.classList.toggle("is-flipped");
       }, { passive: true });
     })();
