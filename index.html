@@ -291,209 +291,208 @@
     details.advanced-examples > summary::-webkit-details-marker { display: none; }
     details.advanced-examples .mini-hint { opacity: 0.85; }
 
-    /* ===== LP Studio Mock Cards ===== */
-    .lp-studio-visual{
+    /* ===== Glass Visual ===== */
+    .hero-visual{
       display:flex;
       justify-content:center;
       align-items:center;
-      min-height: 520px;
+      min-height:420px;
     }
 
-    .lp-studio-stack{
+    .glass-wrap{
       position:relative;
-      width: min(520px, 92vw);
-      height: 520px;
+      width:min(420px, 90vw);
+      aspect-ratio: 4 / 3;
       perspective: 900px;
-    }
-
-    .lp-card{
-      position:absolute;
-      left:0; right:0;
-      border-radius: 22px;
-      background: rgba(20,22,35,.46);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,.14);
-      box-shadow: 0 26px 80px rgba(0,0,0,.55);
-      overflow:hidden;
-      padding: 18px;
-      color: rgba(255,255,255,.9);
-      transform: var(--lp-card-base, translateZ(0) scale(1)) var(--lp-card-tilt, rotateX(0deg) rotateY(0deg));
-      transform-style: preserve-3d;
-    }
-
-    .lp-card::before{
-      content:"";
-      position:absolute; inset:-2px;
-      border-radius: 24px;
-      background: conic-gradient(
-        from 180deg,
-        rgba(186,104,255,.0),
-        rgba(186,104,255,.25),
-        rgba(92,180,255,.18),
-        rgba(255,190,92,.12),
-        rgba(186,104,255,.25),
-        rgba(186,104,255,.0)
-      );
-      filter: blur(14px);
-      opacity:.35;
       pointer-events:none;
     }
 
-    .lp-card__header{
+    .glass-wrap *{
+      pointer-events:none;
+    }
+
+    .glass-float{
+      position:absolute;
+      inset:0;
+      transform-style: preserve-3d;
+      animation: floaty 6.5s ease-in-out infinite;
+    }
+
+    .glass-card{
+      position:absolute;
+      inset:0;
+      border-radius: 24px;
+      background:
+        radial-gradient(120% 140% at 20% 10%, rgba(255,255,255,.18), rgba(255,255,255,0) 60%),
+        radial-gradient(140% 120% at 80% 90%, rgba(186,104,255,.14), rgba(255,255,255,0) 55%),
+        rgba(20,22,35,.35);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow:
+        0 20px 60px rgba(0,0,0,.45),
+        0 0 0 1px rgba(186,104,255,.08) inset;
+      overflow:hidden;
+      transform-style:preserve-3d;
+      transform: translate3d(var(--glass-move-x, 0px), var(--glass-move-y, 0px), 0px)
+        rotateX(var(--glass-tilt-x, 0deg)) rotateY(var(--glass-tilt-y, 0deg));
+      backface-visibility: hidden;
+      will-change: transform;
+    }
+
+    .glass-card::before{
+      content:"";
+      position:absolute; inset:-2px;
+      border-radius: 26px;
+      background: conic-gradient(
+        from 180deg,
+        rgba(186,104,255,.0),
+        rgba(186,104,255,.35),
+        rgba(92,180,255,.22),
+        rgba(255,190,92,.18),
+        rgba(186,104,255,.35),
+        rgba(186,104,255,.0)
+      );
+      filter: blur(10px);
+      opacity:.55;
+      transform: translateZ(-1px);
+      pointer-events:none;
+    }
+
+    .glass-sheen{
+      position:absolute;
+      inset:-40%;
+      background: linear-gradient(120deg,
+        rgba(255,255,255,0) 40%,
+        rgba(255,255,255,.22) 50%,
+        rgba(255,255,255,0) 60%
+      );
+      transform: translateX(-30%) rotate(12deg);
+      animation: sheen 5.8s ease-in-out infinite;
+      mix-blend-mode: screen;
+      z-index: 2;
+    }
+
+    .glass-noise{
+      position:absolute; inset:0;
+      opacity:.12;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
+      background-size:260px 260px;
+      mix-blend-mode: overlay;
+      pointer-events:none;
+      z-index: 1;
+    }
+
+    .glass-ui{
+      position:absolute;
+      inset:18px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      color: rgba(255,255,255,.9);
+      z-index: 3;
+      transform: translateZ(20px);
+      backface-visibility: hidden;
+      text-rendering: geometricPrecision;
+    }
+
+    .glass-ui__header{
       display:flex;
       align-items:center;
       justify-content:space-between;
-      margin-bottom: 12px;
-      position:relative;
-      z-index:1;
     }
 
-    .lp-card__title{
-      font-weight: 700;
-      letter-spacing: .02em;
-      opacity:.95;
-    }
-
-    .lp-chip{
-      font-size: 12px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.16);
-      background: rgba(255,255,255,.08);
-    }
-
-    .lp-chip--accent{
-      border-color: rgba(186,104,255,.35);
-      background: rgba(186,104,255,.16);
-    }
-
-    .lp-field{ margin: 12px 0; position:relative; z-index:1; }
-    .lp-label{ font-size: 12px; opacity:.75; margin-bottom:6px; }
-
-    .lp-input{
-      border-radius: 14px;
-      padding: 12px 14px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.20);
-      font-size: 14px;
-    }
-
-    .lp-textarea{
-      border-radius: 16px;
-      padding: 14px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.22);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    .glass-ui__title{
       font-size: 13px;
-      line-height: 1.6;
+      font-weight: 700;
+      letter-spacing: .04em;
       opacity:.95;
     }
 
-    .lp-cta{
-      margin-top: 14px;
+    .glass-ui__badge{
+      font-size: 10px;
+      padding: 4px 8px;
       border-radius: 999px;
-      padding: 12px 14px;
-      text-align:center;
-      font-weight: 700;
-      letter-spacing:.02em;
-      user-select:none;
-    }
-
-    .lp-cta--primary{
-      background: linear-gradient(90deg, rgba(186,104,255,.95), rgba(124,92,255,.95));
-      box-shadow: 0 12px 30px rgba(186,104,255,.18);
-    }
-
-    .lp-cta--ghost{
-      border: 1px solid rgba(186,104,255,.35);
-      background: rgba(186,104,255,.10);
-    }
-
-    .lp-note{ margin-top: 10px; font-size: 12px; opacity:.6; }
-
-    .lp-mini{
-      margin-top: 6px;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.18);
-      padding: 12px;
-      position:relative;
-      z-index:1;
-    }
-
-    .lp-mini__label{ font-size:12px; opacity:.7; margin-bottom:10px; }
-    .lp-mini__row{
-      display:flex;
-      gap: 10px;
-      padding: 8px 0;
-      border-top: 1px solid rgba(255,255,255,.08);
-    }
-    .lp-mini__row:first-of-type{ border-top:none; }
-    .lp-mini__k{ width: 70px; font-size:12px; opacity:.75; }
-    .lp-mini__v{ flex:1; font-size:14px; letter-spacing:.02em; opacity:.92; }
-    .lp-mini__row--focus .lp-mini__v{
-      opacity: 1;
-      text-shadow: 0 0 14px rgba(186,104,255,.25);
-    }
-
-    .lp-pill-row{
-      display:flex;
-      flex-wrap:wrap;
-      gap: 8px;
-      margin-top: 12px;
-      position:relative;
-      z-index:1;
-    }
-    .lp-pill{
-      font-size: 12px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.08);
+      letter-spacing: .08em;
+      text-transform: uppercase;
       opacity:.85;
     }
 
-    .lp-hint{
-      margin-top: 12px;
+    .glass-ui__block{
+      border-radius: 16px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+    }
+
+    .glass-ui__block--accent{
+      border-color: rgba(186,104,255,.35);
+      background: rgba(186,104,255,.12);
+      box-shadow: 0 0 18px rgba(186,104,255,.16);
+    }
+
+    .glass-ui__label{
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      opacity:.7;
+      margin-bottom:6px;
+    }
+
+    .glass-ui__text,
+    .glass-ui__result{
+      font-size: 13px;
+      line-height: 1.5;
+      letter-spacing: .02em;
+    }
+
+    .glass-ui__result{
+      color: rgba(233,213,255,.95);
+    }
+
+    .glass-ui__actions{
+      margin-top:auto;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .glass-ui__cta{
+      width: fit-content;
+      border-radius: 999px;
+      padding: 8px 12px;
       font-size: 12px;
-      opacity:.65;
-      position:relative;
-      z-index:1;
+      font-weight: 700;
+      letter-spacing:.02em;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.08);
+      opacity:.9;
     }
 
-    /* Stack layout */
-    .lp-card--input{
-      top: 22px;
-      opacity: .82;
-      --lp-card-base: translateZ(0) scale(.94);
-    }
-    .lp-card--result{
-      top: 90px;
-      opacity: 1;
-      --lp-card-base: translateZ(40px) scale(1);
-    }
-    .lp-card--value{
-      top: 360px;
-      opacity: .78;
-      padding: 16px;
-      --lp-card-base: translateZ(-10px) scale(.92);
+    .glass-ui__note{
+      font-size: 10px;
+      opacity:.6;
     }
 
-    .lp-value{
-      position:relative; z-index:1;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(186,104,255,.10);
-      padding: 16px;
+    @keyframes floaty{
+      0%,100% { transform: translateY(0px) rotateX(0deg) rotateY(0deg); }
+      50%     { transform: translateY(-10px) rotateX(1deg) rotateY(-1deg); }
     }
-    .lp-value__title{ font-weight: 800; font-size: 16px; }
-    .lp-value__desc{ margin-top: 6px; font-size: 12px; opacity:.78; }
+
+    @keyframes sheen{
+      0%,100% { transform: translateX(-35%) rotate(12deg); opacity:.70; }
+      50%     { transform: translateX(35%) rotate(12deg);  opacity:.95; }
+    }
 
     @media (max-width: 768px){
-      .lp-studio-visual{ min-height: 460px; }
-      .lp-studio-stack{ height: 460px; }
-      .lp-card--value{ top: 320px; }
+      .hero-visual{ min-height: 320px; }
+      .glass-wrap{ width: min(360px, 92vw); }
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      .glass-float, .glass-sheen{ animation:none !important; }
     }
   </style>
 
@@ -739,80 +738,44 @@
       <div class="relative w-full max-w-xl lg:max-w-none lg:w-[560px] lg:justify-self-end">
         <div class="absolute -top-6 -left-4 h-20 w-20 rounded-full border border-slate-500/30 bg-gradient-to-br from-slate-900/10 via-slate-900/40 to-slate-900/80 blur-2xl"></div>
         <div class="absolute -bottom-10 -right-6 h-28 w-28 rounded-full bg-gradient-to-tr from-fuchsia-500/30 via-singkana-400/20 to-cyan-300/20 blur-3xl"></div>
-        <!-- Right Visual: Studio Cards (Mock) -->
-        <div class="lp-studio-visual" aria-hidden="true">
-          <div class="lp-studio-stack" id="studioStack">
 
-            <!-- Card 1: Input -->
-            <div class="lp-card lp-card--input">
-              <div class="lp-card__header">
-                <div class="lp-chip">SingKANA</div>
-                <div class="lp-card__title">歌詞入力</div>
-              </div>
+        <!-- Right Visual (Glass) -->
+        <div class="hero-visual">
+          <div class="glass-wrap" id="glassWrap" aria-hidden="true">
+            <div class="glass-float">
+              <div class="glass-card" id="glassCard">
+                <div class="glass-sheen"></div>
+                <div class="glass-noise"></div>
 
-              <div class="lp-field">
-                <div class="lp-label">1. 曲名（任意）</div>
-                <div class="lp-input">Demo / Original</div>
-              </div>
+                <div class="glass-ui">
+                  <div class="glass-ui__header">
+                    <div class="glass-ui__title">SingKANA Studio</div>
+                    <div class="glass-ui__badge">Demo</div>
+                  </div>
 
-              <div class="lp-field">
-                <div class="lp-label">2. 歌詞を貼り付け</div>
-                <div class="lp-textarea">
-                  Hold on tight in the night<br />
-                  Let the rhythm guide your voice
+                  <div class="glass-ui__block">
+                    <div class="glass-ui__label">Lyrics Input</div>
+                    <div class="glass-ui__text">
+                      I was a ghost in the room<br />
+                      I was alone
+                    </div>
+                  </div>
+
+                  <div class="glass-ui__block glass-ui__block--accent">
+                    <div class="glass-ui__label">Result (Natural)</div>
+                    <div class="glass-ui__result">
+                      アイ ワズァ ゴウスト イン ザ ルーム<br />
+                      アイ ワズァ ロウン
+                    </div>
+                  </div>
+
+                  <div class="glass-ui__actions">
+                    <div class="glass-ui__cta">Convert ▶</div>
+                    <div class="glass-ui__note">※LP用の表示モック</div>
+                  </div>
                 </div>
-              </div>
-
-              <div class="lp-cta lp-cta--primary">
-                ▶ この歌詞で変換する
-              </div>
-              <div class="lp-note">※デモ表示（LP用）</div>
-            </div>
-
-            <!-- Card 2: Result (Main) -->
-            <div class="lp-card lp-card--result">
-              <div class="lp-card__header">
-                <div class="lp-chip lp-chip--accent">Natural（おすすめ）</div>
-                <div class="lp-card__title">変換結果</div>
-              </div>
-
-              <div class="lp-mini">
-                <div class="lp-mini__label">例（同じ英語での違い）</div>
-                <div class="lp-mini__row">
-                  <div class="lp-mini__k">Basic</div>
-                  <div class="lp-mini__v">ホールド　オン　タイト　イン　ザ　ナイト</div>
-                </div>
-                <div class="lp-mini__row lp-mini__row--focus">
-                  <div class="lp-mini__k">Natural</div>
-                  <div class="lp-mini__v">ホウドン　タイッ　インナ　ナイッ</div>
-                </div>
-                <div class="lp-mini__row">
-                  <div class="lp-mini__k">Precise</div>
-                  <div class="lp-mini__v">ホー　ルド　オン　ターイ　ト　イン　ザ　ナーイ　ト</div>
-                </div>
-              </div>
-
-              <div class="lp-pill-row">
-                <div class="lp-pill">かなだけコピー</div>
-                <div class="lp-pill">EN+かなコピー</div>
-                <div class="lp-pill">TXT</div>
-                <div class="lp-pill">SRT</div>
-              </div>
-
-              <div class="lp-hint">
-                迷ったらNatural。発音寄せたいならPrecise。
               </div>
             </div>
-
-            <!-- Card 3: Value -->
-            <div class="lp-card lp-card--value">
-              <div class="lp-value">
-                <div class="lp-value__title">この品質で変換し続ける</div>
-                <div class="lp-value__desc">Proで無制限・高精度（日本語歌唱最適）</div>
-                <div class="lp-cta lp-cta--ghost">今すぐProで歌える ▶</div>
-              </div>
-            </div>
-
           </div>
         </div>
       </div>
@@ -3502,35 +3465,44 @@
       </div>
     </div>
   </section>
-
   <script>
     (function(){
-      const stack = document.getElementById("studioStack");
-      if (!stack) return;
+      const wrap = document.getElementById("glassWrap");
+      const card = document.getElementById("glassCard");
+      if (!wrap || !card) return;
 
-      const cards = stack.querySelectorAll(".lp-card");
-      const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-      const maxTilt = 6;
+      wrap.style.pointerEvents = "auto";
 
-      const setTilt = (rx, ry) => {
-        cards.forEach((c, i) => {
-          const k = i === 1 ? 1 : 0.6;
-          c.style.setProperty("--lp-card-tilt", `rotateX(${rx * k}deg) rotateY(${ry * k}deg)`);
-        });
-      };
+      const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+      const maxTilt = 10;
+      const maxMove = 10;
 
-      stack.addEventListener("mousemove", (e) => {
-        const r = stack.getBoundingClientRect();
+      function setVars(moveX, moveY, tiltX, tiltY){
+        card.style.setProperty("--glass-move-x", `${moveX}px`);
+        card.style.setProperty("--glass-move-y", `${moveY}px`);
+        card.style.setProperty("--glass-tilt-x", `${tiltX}deg`);
+        card.style.setProperty("--glass-tilt-y", `${tiltY}deg`);
+      }
+
+      function onMove(e){
+        const r = wrap.getBoundingClientRect();
         const x = (e.clientX - r.left) / r.width;
         const y = (e.clientY - r.top) / r.height;
-        const ry = clamp((x - 0.5) * 2 * maxTilt, -maxTilt, maxTilt);
-        const rx = clamp((0.5 - y) * 2 * maxTilt, -maxTilt, maxTilt);
-        setTilt(rx, ry);
-      }, { passive: true });
 
-      stack.addEventListener("mouseleave", () => {
-        setTilt(0, 0);
-      }, { passive: true });
+        const tiltY = clamp((x - 0.5) * 2 * maxTilt, -maxTilt, maxTilt);
+        const tiltX = clamp((0.5 - y) * 2 * maxTilt, -maxTilt, maxTilt);
+
+        const moveX = (x - 0.5) * 2 * maxMove;
+        const moveY = (y - 0.5) * 2 * maxMove;
+        setVars(moveX, moveY, tiltX, tiltY);
+      }
+
+      function onLeave(){
+        setVars(0, 0, 0, 0);
+      }
+
+      wrap.addEventListener("mousemove", onMove, { passive: true });
+      wrap.addEventListener("mouseleave", onLeave, { passive: true });
     })();
   </script>
 </body>
