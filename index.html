@@ -290,6 +290,211 @@
     details.advanced-examples > summary { list-style: none; cursor: pointer; -webkit-user-select: none; user-select: none; }
     details.advanced-examples > summary::-webkit-details-marker { display: none; }
     details.advanced-examples .mini-hint { opacity: 0.85; }
+
+    /* ===== LP Studio Mock Cards ===== */
+    .lp-studio-visual{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      min-height: 520px;
+    }
+
+    .lp-studio-stack{
+      position:relative;
+      width: min(520px, 92vw);
+      height: 520px;
+      perspective: 900px;
+    }
+
+    .lp-card{
+      position:absolute;
+      left:0; right:0;
+      border-radius: 22px;
+      background: rgba(20,22,35,.46);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: 0 26px 80px rgba(0,0,0,.55);
+      overflow:hidden;
+      padding: 18px;
+      color: rgba(255,255,255,.9);
+      transform: var(--lp-card-base, translateZ(0) scale(1)) var(--lp-card-tilt, rotateX(0deg) rotateY(0deg));
+      transform-style: preserve-3d;
+    }
+
+    .lp-card::before{
+      content:"";
+      position:absolute; inset:-2px;
+      border-radius: 24px;
+      background: conic-gradient(
+        from 180deg,
+        rgba(186,104,255,.0),
+        rgba(186,104,255,.25),
+        rgba(92,180,255,.18),
+        rgba(255,190,92,.12),
+        rgba(186,104,255,.25),
+        rgba(186,104,255,.0)
+      );
+      filter: blur(14px);
+      opacity:.35;
+      pointer-events:none;
+    }
+
+    .lp-card__header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom: 12px;
+      position:relative;
+      z-index:1;
+    }
+
+    .lp-card__title{
+      font-weight: 700;
+      letter-spacing: .02em;
+      opacity:.95;
+    }
+
+    .lp-chip{
+      font-size: 12px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.08);
+    }
+
+    .lp-chip--accent{
+      border-color: rgba(186,104,255,.35);
+      background: rgba(186,104,255,.16);
+    }
+
+    .lp-field{ margin: 12px 0; position:relative; z-index:1; }
+    .lp-label{ font-size: 12px; opacity:.75; margin-bottom:6px; }
+
+    .lp-input{
+      border-radius: 14px;
+      padding: 12px 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.20);
+      font-size: 14px;
+    }
+
+    .lp-textarea{
+      border-radius: 16px;
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      opacity:.95;
+    }
+
+    .lp-cta{
+      margin-top: 14px;
+      border-radius: 999px;
+      padding: 12px 14px;
+      text-align:center;
+      font-weight: 700;
+      letter-spacing:.02em;
+      user-select:none;
+    }
+
+    .lp-cta--primary{
+      background: linear-gradient(90deg, rgba(186,104,255,.95), rgba(124,92,255,.95));
+      box-shadow: 0 12px 30px rgba(186,104,255,.18);
+    }
+
+    .lp-cta--ghost{
+      border: 1px solid rgba(186,104,255,.35);
+      background: rgba(186,104,255,.10);
+    }
+
+    .lp-note{ margin-top: 10px; font-size: 12px; opacity:.6; }
+
+    .lp-mini{
+      margin-top: 6px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.18);
+      padding: 12px;
+      position:relative;
+      z-index:1;
+    }
+
+    .lp-mini__label{ font-size:12px; opacity:.7; margin-bottom:10px; }
+    .lp-mini__row{
+      display:flex;
+      gap: 10px;
+      padding: 8px 0;
+      border-top: 1px solid rgba(255,255,255,.08);
+    }
+    .lp-mini__row:first-of-type{ border-top:none; }
+    .lp-mini__k{ width: 70px; font-size:12px; opacity:.75; }
+    .lp-mini__v{ flex:1; font-size:14px; letter-spacing:.02em; opacity:.92; }
+    .lp-mini__row--focus .lp-mini__v{
+      opacity: 1;
+      text-shadow: 0 0 14px rgba(186,104,255,.25);
+    }
+
+    .lp-pill-row{
+      display:flex;
+      flex-wrap:wrap;
+      gap: 8px;
+      margin-top: 12px;
+      position:relative;
+      z-index:1;
+    }
+    .lp-pill{
+      font-size: 12px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      opacity:.85;
+    }
+
+    .lp-hint{
+      margin-top: 12px;
+      font-size: 12px;
+      opacity:.65;
+      position:relative;
+      z-index:1;
+    }
+
+    /* Stack layout */
+    .lp-card--input{
+      top: 22px;
+      opacity: .82;
+      --lp-card-base: translateZ(0) scale(.94);
+    }
+    .lp-card--result{
+      top: 90px;
+      opacity: 1;
+      --lp-card-base: translateZ(40px) scale(1);
+    }
+    .lp-card--value{
+      top: 360px;
+      opacity: .78;
+      padding: 16px;
+      --lp-card-base: translateZ(-10px) scale(.92);
+    }
+
+    .lp-value{
+      position:relative; z-index:1;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(186,104,255,.10);
+      padding: 16px;
+    }
+    .lp-value__title{ font-weight: 800; font-size: 16px; }
+    .lp-value__desc{ margin-top: 6px; font-size: 12px; opacity:.78; }
+
+    @media (max-width: 768px){
+      .lp-studio-visual{ min-height: 460px; }
+      .lp-studio-stack{ height: 460px; }
+      .lp-card--value{ top: 320px; }
+    }
   </style>
 
   <!-- =========================================================
@@ -534,110 +739,80 @@
       <div class="relative w-full max-w-xl lg:max-w-none lg:w-[560px] lg:justify-self-end">
         <div class="absolute -top-6 -left-4 h-20 w-20 rounded-full border border-slate-500/30 bg-gradient-to-br from-slate-900/10 via-slate-900/40 to-slate-900/80 blur-2xl"></div>
         <div class="absolute -bottom-10 -right-6 h-28 w-28 rounded-full bg-gradient-to-tr from-fuchsia-500/30 via-singkana-400/20 to-cyan-300/20 blur-3xl"></div>
+        <!-- Right Visual: Studio Cards (Mock) -->
+        <div class="lp-studio-visual" aria-hidden="true">
+          <div class="lp-studio-stack" id="studioStack">
 
-        <div class="relative rounded-3xl border border-white/10 bg-slate-900/70 p-6 lg:p-7 shadow-soft backdrop-blur-sm">
-          <div class="flex items-center justify-between mb-4">
-            <div class="space-y-0.5">
-              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400">Live preview</p>
-              <p class="text-sm font-semibold">SingKANA Studio</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200">
-                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-                Online
-              </span>
-              <span class="hidden sm:inline-flex items-center rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
-                No install
-              </span>
-            </div>
-          </div>
+            <!-- Card 1: Input -->
+            <div class="lp-card lp-card--input">
+              <div class="lp-card__header">
+                <div class="lp-chip">SingKANA</div>
+                <div class="lp-card__title">歌詞入力</div>
+              </div>
 
-          <!-- “操作できそう感” -->
-          <div class="flex flex-wrap items-center gap-2 mb-3">
-            <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
-              <span class="hero-demo-caret"></span>
-              行タップでハイライト
-            </span>
-            <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
-              <span class="h-1.5 w-1.5 rounded-full bg-singkana-300"></span>
-              BR / HLD / VIB
-            </span>
-            <span class="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
-              出力：Basic / Natural / Precise
-            </span>
-          </div>
+              <div class="lp-field">
+                <div class="lp-label">1. 曲名（任意）</div>
+                <div class="lp-input">Demo / Original</div>
+              </div>
 
-          <div class="grid gap-3 text-[11px]">
-            <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-3">
-              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">Original Lyrics</p>
-              <p class="text-slate-200">
-                Put your <span class="underline decoration-dotted">heart</span> on the line, we’ll be <span class="underline decoration-dotted">flying</span> tonight...
-              </p>
-            </div>
-
-            <div class="rounded-2xl border border-singkana-400/40 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-slate-900/90 p-3 shadow-glow">
-              <p class="text-[10px] uppercase tracking-[0.16em] text-slate-300 mb-1.5">SingKANA Output</p>
-              <div class="grid grid-cols-[1fr_auto] gap-2 items-start">
-                <p class="font-medium text-slate-100 leading-relaxed">
-                  <span class="inline-flex items-center gap-2 rounded-lg bg-singkana-500/15 border border-singkana-400/30 px-2 py-1">
-                    <span class="text-[10px] uppercase tracking-[0.16em] text-singkana-200">Natural</span>
-                  </span>
-                  <br />
-                  プッ ユア <span class="text-singkana-200">ハート</span> オン ザ ライン<br />
-                  ウィー ビー <span class="text-singkana-200">フライイン</span> トゥナイッ
-                </p>
-                <div class="hidden sm:flex flex-col items-end gap-1">
-                  <div class="hero-demo-wave flex items-end gap-1 h-6">
-                    <span style="height:6px"></span>
-                    <span style="height:12px"></span>
-                    <span style="height:8px"></span>
-                    <span style="height:16px"></span>
-                    <span style="height:10px"></span>
-                    <span style="height:18px"></span>
-                    <span style="height:9px"></span>
-                    <span style="height:14px"></span>
-                    <span style="height:7px"></span>
-                    <span style="height:12px"></span>
-                  </div>
-                  <p class="text-[10px] text-slate-400">voice guide</p>
+              <div class="lp-field">
+                <div class="lp-label">2. 歌詞を貼り付け</div>
+                <div class="lp-textarea">
+                  Hold on tight in the night<br />
+                  Let the rhythm guide your voice
                 </div>
               </div>
-              <div class="mt-2 flex flex-wrap gap-1.5">
-                <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">BR</span>
-                <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">HLD</span>
-                <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">VIB</span>
-                <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">SLD</span>
+
+              <div class="lp-cta lp-cta--primary">
+                ▶ この歌詞で変換する
+              </div>
+              <div class="lp-note">※デモ表示（LP用）</div>
+            </div>
+
+            <!-- Card 2: Result (Main) -->
+            <div class="lp-card lp-card--result">
+              <div class="lp-card__header">
+                <div class="lp-chip lp-chip--accent">Natural（おすすめ）</div>
+                <div class="lp-card__title">変換結果</div>
+              </div>
+
+              <div class="lp-mini">
+                <div class="lp-mini__label">例（同じ英語での違い）</div>
+                <div class="lp-mini__row">
+                  <div class="lp-mini__k">Basic</div>
+                  <div class="lp-mini__v">ホールド　オン　タイト　イン　ザ　ナイト</div>
+                </div>
+                <div class="lp-mini__row lp-mini__row--focus">
+                  <div class="lp-mini__k">Natural</div>
+                  <div class="lp-mini__v">ホウドン　タイッ　インナ　ナイッ</div>
+                </div>
+                <div class="lp-mini__row">
+                  <div class="lp-mini__k">Precise</div>
+                  <div class="lp-mini__v">ホー　ルド　オン　ターイ　ト　イン　ザ　ナーイ　ト</div>
+                </div>
+              </div>
+
+              <div class="lp-pill-row">
+                <div class="lp-pill">かなだけコピー</div>
+                <div class="lp-pill">EN+かなコピー</div>
+                <div class="lp-pill">TXT</div>
+                <div class="lp-pill">SRT</div>
+              </div>
+
+              <div class="lp-hint">
+                迷ったらNatural。発音寄せたいならPrecise。
               </div>
             </div>
 
-            <div class="grid gap-3 sm:grid-cols-2">
-              <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
-                <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">EN → かな</p>
-                <p class="text-slate-200 leading-relaxed">
-                  プッ ユア ハート オン ザ ライン<br />
-                  ウィー ビー フライイン トゥナイッ
-                </p>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                  <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10">歌唱向け</span>
-                  <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10">音変化</span>
-                </div>
-              </div>
-              <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
-                <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">Export</p>
-                <p class="text-slate-200 leading-relaxed">
-                  Copy / TXT / SRT（簡易）<br />
-                  行タップでハイライト
-                </p>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                  <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10">1クリック</span>
-                  <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10">台本化</span>
-                </div>
+            <!-- Card 3: Value -->
+            <div class="lp-card lp-card--value">
+              <div class="lp-value">
+                <div class="lp-value__title">この品質で変換し続ける</div>
+                <div class="lp-value__desc">Proで無制限・高精度（日本語歌唱最適）</div>
+                <div class="lp-cta lp-cta--ghost">今すぐProで歌える ▶</div>
               </div>
             </div>
 
-            <p class="text-[10px] text-slate-400">
-              ※ 実際の変換結果は楽曲やモードによって異なります。
-            </p>
           </div>
         </div>
       </div>
@@ -3327,5 +3502,36 @@
       </div>
     </div>
   </section>
+
+  <script>
+    (function(){
+      const stack = document.getElementById("studioStack");
+      if (!stack) return;
+
+      const cards = stack.querySelectorAll(".lp-card");
+      const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+      const maxTilt = 6;
+
+      const setTilt = (rx, ry) => {
+        cards.forEach((c, i) => {
+          const k = i === 1 ? 1 : 0.6;
+          c.style.setProperty("--lp-card-tilt", `rotateX(${rx * k}deg) rotateY(${ry * k}deg)`);
+        });
+      };
+
+      stack.addEventListener("mousemove", (e) => {
+        const r = stack.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width;
+        const y = (e.clientY - r.top) / r.height;
+        const ry = clamp((x - 0.5) * 2 * maxTilt, -maxTilt, maxTilt);
+        const rx = clamp((0.5 - y) * 2 * maxTilt, -maxTilt, maxTilt);
+        setTilt(rx, ry);
+      }, { passive: true });
+
+      stack.addEventListener("mouseleave", () => {
+        setTilt(0, 0);
+      }, { passive: true });
+    })();
+  </script>
 </body>
 </html>
