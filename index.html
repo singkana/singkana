@@ -424,6 +424,14 @@
       letter-spacing: .02em;
     }
     .glass-wrap .hero-demo-badges{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-end;
+      gap: 6px !important;
+    }
+    .glass-wrap .hero-demo-badges-row{
+      display:flex;
+      align-items:center;
       gap: 8px !important;
     }
     .glass-wrap .hero-demo-tags{
@@ -481,6 +489,16 @@
       transform: scale(.92);
       transform-origin: right center;
       opacity: .85;
+    }
+    .glass-wrap .hero-demo-meter{
+      opacity: .8;
+      transform: scale(.88);
+      transform-origin: right center;
+      margin-right: 2px;
+    }
+    .glass-wrap .hero-demo-meter span{
+      background: rgba(110,231,183,0.9);
+      box-shadow: 0 0 10px rgba(110,231,183,0.35);
     }
 
     @keyframes floaty{
@@ -768,14 +786,26 @@
                       <p class="text-[10px] uppercase tracking-[0.16em] text-slate-300/80 hero-demo-kicker">Live preview</p>
                       <p class="text-sm font-semibold hero-demo-title">SingKANA Studio</p>
                     </div>
-                    <div class="flex items-center gap-2 hero-demo-badges">
-                      <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200">
-                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
-                        Online
-                      </span>
-                      <span class="hidden sm:inline-flex items-center rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
-                        No install
-                      </span>
+                    <div class="hero-demo-badges">
+                      <div class="hero-demo-badges-row">
+                        <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200">
+                          <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                          Online
+                        </span>
+                        <span class="hidden sm:inline-flex items-center rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
+                          No install
+                        </span>
+                      </div>
+                      <div class="hero-demo-meter hero-demo-wave flex items-end gap-1 h-3" aria-hidden="true">
+                        <span style="height:4px"></span>
+                        <span style="height:7px"></span>
+                        <span style="height:5px"></span>
+                        <span style="height:9px"></span>
+                        <span style="height:6px"></span>
+                        <span style="height:10px"></span>
+                        <span style="height:5px"></span>
+                        <span style="height:8px"></span>
+                      </div>
                     </div>
                   </div>
 
