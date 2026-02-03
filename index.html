@@ -301,8 +301,8 @@
 
     .glass-wrap{
       position:relative;
-      width:min(420px, 90vw);
-      aspect-ratio: 4 / 3;
+      width:min(520px, 92vw);
+      height: 520px;
       perspective: 900px;
       pointer-events:none;
     }
@@ -385,95 +385,16 @@
 
     .glass-ui{
       position:absolute;
-      inset:18px;
+      inset:16px;
       display:flex;
       flex-direction:column;
       gap:10px;
-      color: rgba(255,255,255,.9);
+      color: rgba(255,255,255,.92);
       z-index: 3;
       transform: translateZ(20px);
       backface-visibility: hidden;
       text-rendering: geometricPrecision;
-    }
-
-    .glass-ui__header{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-    }
-
-    .glass-ui__title{
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: .04em;
-      opacity:.95;
-    }
-
-    .glass-ui__badge{
-      font-size: 10px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.18);
-      background: rgba(255,255,255,.08);
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      opacity:.85;
-    }
-
-    .glass-ui__block{
-      border-radius: 16px;
-      padding: 10px 12px;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(0,0,0,.22);
-    }
-
-    .glass-ui__block--accent{
-      border-color: rgba(186,104,255,.35);
-      background: rgba(186,104,255,.12);
-      box-shadow: 0 0 18px rgba(186,104,255,.16);
-    }
-
-    .glass-ui__label{
-      font-size: 10px;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      opacity:.7;
-      margin-bottom:6px;
-    }
-
-    .glass-ui__text,
-    .glass-ui__result{
-      font-size: 13px;
-      line-height: 1.5;
-      letter-spacing: .02em;
-    }
-
-    .glass-ui__result{
-      color: rgba(233,213,255,.95);
-    }
-
-    .glass-ui__actions{
-      margin-top:auto;
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-    }
-
-    .glass-ui__cta{
-      width: fit-content;
-      border-radius: 999px;
-      padding: 8px 12px;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing:.02em;
-      border: 1px solid rgba(255,255,255,.18);
-      background: rgba(255,255,255,.08);
-      opacity:.9;
-    }
-
-    .glass-ui__note{
-      font-size: 10px;
-      opacity:.6;
+      overflow:hidden;
     }
 
     @keyframes floaty{
@@ -488,7 +409,7 @@
 
     @media (max-width: 768px){
       .hero-visual{ min-height: 320px; }
-      .glass-wrap{ width: min(360px, 92vw); }
+      .glass-wrap{ width: min(360px, 92vw); height: 360px; }
     }
 
     @media (prefers-reduced-motion: reduce){
@@ -733,6 +654,7 @@
           ブラウザだけで完結 / PC・スマホ対応 / FreeはBasic / Natural利用可能
         </p>
       </div>
+    </div>
 
       <!-- Demo / Visual（PCで右側を“体験”で埋める） -->
       <div class="relative w-full max-w-xl lg:max-w-none lg:w-[560px] lg:justify-self-end">
@@ -748,30 +670,107 @@
                 <div class="glass-noise"></div>
 
                 <div class="glass-ui">
-                  <div class="glass-ui__header">
-                    <div class="glass-ui__title">SingKANA Studio</div>
-                    <div class="glass-ui__badge">Demo</div>
-                  </div>
-
-                  <div class="glass-ui__block">
-                    <div class="glass-ui__label">Lyrics Input</div>
-                    <div class="glass-ui__text">
-                      I was a ghost in the room<br />
-                      I was alone
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="space-y-0.5">
+                      <p class="text-[10px] uppercase tracking-[0.16em] text-slate-300/80">Live preview</p>
+                      <p class="text-sm font-semibold">SingKANA Studio</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                        Online
+                      </span>
+                      <span class="hidden sm:inline-flex items-center rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
+                        No install
+                      </span>
                     </div>
                   </div>
 
-                  <div class="glass-ui__block glass-ui__block--accent">
-                    <div class="glass-ui__label">Result (Natural)</div>
-                    <div class="glass-ui__result">
-                      アイ ワズァ ゴウスト イン ザ ルーム<br />
-                      アイ ワズァ ロウン
-                    </div>
+                  <div class="flex flex-wrap items-center gap-2 mb-2">
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
+                      <span class="hero-demo-caret"></span>
+                      行タップでハイライト
+                    </span>
+                    <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
+                      <span class="h-1.5 w-1.5 rounded-full bg-singkana-300"></span>
+                      BR / HLD / VIB
+                    </span>
+                    <span class="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
+                      出力：Basic / Natural / Precise
+                    </span>
                   </div>
 
-                  <div class="glass-ui__actions">
-                    <div class="glass-ui__cta">Convert ▶</div>
-                    <div class="glass-ui__note">※LP用の表示モック</div>
+                  <div class="grid gap-3 text-[11px]">
+                    <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-3">
+                      <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">Original Lyrics</p>
+                      <p class="text-slate-200">
+                        Put your <span class="underline decoration-dotted">heart</span> on the line, we’ll be <span class="underline decoration-dotted">flying</span> tonight...
+                      </p>
+                    </div>
+
+                    <div class="rounded-2xl border border-singkana-400/40 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-slate-900/90 p-3 shadow-glow">
+                      <p class="text-[10px] uppercase tracking-[0.16em] text-slate-300 mb-1.5">SingKANA Output</p>
+                      <div class="grid grid-cols-[1fr_auto] gap-2 items-start">
+                        <p class="font-medium text-slate-100 leading-relaxed">
+                          <span class="inline-flex items-center gap-2 rounded-lg bg-singkana-500/15 border border-singkana-400/30 px-2 py-1">
+                            <span class="text-[10px] uppercase tracking-[0.16em] text-singkana-200">Natural</span>
+                          </span>
+                          <br />
+                          プッ ユア <span class="text-singkana-200">ハート</span> オン ザ ライン<br />
+                          ウィー ビー <span class="text-singkana-200">フライイン</span> トゥナイッ
+                        </p>
+                        <div class="hidden sm:flex flex-col items-end gap-1">
+                          <div class="hero-demo-wave flex items-end gap-1 h-6">
+                            <span style="height:6px"></span>
+                            <span style="height:12px"></span>
+                            <span style="height:8px"></span>
+                            <span style="height:16px"></span>
+                            <span style="height:10px"></span>
+                            <span style="height:18px"></span>
+                            <span style="height:9px"></span>
+                            <span style="height:14px"></span>
+                            <span style="height:7px"></span>
+                            <span style="height:12px"></span>
+                          </div>
+                          <p class="text-[10px] text-slate-400">voice guide</p>
+                        </div>
+                      </div>
+                      <div class="mt-2 flex flex-wrap gap-1.5">
+                        <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">BR</span>
+                        <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">HLD</span>
+                        <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">VIB</span>
+                        <span class="rounded-full bg-slate-950/60 px-2 py-0.5 text-[9px] text-slate-200 border border-white/15">SLD</span>
+                      </div>
+                    </div>
+
+                    <div class="grid gap-3 sm:grid-cols-2">
+                      <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
+                        <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">EN → かな</p>
+                        <p class="text-slate-200 leading-relaxed">
+                          プッ ユア ハート オン ザ ライン<br />
+                          ウィー ビー フライイン トゥナイッ
+                        </p>
+                        <div class="mt-2 flex flex-wrap gap-1.5">
+                          <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10">歌唱向け</span>
+                          <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10">音変化</span>
+                        </div>
+                      </div>
+                      <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
+                        <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">Export</p>
+                        <p class="text-slate-200 leading-relaxed">
+                          Copy / TXT / SRT（簡易）<br />
+                          行タップでハイライト
+                        </p>
+                        <div class="mt-2 flex flex-wrap gap-1.5">
+                          <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10">1クリック</span>
+                          <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10">台本化</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p class="text-[10px] text-slate-400">
+                      ※ 実際の変換結果は楽曲やモードによって異なります。
+                    </p>
                   </div>
                 </div>
               </div>
