@@ -538,13 +538,15 @@
       box-shadow: 0 0 10px rgba(110,231,183,0.35);
     }
 
-    @media (hover: hover) and (pointer: fine){
-      .glass-wrap:hover .flip-inner{
-        transform: rotateY(180deg);
-      }
-    }
+    /* ホバーで裏返さない（裏面が空で消える事故防止） */
+    /* 反転はクリック/タップでの明示操作のみ */
     .flip-card.is-flipped .flip-inner{
       transform: rotateY(180deg);
+    }
+
+    /* タッチ環境の疑似hoverでも反転しない */
+    @media (hover: none), (pointer: coarse){
+      .flip-inner{ transform: none !important; }
     }
 
     @keyframes floaty{
