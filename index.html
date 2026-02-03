@@ -305,11 +305,7 @@
       width: min(640px, 92vw);
       height: min(600px, 92vw);
       perspective: 900px;
-      pointer-events:none;
-    }
-
-    .glass-wrap *{
-      pointer-events:none;
+      user-select: none;
     }
 
     .glass-float{
@@ -318,6 +314,33 @@
       transform-style: preserve-3d;
       animation: floaty 7.2s ease-in-out infinite;
       will-change: transform;
+    }
+
+    .flip-card{
+      position:absolute;
+      inset:0;
+      transform-style: preserve-3d;
+      transform: translate3d(var(--glass-move-x, 0px), var(--glass-move-y, 0px), 0px)
+        rotateX(var(--glass-tilt-x, 0deg)) rotateY(var(--glass-tilt-y, 0deg));
+      backface-visibility: hidden;
+      will-change: transform;
+    }
+
+    .flip-inner{
+      position:absolute;
+      inset:0;
+      transform-style: preserve-3d;
+      transition: transform .85s cubic-bezier(.2,.85,.25,1);
+    }
+
+    .flip-face{
+      position:absolute;
+      inset:0;
+      backface-visibility: hidden;
+    }
+
+    .flip-back{
+      transform: rotateY(180deg);
     }
 
     .glass-card{
@@ -336,10 +359,7 @@
         0 0 0 1px rgba(186,104,255,.08) inset;
       overflow:hidden;
       transform-style:preserve-3d;
-      transform: translate3d(var(--glass-move-x, 0px), var(--glass-move-y, 0px), 0px)
-        rotateX(var(--glass-tilt-x, 0deg)) rotateY(var(--glass-tilt-y, 0deg));
       backface-visibility: hidden;
-      will-change: transform;
     }
 
     .glass-card::before{
@@ -373,6 +393,7 @@
       animation: sheen 7.5s ease-in-out infinite;
       mix-blend-mode: screen;
       z-index: 2;
+      pointer-events:none;
     }
 
     .glass-noise{
@@ -387,13 +408,15 @@
 
     .glass-ui{
       position:absolute;
-      inset:16px;
+      inset:0;
+      padding: 26px 28px;
+      box-sizing: border-box;
       display:flex;
       flex-direction:column;
       gap:10px;
       color: rgba(255,255,255,.92);
       z-index: 3;
-      transform: translateZ(20px) scale(1.04);
+      transform: translateZ(20px);
       transform-origin: center;
       backface-visibility: hidden;
       text-rendering: geometricPrecision;
@@ -537,19 +560,22 @@
     @media (max-width: 1024px){
       .hero-visual{ min-height: 520px; }
       .glass-wrap{ width: min(560px, 92vw); height: min(520px, 92vw); }
-      .glass-ui{ transform: translateZ(20px) scale(1.02); }
+      .glass-ui{ transform: translateZ(20px); padding: 18px 16px; }
     }
 
     @media (max-width: 768px){
       .hero-visual{ min-height: 360px; }
       .glass-wrap{ width: min(360px, 92vw); height: min(360px, 92vw); }
-      .glass-ui{ transform: translateZ(20px) scale(1); }
+      .glass-ui{ transform: translateZ(20px); padding: 18px 16px; }
     }
 
     @media (max-width: 900px){
       .glass-wrap{
         width: min(520px, 92vw);
         height: 500px;
+      }
+      .glass-ui{
+        padding: 18px 16px;
       }
     }
 
