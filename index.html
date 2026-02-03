@@ -298,12 +298,15 @@
       align-items:flex-start;
       min-height:600px;
       padding-top: 6px;
+      padding-bottom: 24px;
     }
 
     .glass-wrap{
       position:relative;
       width: min(640px, 92vw);
-      height: min(600px, 92vw);
+      aspect-ratio: 640 / 600;
+      height: auto;
+      max-height: 600px;
       perspective: 900px;
       user-select: none;
       cursor: pointer;
@@ -333,6 +336,7 @@
       inset:0;
       transform-style: preserve-3d;
       transition: transform .85s cubic-bezier(.2,.85,.25,1);
+      will-change: transform;
     }
 
     .flip-face{
@@ -349,6 +353,16 @@
     /* PC: 3D flip is allowed only when .is-flipped is set */
     .flip-card.is-flipped .flip-inner{
       transform: rotateY(180deg);
+    }
+
+    /* タッチ端末では tilt/move を固定（=変な角度にならない） */
+    @media (hover: none), (pointer: coarse){
+      .flip-card{
+        transform: none !important;
+      }
+      .glass-float{
+        animation: none;
+      }
     }
 
     /* Mobile: disable 3D transforms; swap faces by display */
@@ -579,20 +593,19 @@
 
     @media (max-width: 1024px){
       .hero-visual{ min-height: 520px; }
-      .glass-wrap{ width: min(560px, 92vw); height: min(520px, 92vw); }
+      .glass-wrap{ width: min(560px, 92vw); }
       .glass-ui{ transform: translateZ(20px); padding: 18px 16px; }
     }
 
     @media (max-width: 768px){
       .hero-visual{ min-height: 360px; }
-      .glass-wrap{ width: min(360px, 92vw); height: min(360px, 92vw); }
+      .glass-wrap{ width: min(360px, 92vw); max-height: none; }
       .glass-ui{ transform: translateZ(20px); padding: 18px 16px; }
     }
 
     @media (max-width: 900px){
       .glass-wrap{
         width: min(520px, 92vw);
-        height: 500px;
       }
       .glass-ui{
         padding: 18px 16px;
@@ -3782,13 +3795,19 @@
         setVars(0, 0, 0, 0);
       }
 
-      wrap.addEventListener("mousemove", onMove, { passive: true });
-      wrap.addEventListener("mouseleave", onLeave, { passive: true });
+      const isFine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+      if (isFine) {
+        wrap.addEventListener("mousemove", onMove, { passive: true });
+        wrap.addEventListener("mouseleave", onLeave, { passive: true });
+      } else {
+        setVars(0, 0, 0, 0);
+      }
 
-      wrap.addEventListener("pointerup", (e) => {
-        if (e.pointerType === "mouse" && e.button !== 0) return;
+      wrap.addEventListener("click", () => {
         card.classList.toggle("is-flipped");
       }, { passive: true });
+
+      wrap.style.webkitTapHighlightColor = "transparent";
     })();
   </script>
 </body>
