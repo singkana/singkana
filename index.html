@@ -302,8 +302,8 @@
 
     .glass-wrap{
       position:relative;
-      width:min(540px, 92vw);
-      height: 540px;
+      width: min(520px, 92vw);
+      height: 520px;
       perspective: 900px;
       pointer-events:none;
     }
@@ -402,6 +402,87 @@
       letter-spacing: 0.01em;
     }
 
+    /* ===== HERO Live Mock Density Tuning ===== */
+    .glass-wrap::before{
+      content:"";
+      position:absolute;
+      inset: 1px;
+      border-radius: 26px;
+      border: 1px solid rgba(255,255,255,.10);
+      pointer-events:none;
+      z-index: 1;
+    }
+
+    .glass-wrap .hero-demo-header{
+      margin-bottom: 10px !important;
+    }
+    .glass-wrap .hero-demo-kicker{
+      opacity: .65;
+    }
+    .glass-wrap .hero-demo-title{
+      font-size: 14px !important;
+      letter-spacing: .02em;
+    }
+    .glass-wrap .hero-demo-badges{
+      gap: 8px !important;
+    }
+    .glass-wrap .hero-demo-tags{
+      gap: 8px !important;
+      transform: scale(.96);
+      transform-origin: left top;
+      opacity: .9;
+    }
+
+    .glass-wrap .hero-demo-label{
+      font-size: 10px !important;
+      opacity: .65;
+      margin-bottom: 6px !important;
+    }
+
+    .glass-wrap .hero-demo-lyrics,
+    .glass-wrap .hero-demo-output{
+      padding: 12px 12px !important;
+      border-radius: 16px !important;
+      margin-bottom: 10px !important;
+    }
+
+    .glass-wrap .hero-demo-output .hero-demo-mode{
+      font-size: 10px !important;
+      opacity: .8;
+    }
+    .glass-wrap .hero-demo-output .hero-demo-kana{
+      font-size: 15px !important;
+      line-height: 1.35 !important;
+      letter-spacing: .03em;
+    }
+
+    .glass-wrap .hero-demo-bottom{
+      display: grid !important;
+      grid-template-columns: 1fr 1fr !important;
+      gap: 10px !important;
+    }
+    .glass-wrap .hero-demo-panel{
+      padding: 10px 10px !important;
+      border-radius: 16px !important;
+      min-height: 96px !important;
+      opacity: .88;
+    }
+    .glass-wrap .hero-demo-panel .hero-demo-label{
+      font-size: 10px !important;
+      opacity: .7;
+      margin-bottom: 6px !important;
+    }
+    .glass-wrap .hero-demo-btn{
+      padding: 7px 10px !important;
+      border-radius: 999px !important;
+      font-size: 10px !important;
+    }
+    .glass-wrap .hero-demo-wave{
+      transform: scale(.92);
+      transform-origin: right center;
+      opacity: .85;
+    }
+
     @keyframes floaty{
       0%,100% { transform: translateY(0px); }
       50%     { transform: translateY(-8px); }
@@ -415,6 +496,13 @@
     @media (max-width: 768px){
       .hero-visual{ min-height: 320px; }
       .glass-wrap{ width: min(360px, 92vw); height: 360px; }
+    }
+
+    @media (max-width: 900px){
+      .glass-wrap{
+        width: min(520px, 92vw);
+        height: 500px;
+      }
     }
 
     @media (prefers-reduced-motion: reduce){
@@ -675,12 +763,12 @@
                 <div class="glass-noise"></div>
 
                 <div class="glass-ui">
-                  <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center justify-between mb-3 hero-demo-header">
                     <div class="space-y-0.5">
-                      <p class="text-[10px] uppercase tracking-[0.16em] text-slate-300/80">Live preview</p>
-                      <p class="text-sm font-semibold">SingKANA Studio</p>
+                      <p class="text-[10px] uppercase tracking-[0.16em] text-slate-300/80 hero-demo-kicker">Live preview</p>
+                      <p class="text-sm font-semibold hero-demo-title">SingKANA Studio</p>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 hero-demo-badges">
                       <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-200">
                         <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
                         Online
@@ -691,7 +779,7 @@
                     </div>
                   </div>
 
-                  <div class="flex flex-wrap items-center gap-2 mb-2">
+                  <div class="flex flex-wrap items-center gap-2 mb-2 hero-demo-tags">
                     <span class="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
                       <span class="hero-demo-caret"></span>
                       行タップでハイライト
@@ -706,18 +794,18 @@
                   </div>
 
                   <div class="grid gap-3 text-[11px]">
-                    <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-3">
-                      <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">Original Lyrics</p>
+                    <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-3 hero-demo-lyrics">
+                      <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5 hero-demo-label">Original Lyrics</p>
                       <p class="text-slate-200">
                         Put your <span class="underline decoration-dotted">heart</span> on the line, we’ll be <span class="underline decoration-dotted">flying</span> tonight...
                       </p>
                     </div>
 
-                    <div class="rounded-2xl border border-singkana-400/40 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-slate-900/90 p-3 shadow-glow">
-                      <p class="text-[10px] uppercase tracking-[0.16em] text-slate-300 mb-1.5">SingKANA Output</p>
+                    <div class="rounded-2xl border border-singkana-400/40 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-slate-900/90 p-3 shadow-glow hero-demo-output">
+                      <p class="text-[10px] uppercase tracking-[0.16em] text-slate-300 mb-1.5 hero-demo-label">SingKANA Output</p>
                       <div class="grid grid-cols-[1fr_auto] gap-2 items-start">
-                        <p class="font-medium text-slate-100 leading-relaxed">
-                          <span class="inline-flex items-center gap-2 rounded-lg bg-singkana-500/15 border border-singkana-400/30 px-2 py-1">
+                        <p class="font-medium text-slate-100 leading-relaxed hero-demo-kana">
+                          <span class="inline-flex items-center gap-2 rounded-lg bg-singkana-500/15 border border-singkana-400/30 px-2 py-1 hero-demo-mode">
                             <span class="text-[10px] uppercase tracking-[0.16em] text-singkana-200">Natural</span>
                           </span>
                           <br />
@@ -748,27 +836,27 @@
                       </div>
                     </div>
 
-                    <div class="grid gap-3 sm:grid-cols-2">
-                      <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
-                        <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">EN → かな</p>
+                    <div class="grid gap-3 sm:grid-cols-2 hero-demo-bottom">
+                      <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-3 hero-demo-panel">
+                        <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5 hero-demo-label">EN → かな</p>
                         <p class="text-slate-200 leading-relaxed">
                           プッ ユア ハート オン ザ ライン<br />
                           ウィー ビー フライイン トゥナイッ
                         </p>
                         <div class="mt-2 flex flex-wrap gap-1.5">
-                          <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10">歌唱向け</span>
-                          <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10">音変化</span>
+                          <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10 hero-demo-btn">歌唱向け</span>
+                          <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10 hero-demo-btn">音変化</span>
                         </div>
                       </div>
-                      <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-3">
-                        <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5">Export</p>
+                      <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-3 hero-demo-panel">
+                        <p class="text-[10px] uppercase tracking-[0.16em] text-slate-400 mb-1.5 hero-demo-label">Export</p>
                         <p class="text-slate-200 leading-relaxed">
                           Copy / TXT / SRT（簡易）<br />
                           行タップでハイライト
                         </p>
                         <div class="mt-2 flex flex-wrap gap-1.5">
-                          <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10">1クリック</span>
-                          <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10">台本化</span>
+                          <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10 hero-demo-btn">1クリック</span>
+                          <span class="rounded-full bg-slate-950/50 px-2 py-0.5 text-[9px] text-slate-200 border border-white/10 hero-demo-btn">台本化</span>
                         </div>
                       </div>
                     </div>
