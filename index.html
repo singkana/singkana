@@ -343,6 +343,11 @@
       transform: rotateY(180deg);
     }
 
+    /* 事故防止：裏返し無効（is-flipped が付いても反転しない） */
+    .flip-inner{
+      transform: none !important;
+    }
+
     .glass-card{
       position:absolute;
       inset:0;
@@ -540,9 +545,6 @@
 
     /* ホバーで裏返さない（裏面が空で消える事故防止） */
     /* 反転はクリック/タップでの明示操作のみ */
-    .flip-card.is-flipped .flip-inner{
-      transform: rotateY(180deg);
-    }
 
 
     @keyframes floaty{
@@ -3762,9 +3764,6 @@
 
       wrap.addEventListener("mousemove", onMove, { passive: true });
       wrap.addEventListener("mouseleave", onLeave, { passive: true });
-      wrap.addEventListener("click", () => {
-        card.classList.toggle("is-flipped");
-      });
     })();
   </script>
 </body>
