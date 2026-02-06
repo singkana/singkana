@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata2:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ugc -d ugc_factory"]
       interval: 5s
@@ -143,4 +143,5 @@ services:
 
 volumes:
   pgdata:
+  pgdata2:
   minio:
