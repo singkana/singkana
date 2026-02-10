@@ -21,6 +21,8 @@ WORK_DIR="/tmp/singkana_sheet_check_$$"
 PAYLOAD_JSON='{"title":"TEST","artist":"TEST","lines":[{"orig":"Hello","kana":"˘チェケラ～(アウト)"}]}'
 SKIP_STEP1=0
 EXPECTED_DRAFT_ID=""
+PREPARE_FILE=""
+STATE_FILE=""
 
 mkdir -p "$WORK_DIR"
 trap 'rm -rf "$WORK_DIR"' EXIT
@@ -49,6 +51,8 @@ Options:
   --cookie-file PATH   Default: <temp file per run>
   --skip-step1         Skip Step1 and run from claim
   --expected-draft-id  Validate claim draft_id matches expected value
+  --prepare PATH       Run Step1, save state JSON, then exit
+  --state PATH         Load checkout_id(session_id) from saved state JSON
   --help               Show this help
 EOF
 }
@@ -67,6 +71,10 @@ while [ $# -gt 0 ]; do
       SKIP_STEP1=1; shift ;;
     --expected-draft-id)
       EXPECTED_DRAFT_ID="${2:-}"; shift 2 ;;
+    --prepare)
+      PREPARE_FILE="${2:-}"; shift 2 ;;
+    --state)
+      STATE_FILE="${2:-}"; shift 2 ;;
     --help|-h)
       usage; exit 0 ;;
     *)
@@ -78,6 +86,29 @@ done
 
 if [ -z "${COOKIE_FILE:-}" ]; then
   COOKIE_FILE="$WORK_DIR/cookies.txt"
+fi
+
+# `--prepare` implies Step1 path.
+if [ -n "$PREPARE_FILE" ]; then
+  SKIP_STEP1=0
+fi
+
+# If session_id is omitted and a state file exists, load checkout_id as session_id.
+if [ -z "$SESSION_ID" ] && [ -n "$STATE_FILE" ] && [ -f "$STATE_FILE" ]; then
+  STATE_SID=$(python3 - <<PY
+import json
+p = "$STATE_FILE"
+try:
+    d = json.load(open(p, encoding="utf-8"))
+    print(d.get("checkout_id",""))
+except Exception:
+    print("")
+PY
+)
+  if echo "$STATE_SID" | grep -q '^cs_'; then
+    SESSION_ID="$STATE_SID"
+    info "Loaded session_id from state: ${SESSION_ID:0:12}..."
+  fi
 fi
 
 # When session_id is provided, Step1 should be skipped by default.
@@ -106,6 +137,8 @@ echo ""
 
 # Step 1: Free payload -> 402 + checkout_url
 CHECKOUT_URL=""
+CHECKOUT_ID=""
+STEP1_DRAFT_ID=""
 if [ "$SKIP_STEP1" -eq 0 ]; then
   HTTP_CODE=$(curl -sS -c "$COOKIE_FILE" -b "$COOKIE_FILE" \
     -D "$HDR" -o "$BODY" \
@@ -123,6 +156,26 @@ p = "$BODY"
 try:
     data = json.load(open(p, encoding="utf-8"))
     print(data.get("checkout_url",""))
+except Exception:
+    print("")
+PY
+  )
+  CHECKOUT_ID=$(python3 - <<PY
+import json
+p = "$BODY"
+try:
+    data = json.load(open(p, encoding="utf-8"))
+    print(data.get("checkout_id",""))
+except Exception:
+    print("")
+PY
+  )
+  STEP1_DRAFT_ID=$(python3 - <<PY
+import json
+p = "$BODY"
+try:
+    data = json.load(open(p, encoding="utf-8"))
+    print(data.get("draft_id",""))
 except Exception:
     print("")
 PY
@@ -157,6 +210,39 @@ PY
     cat "$BODY"
   fi
   echo ""
+
+  # Save state JSON if requested (`--prepare`) or provided (`--state`).
+  TARGET_STATE="$PREPARE_FILE"
+  if [ -z "$TARGET_STATE" ] && [ -n "$STATE_FILE" ]; then
+    TARGET_STATE="$STATE_FILE"
+  fi
+  if [ -n "$TARGET_STATE" ] && [ -n "$CHECKOUT_ID" ]; then
+    python3 - <<PY
+import json, time
+out = "$TARGET_STATE"
+obj = {
+  "checkout_id": "$CHECKOUT_ID",
+  "checkout_url": "$CHECKOUT_URL",
+  "draft_id": "$STEP1_DRAFT_ID",
+  "base_url": "$BASE_URL",
+  "origin": "$ORIGIN",
+  "cookie_file": "$COOKIE_FILE",
+  "saved_at": int(time.time()),
+}
+with open(out, "w", encoding="utf-8") as f:
+    json.dump(obj, f, ensure_ascii=False, indent=2)
+print(out)
+PY
+    pass "state saved: $TARGET_STATE"
+  fi
+
+  if [ -n "$PREPARE_FILE" ]; then
+    info "Prepare mode completed. Open checkout_url, complete payment, then run with --state $PREPARE_FILE"
+    echo ""
+    echo "=== Summary ==="
+    echo -e "${GREEN}PASS:${NC} $PASS_COUNT  ${YELLOW}WARN:${NC} $WARN_COUNT  ${RED}FAIL:${NC} $FAIL_COUNT"
+    [ $FAIL_COUNT -eq 0 ] && exit 0 || exit 1
+  fi
 else
   info "Step1 skipped (session-id provided or --skip-step1)."
 fi

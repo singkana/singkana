@@ -1921,6 +1921,8 @@ def api_sheet_claim():
     session_id = str(request.args.get("session_id") or "").strip()
     if not session_id:
         return _json_error(400, "bad_session_id", "session_id is required.")
+    sid_head = session_id[:12]
+    app.logger.info("sheet_claim requested session=%s", sid_head)
 
     uid = getattr(g, "user_id", "") or ""
     if not uid:
@@ -1939,10 +1941,21 @@ def api_sheet_claim():
         stripe.api_key = secret
         session = stripe.checkout.Session.retrieve(session_id)
     except Exception as e:
+        app.logger.warning("sheet_claim stripe retrieve failed session=%s detail=%s", sid_head, str(e))
         return _json_error(400, "stripe_session_error", "Failed to verify checkout session.", detail=str(e))
 
     payment_status = str(getattr(session, "payment_status", "") or "")
     mode = str(getattr(session, "mode", "") or "")
+    status = str(getattr(session, "status", "") or "")
+    livemode = bool(getattr(session, "livemode", False))
+    app.logger.info(
+        "sheet_claim stripe session=%s status=%s payment_status=%s mode=%s livemode=%s",
+        sid_head,
+        status,
+        payment_status,
+        mode,
+        livemode,
+    )
     metadata = getattr(session, "metadata", {}) or {}
     draft_id = str(metadata.get("draft_id") or "")
     uid_meta = str(metadata.get("user_id") or "")
