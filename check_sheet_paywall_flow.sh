@@ -19,6 +19,8 @@ SESSION_ID=""
 COOKIE_FILE=""
 WORK_DIR="/tmp/singkana_sheet_check_$$"
 PAYLOAD_JSON='{"title":"TEST","artist":"TEST","lines":[{"orig":"Hello","kana":"˘チェケラ～(アウト)"}]}'
+SKIP_STEP1=0
+EXPECTED_DRAFT_ID=""
 
 mkdir -p "$WORK_DIR"
 trap 'rm -rf "$WORK_DIR"' EXIT
@@ -34,6 +36,7 @@ WARN_COUNT=0
 pass() { echo -e "${GREEN}✓${NC} $1"; PASS_COUNT=$((PASS_COUNT+1)); }
 fail() { echo -e "${RED}✗${NC} $1"; FAIL_COUNT=$((FAIL_COUNT+1)); }
 warn() { echo -e "${YELLOW}⚠${NC} $1"; WARN_COUNT=$((WARN_COUNT+1)); }
+info() { echo "ℹ $1"; }
 
 usage() {
   cat <<EOF
@@ -44,6 +47,8 @@ Options:
   --origin ORIGIN      Default: https://singkana.com
   --session-id ID      Stripe Checkout session id (cs_...)
   --cookie-file PATH   Default: <temp file per run>
+  --skip-step1         Skip Step1 and run from claim
+  --expected-draft-id  Validate claim draft_id matches expected value
   --help               Show this help
 EOF
 }
@@ -58,6 +63,10 @@ while [ $# -gt 0 ]; do
       SESSION_ID="${2:-}"; shift 2 ;;
     --cookie-file)
       COOKIE_FILE="${2:-}"; shift 2 ;;
+    --skip-step1)
+      SKIP_STEP1=1; shift ;;
+    --expected-draft-id)
+      EXPECTED_DRAFT_ID="${2:-}"; shift 2 ;;
     --help|-h)
       usage; exit 0 ;;
     *)
@@ -69,6 +78,11 @@ done
 
 if [ -z "${COOKIE_FILE:-}" ]; then
   COOKIE_FILE="$WORK_DIR/cookies.txt"
+fi
+
+# When session_id is provided, Step1 should be skipped by default.
+if [ -n "$SESSION_ID" ]; then
+  SKIP_STEP1=1
 fi
 
 if ! command -v curl >/dev/null 2>&1; then
@@ -91,17 +105,19 @@ echo "ORIGIN  : $ORIGIN"
 echo ""
 
 # Step 1: Free payload -> 402 + checkout_url
-HTTP_CODE=$(curl -sS -c "$COOKIE_FILE" -b "$COOKIE_FILE" \
-  -D "$HDR" -o "$BODY" \
-  -H "Origin: $ORIGIN" \
-  -H "Content-Type: application/json" \
-  -d "$PAYLOAD_JSON" \
-  -w "%{http_code}" \
-  "$BASE_URL/api/sheet/pdf")
+CHECKOUT_URL=""
+if [ "$SKIP_STEP1" -eq 0 ]; then
+  HTTP_CODE=$(curl -sS -c "$COOKIE_FILE" -b "$COOKIE_FILE" \
+    -D "$HDR" -o "$BODY" \
+    -H "Origin: $ORIGIN" \
+    -H "Content-Type: application/json" \
+    -d "$PAYLOAD_JSON" \
+    -w "%{http_code}" \
+    "$BASE_URL/api/sheet/pdf")
 
-CT=$(grep -i '^Content-Type:' "$HDR" | head -1 | tr -d '\r')
-STEP1_ELIGIBLE_PDF=0
-CHECKOUT_URL=$(python3 - <<PY
+  CT=$(grep -i '^Content-Type:' "$HDR" | head -1 | tr -d '\r')
+  STEP1_ELIGIBLE_PDF=0
+  CHECKOUT_URL=$(python3 - <<PY
 import json,sys
 p = "$BODY"
 try:
@@ -110,47 +126,64 @@ try:
 except Exception:
     print("")
 PY
-)
+  )
 
-if [ "$HTTP_CODE" = "402" ]; then
-  pass "Free payload returns 402 Payment Required"
-  if [ -n "$CHECKOUT_URL" ]; then
-    pass "checkout_url is present in 402 response"
+  if [ "$HTTP_CODE" = "402" ]; then
+    pass "Free payload returns 402 Payment Required"
+    if [ -n "$CHECKOUT_URL" ]; then
+      pass "checkout_url is present in 402 response"
+    else
+      warn "checkout_url missing in 402 response"
+    fi
+  elif [ "$HTTP_CODE" = "200" ] && echo "$CT" | grep -qi 'application/pdf'; then
+    STEP1_ELIGIBLE_PDF=1
+    pass "Step1 returned 200 PDF (already eligible: Pro or existing valid state)"
+    warn "Paywall(402) was not hit. Use a fresh cookie/user if you need strict gate verification."
   else
-    warn "checkout_url missing in 402 response"
+    fail "Unexpected Step1 response: http=$HTTP_CODE content-type=${CT:-missing}"
   fi
-elif [ "$HTTP_CODE" = "200" ] && echo "$CT" | grep -qi 'application/pdf'; then
-  STEP1_ELIGIBLE_PDF=1
-  pass "Step1 returned 200 PDF (already eligible: Pro or existing valid state)"
-  warn "Paywall(402) was not hit. Use a fresh cookie/user if you need strict gate verification."
-else
-  fail "Unexpected Step1 response: http=$HTTP_CODE content-type=${CT:-missing}"
-fi
 
-echo ""
-echo "[Step1 response header]"
-sed -n '1,20p' "$HDR"
-echo ""
-if [ "$STEP1_ELIGIBLE_PDF" = "1" ]; then
-  echo "[Step1 output file]"
-  cp "$BODY" "$PDF"
-  ls -lh "$PDF" 2>/dev/null || true
-  file "$PDF" 2>/dev/null || true
+  echo ""
+  echo "[Step1 response header]"
+  sed -n '1,20p' "$HDR"
+  echo ""
+  if [ "$STEP1_ELIGIBLE_PDF" = "1" ]; then
+    echo "[Step1 output file]"
+    cp "$BODY" "$PDF"
+    ls -lh "$PDF" 2>/dev/null || true
+    file "$PDF" 2>/dev/null || true
+  else
+    echo "[Step1 response body]"
+    cat "$BODY"
+  fi
+  echo ""
 else
-  echo "[Step1 response body]"
-  cat "$BODY"
+  info "Step1 skipped (session-id provided or --skip-step1)."
 fi
-echo ""
 
 if [ -z "$SESSION_ID" ]; then
-  warn "session_id not provided; stopping after Step1."
-  if [ -n "$CHECKOUT_URL" ]; then
-    echo "Manual next step: open checkout_url and complete payment."
+  if [ "$SKIP_STEP1" -eq 1 ]; then
+    fail "session_id is required when Step1 is skipped."
+  else
+    warn "session_id not provided; stopping after Step1."
+    if [ -n "$CHECKOUT_URL" ]; then
+      echo "Manual next step: open checkout_url and complete payment."
+    fi
   fi
   echo ""
   echo "=== Summary ==="
   echo -e "${GREEN}PASS:${NC} $PASS_COUNT  ${YELLOW}WARN:${NC} $WARN_COUNT  ${RED}FAIL:${NC} $FAIL_COUNT"
   [ $FAIL_COUNT -eq 0 ] && exit 0 || exit 1
+fi
+
+# basic guard for obvious placeholder
+if ! echo "$SESSION_ID" | grep -q '^cs_'; then
+  fail "session_id format is invalid: $SESSION_ID"
+  echo "Hint: pass a real Stripe session id (starts with cs_) after payment completion."
+  echo ""
+  echo "=== Summary ==="
+  echo -e "${GREEN}PASS:${NC} $PASS_COUNT  ${YELLOW}WARN:${NC} $WARN_COUNT  ${RED}FAIL:${NC} $FAIL_COUNT"
+  exit 1
 fi
 
 # Step 2: claim -> token
@@ -164,6 +197,13 @@ if [ "$HTTP_CODE" = "200" ]; then
   pass "claim endpoint returns 200"
 else
   fail "claim expected 200, got $HTTP_CODE"
+  echo ""
+  echo "[Claim response body]"
+  cat "$CLAIM"
+  echo ""
+  echo "=== Summary ==="
+  echo -e "${GREEN}PASS:${NC} $PASS_COUNT  ${YELLOW}WARN:${NC} $WARN_COUNT  ${RED}FAIL:${NC} $FAIL_COUNT"
+  exit 1
 fi
 
 SHEET_TOKEN=$(python3 - <<PY
@@ -176,11 +216,36 @@ except Exception:
     print("")
 PY
 )
+CLAIM_DRAFT_ID=$(python3 - <<PY
+import json
+p = "$CLAIM"
+try:
+    data = json.load(open(p, encoding="utf-8"))
+    print(data.get("draft_id",""))
+except Exception:
+    print("")
+PY
+)
 
 if [ -n "$SHEET_TOKEN" ]; then
   pass "sheet_token issued"
 else
   fail "sheet_token missing"
+  echo ""
+  echo "[Claim response body]"
+  cat "$CLAIM"
+  echo ""
+  echo "=== Summary ==="
+  echo -e "${GREEN}PASS:${NC} $PASS_COUNT  ${YELLOW}WARN:${NC} $WARN_COUNT  ${RED}FAIL:${NC} $FAIL_COUNT"
+  exit 1
+fi
+
+if [ -n "$EXPECTED_DRAFT_ID" ]; then
+  if [ "$CLAIM_DRAFT_ID" = "$EXPECTED_DRAFT_ID" ]; then
+    pass "draft_id matches expected ($EXPECTED_DRAFT_ID)"
+  else
+    fail "draft_id mismatch: expected=$EXPECTED_DRAFT_ID got=$CLAIM_DRAFT_ID"
+  fi
 fi
 
 echo ""
