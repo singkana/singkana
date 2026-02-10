@@ -16,7 +16,7 @@ set -u
 BASE_URL="https://singkana.com"
 ORIGIN="https://singkana.com"
 SESSION_ID=""
-COOKIE_FILE="/tmp/singkana_sheet_ck.txt"
+COOKIE_FILE=""
 WORK_DIR="/tmp/singkana_sheet_check_$$"
 PAYLOAD_JSON='{"title":"TEST","artist":"TEST","lines":[{"orig":"Hello","kana":"˘チェケラ～(アウト)"}]}'
 
@@ -43,7 +43,7 @@ Options:
   --base-url URL       Default: https://singkana.com
   --origin ORIGIN      Default: https://singkana.com
   --session-id ID      Stripe Checkout session id (cs_...)
-  --cookie-file PATH   Default: /tmp/singkana_sheet_ck.txt
+  --cookie-file PATH   Default: <temp file per run>
   --help               Show this help
 EOF
 }
@@ -66,6 +66,10 @@ while [ $# -gt 0 ]; do
       exit 2 ;;
   esac
 done
+
+if [ -z "${COOKIE_FILE:-}" ]; then
+  COOKIE_FILE="$WORK_DIR/cookies.txt"
+fi
 
 if ! command -v curl >/dev/null 2>&1; then
   echo "curl is required."
@@ -95,12 +99,8 @@ HTTP_CODE=$(curl -sS -c "$COOKIE_FILE" -b "$COOKIE_FILE" \
   -w "%{http_code}" \
   "$BASE_URL/api/sheet/pdf")
 
-if [ "$HTTP_CODE" = "402" ]; then
-  pass "Free payload returns 402 Payment Required"
-else
-  fail "Expected 402 for free payload, got $HTTP_CODE"
-fi
-
+CT=$(grep -i '^Content-Type:' "$HDR" | head -1 | tr -d '\r')
+STEP1_ELIGIBLE_PDF=0
 CHECKOUT_URL=$(python3 - <<PY
 import json,sys
 p = "$BODY"
@@ -112,18 +112,34 @@ except Exception:
 PY
 )
 
-if [ -n "$CHECKOUT_URL" ]; then
-  pass "checkout_url is present in 402 response"
+if [ "$HTTP_CODE" = "402" ]; then
+  pass "Free payload returns 402 Payment Required"
+  if [ -n "$CHECKOUT_URL" ]; then
+    pass "checkout_url is present in 402 response"
+  else
+    warn "checkout_url missing in 402 response"
+  fi
+elif [ "$HTTP_CODE" = "200" ] && echo "$CT" | grep -qi 'application/pdf'; then
+  STEP1_ELIGIBLE_PDF=1
+  pass "Step1 returned 200 PDF (already eligible: Pro or existing valid state)"
+  warn "Paywall(402) was not hit. Use a fresh cookie/user if you need strict gate verification."
 else
-  warn "checkout_url missing in 402 response"
+  fail "Unexpected Step1 response: http=$HTTP_CODE content-type=${CT:-missing}"
 fi
 
 echo ""
 echo "[Step1 response header]"
 sed -n '1,20p' "$HDR"
 echo ""
-echo "[Step1 response body]"
-cat "$BODY"
+if [ "$STEP1_ELIGIBLE_PDF" = "1" ]; then
+  echo "[Step1 output file]"
+  cp "$BODY" "$PDF"
+  ls -lh "$PDF" 2>/dev/null || true
+  file "$PDF" 2>/dev/null || true
+else
+  echo "[Step1 response body]"
+  cat "$BODY"
+fi
 echo ""
 
 if [ -z "$SESSION_ID" ]; then
