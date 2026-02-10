@@ -13,6 +13,7 @@ import time
 import secrets
 import json
 import hashlib
+import html
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
@@ -83,6 +84,76 @@ def _json_error(code: int, error: str, message: str = "", **extra: Any):
         payload["message"] = message
     payload.update(extra)
     return jsonify(payload), code
+
+def _escape_html(text: str) -> str:
+    return html.escape(text or "", quote=True)
+
+def _render_kana_html(kana_raw: str) -> str:
+    """Escape then wrap marks as spans (safe HTML only)."""
+    s = _escape_html(kana_raw or "")
+    out: list[str] = []
+    in_elision = False
+    for ch in s:
+        if ch == "(":
+            if not in_elision:
+                in_elision = True
+                out.append('<span class="mk mk-paren">(</span><span class="mk mk-eli">')
+            else:
+                out.append("(")
+            continue
+        if ch == ")":
+            if in_elision:
+                in_elision = False
+                out.append('</span><span class="mk mk-paren">)</span>')
+            else:
+                out.append(")")
+            continue
+        if ch == "˘":
+            out.append('<span class="mk mk-breath">˘</span><span class="mk-gap"></span>')
+            continue
+        if ch == "↑":
+            out.append('<span class="mk mk-up">↑</span>')
+            continue
+        if ch == "↓":
+            out.append('<span class="mk mk-down">↓</span>')
+            continue
+        if ch == "～":
+            out.append('<span class="mk mk-liaison">～</span>')
+            continue
+        out.append(ch)
+    if in_elision:
+        out.append("</span>")
+    return "".join(out)
+
+def _render_sheet_html(title: str, artist: str, lines: list[dict[str, str]]) -> str:
+    tpl_path = (BASE_DIR / "singkana_sheet.html")
+    if not tpl_path.exists():
+        raise FileNotFoundError("singkana_sheet.html not found")
+    tpl = tpl_path.read_text(encoding="utf-8")
+    if "{{#lines}}" not in tpl or "{{/lines}}" not in tpl:
+        raise ValueError("Template missing lines block")
+    before, rest = tpl.split("{{#lines}}", 1)
+    block, after = rest.split("{{/lines}}", 1)
+
+    header_map = {
+        "{{title}}": _escape_html(title or ""),
+        "{{artist}}": _escape_html(artist or ""),
+    }
+    for k, v in header_map.items():
+        before = before.replace(k, v)
+        after = after.replace(k, v)
+
+    rows: list[str] = []
+    for line in lines:
+        orig = _escape_html((line.get("orig") or "").strip())
+        kana_raw = (line.get("kana") or "").strip()
+        kana_html = _render_kana_html(kana_raw)
+        row = block.replace("{{orig}}", orig)
+        row = row.replace("{{{kana_html}}}", kana_html)
+        row = row.replace("{{kana_html}}", kana_html)
+        rows.append(row)
+
+    return before + "".join(rows) + after
 
 # ---- Limits / Policy ----
 MAX_JSON_BYTES = int(os.getenv("MAX_JSON_BYTES", "200000"))  # 200KB default
@@ -638,9 +709,34 @@ def _ensure_user_exists(conn, user_id: str):
     except Exception:
         pass
 
-def _set_plan(conn, user_id: str, plan: str):
+def _set_plan(conn, user_id: str, plan: str) -> None:
+    """users.plan を更新する。commit は呼び出し側で1回だけ行う（トランザクションの一貫性のため）。"""
     conn.execute("UPDATE users SET plan=? WHERE user_id=?", (plan, user_id))
-    conn.commit()
+
+def _plan_from_subscription(status: str | None, current_period_end: int | None) -> str:
+    """
+    単一ルール（Webhook / before_request 共通）
+    - Pro: status in ("active","trialing") かつ current_period_end が存在し、かつ current_period_end > now
+    - それ以外は Free（期限切れ・未払い・キャンセル・不明・None 含む）
+    """
+    if status not in ("active", "trialing"):
+        return "free"
+    if current_period_end is None:
+        return "free"  # None=pro は永続Pro化事故を招くので禁止
+    now = int(time.time())
+    return "pro" if current_period_end > now else "free"
+
+def _safe_int(value) -> Optional[int]:
+    """Stripe由来の値を int に正規化（None/空/不正値は None）"""
+    if value is None:
+        return None
+    try:
+        s = str(value).strip()
+        if s == "":
+            return None
+        return int(float(s))
+    except Exception:
+        return None
 
 @app.before_request
 def _identity_and_plan_bootstrap():
@@ -703,6 +799,19 @@ def _identity_and_plan_bootstrap():
         _ensure_user_exists(conn, uid)
         row = conn.execute("SELECT plan FROM users WHERE user_id=?", (uid,)).fetchone()
         g.user_plan = (row["plan"] if row else "free")
+
+        # 最終安全弁: pro→free のみ。g.user_plan が pro のときだけ subscriptions を参照（条件一致時だけ更新）
+        if getattr(g, "user_plan", "free") == "pro":
+            sub_row = conn.execute(
+                "SELECT status, current_period_end FROM subscriptions WHERE user_id=?",
+                (uid,),
+            ).fetchone()
+            if sub_row:
+                safe_plan = _plan_from_subscription(sub_row["status"], sub_row["current_period_end"])
+                if safe_plan == "free":
+                    g.user_plan = "free"
+                    _set_plan(conn, uid, "free")
+                    conn.commit()
 
         # ref capture: ?ref=XXXX (landing / shared links)
         try:
@@ -1492,6 +1601,73 @@ def api_romaji():
         )
 
 # ======================================================================
+# PDF Sheet: 歌唱用カンペの生成（Playwright）
+# ======================================================================
+@app.post("/api/sheet/pdf")
+def api_sheet_pdf():
+    if not _origin_ok():
+        return _json_error(403, "invalid_origin", "このページからのみ生成できます。")
+
+    data, err = _require_json()
+    if err:
+        return err
+
+    title = str(data.get("title") or "").strip()
+    artist = str(data.get("artist") or "").strip()
+    lines = data.get("lines")
+    if not isinstance(lines, list):
+        return _json_error(400, "bad_input", "lines is required.")
+
+    safe_lines: list[dict[str, str]] = []
+    for item in lines:
+        if not isinstance(item, dict):
+            continue
+        orig = str(item.get("orig") or "").strip()
+        kana = str(item.get("kana") or "").strip()
+        if not orig and not kana:
+            continue
+        safe_lines.append({"orig": orig, "kana": kana})
+
+    if not safe_lines:
+        return _json_error(400, "bad_input", "lines is empty.")
+
+    try:
+        html_str = _render_sheet_html(title, artist, safe_lines)
+    except FileNotFoundError:
+        return _json_error(500, "template_missing", "Sheet template is missing.")
+    except Exception as e:
+        return _json_error(500, "template_error", "Failed to render sheet template.", detail=str(e))
+
+    try:
+        from playwright.sync_api import sync_playwright  # type: ignore
+    except Exception as e:
+        return _json_error(501, "playwright_missing", "Playwright is not installed.", detail=str(e))
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(args=["--no-sandbox"])
+            page = browser.new_page()
+            page.set_content(html_str, wait_until="load")
+            page.emulate_media(media="print")
+            pdf_bytes = page.pdf(format="A4", print_background=True, prefer_css_page_size=True)
+            page.close()
+            browser.close()
+    except Exception as e:
+        app.logger.exception("Sheet PDF generation failed: %s", e)
+        return _json_error(500, "pdf_failed", "PDF生成に失敗しました。", detail=str(e))
+
+    filename = "singkana_sheet.pdf"
+    if title:
+        safe = re.sub(r"[\\\/:*?\"<>|]+", "_", title).strip("_")
+        if safe:
+            filename = f"{safe}_singkana.pdf"
+
+    resp = Response(pdf_bytes, mimetype="application/pdf")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+    return resp
+
+# ======================================================================
 # Billing: config + checkout + webhook
 # ======================================================================
 
@@ -1566,11 +1742,8 @@ def stripe_webhook():
                   (user_id, stripe_customer_id, stripe_subscription_id, status, current_period_end, cancel_at_period_end)
                 VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
-                  stripe_customer_id=excluded.stripe_customer_id,
-                  stripe_subscription_id=excluded.stripe_subscription_id,
-                  status=excluded.status,
-                  current_period_end=excluded.current_period_end,
-                  cancel_at_period_end=excluded.cancel_at_period_end,
+                  stripe_customer_id=COALESCE(excluded.stripe_customer_id, subscriptions.stripe_customer_id),
+                  stripe_subscription_id=COALESCE(excluded.stripe_subscription_id, subscriptions.stripe_subscription_id),
                   updated_at=CURRENT_TIMESTAMP
                 """,
                 # subscription_id / customer_id がこの時点で未確定なことがあるため、
@@ -1586,7 +1759,7 @@ def stripe_webhook():
         sub_id = sub.get("id")
         customer_id = sub.get("customer")
         status = sub.get("status")
-        current_period_end = sub.get("current_period_end")
+        current_period_end = _safe_int(sub.get("current_period_end"))
         cancel_at_period_end = 1 if sub.get("cancel_at_period_end") else 0
 
         user_id = (sub.get("metadata") or {}).get("user_id")
@@ -1604,14 +1777,18 @@ def stripe_webhook():
             user_id = (row["user_id"] if row else None)
 
         if user_id:
-            # active/trialing で Pro を確定（checkout.session.completed が早すぎてもここで整合する）
-            if status in ("active", "trialing"):
-                _set_plan(conn, user_id, "pro")
-
-            # ステータスに応じてFreeへ落とす（支払い失敗/失効など）
-            if status in ("canceled", "unpaid", "incomplete_expired", "paused"):
-                _set_plan(conn, user_id, "free")
-
+            # current_period_end が無い場合は Stripe API から補完（取得できれば上書き）
+            if current_period_end is None and sub_id:
+                secret_key = _env("STRIPE_SECRET_KEY")
+                if secret_key:
+                    try:
+                        stripe.api_key = secret_key
+                        full_sub = stripe.Subscription.retrieve(sub_id)
+                        current_period_end = _safe_int(full_sub.get("current_period_end"))
+                        status = full_sub.get("status") or status
+                    except Exception as e:
+                        app.logger.warning("stripe_webhook: failed to retrieve subscription %s: %s", sub_id, e)
+            # 1) 先に subscriptions を upsert（DB を正とする）
             conn.execute(
                 """
                 INSERT INTO subscriptions
@@ -1621,12 +1798,15 @@ def stripe_webhook():
                   stripe_customer_id=excluded.stripe_customer_id,
                   stripe_subscription_id=excluded.stripe_subscription_id,
                   status=excluded.status,
-                  current_period_end=excluded.current_period_end,
+                  current_period_end=COALESCE(excluded.current_period_end, subscriptions.current_period_end),
                   cancel_at_period_end=excluded.cancel_at_period_end,
                   updated_at=CURRENT_TIMESTAMP
                 """,
                 (user_id, customer_id, sub_id, status, current_period_end, cancel_at_period_end),
             )
+            # 2) 単一ルールで plan を1回だけ決定し、users.plan を1回だけ更新
+            new_plan = _plan_from_subscription(status, current_period_end)
+            _set_plan(conn, user_id, new_plan)
             conn.commit()
 
     # 3) 解約・失効（安全側に倒してfreeへ）
@@ -1635,7 +1815,7 @@ def stripe_webhook():
         sub_id = sub.get("id")
         customer_id = sub.get("customer")
         status = sub.get("status")
-        current_period_end = sub.get("current_period_end")
+        current_period_end = _safe_int(sub.get("current_period_end"))
         cancel_at_period_end = 1 if sub.get("cancel_at_period_end") else 0
 
         user_id = (sub.get("metadata") or {}).get("user_id")
@@ -1653,7 +1833,7 @@ def stripe_webhook():
             user_id = (row["user_id"] if row else None)
 
         if user_id:
-            _set_plan(conn, user_id, "free")
+            # 1) 先に subscriptions を upsert
             conn.execute(
                 """
                 INSERT INTO subscriptions
@@ -1663,12 +1843,14 @@ def stripe_webhook():
                   stripe_customer_id=excluded.stripe_customer_id,
                   stripe_subscription_id=excluded.stripe_subscription_id,
                   status=excluded.status,
-                  current_period_end=excluded.current_period_end,
+                  current_period_end=COALESCE(excluded.current_period_end, subscriptions.current_period_end),
                   cancel_at_period_end=excluded.cancel_at_period_end,
                   updated_at=CURRENT_TIMESTAMP
                 """,
                 (user_id, customer_id, sub_id, status, current_period_end, cancel_at_period_end),
             )
+            # 2) deleted/paused は無条件 free、1回だけ _set_plan（必ず if user_id 内）
+            _set_plan(conn, user_id, "free")
             conn.commit()
 
     return jsonify({"ok": True})

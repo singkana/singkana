@@ -6,3 +6,4 @@ ulid-py==1.1.0
 
 pykakasi
 pillow
+playwright

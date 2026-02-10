@@ -251,6 +251,14 @@
       white-space: pre-wrap;
       margin-top: 4px;
     }
+    .result-ka .mk { font-weight: 700; }
+    .result-ka .mk-breath { color: #cbd5f5; opacity: 0.9; }
+    .result-ka .mk-up { color: #fde68a; }
+    .result-ka .mk-down { color: #e2e8f0; opacity: 0.85; }
+    .result-ka .mk-liaison { color: #cbd5f5; padding: 0 0.15em; }
+    .result-ka .mk-eli { opacity: 0.75; }
+    .result-ka .mk-paren { opacity: 0.6; }
+    .result-ka .mk-gap { display: inline-block; width: 0.25em; }
     .feedback-status {
       font-size: 11px;
       margin-top: 4px;
@@ -1511,6 +1519,9 @@
 
                   <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
                     onclick="downloadSrt()">⬇ SRT(簡易)</button>
+
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
+                    onclick="downloadPdfSheet()">⬇ PDF</button>
                 </div>
 
                 <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
@@ -2518,6 +2529,16 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
+    function downloadBlobFile(filename, blob) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
     function copyKanaOnly(){ copyTextToClipboard(buildKanaOnlyText()); }
     function copyEnKana(){ copyTextToClipboard(buildEnKanaText()); }
     function downloadTxt(){
@@ -2540,6 +2561,43 @@
       }).join("\n");
       downloadBlob(`${getSongTitleSafe()}_singkana.srt`, srt, "text/plain;charset=utf-8");
       setStatus("SRT(簡易)を保存しました");
+    }
+
+    async function downloadPdfSheet(){
+      if (!window.currentConvertedLines.length) { setStatus("出力がありません"); return; }
+      const mode = __getDisplayMode();
+      const title = (document.getElementById("song-title")?.value || "").toString().trim();
+      const lines = window.currentConvertedLines.map((line) => {
+        const orig = (line.en || line.orig || "").toString().trim();
+        const raw = (line.singkana || line.kana || line.standard || "").toString().trim();
+        const kana = renderDisplay(raw, mode);
+        return { orig, kana };
+      }).filter((x) => x.orig || x.kana);
+
+      if (!lines.length) { setStatus("出力がありません"); return; }
+
+      setStatus("PDFを生成中…");
+      try {
+        const resp = await fetch("/api/sheet/pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, artist: "", lines }),
+        });
+        if (!resp.ok) {
+          let msg = "PDF生成に失敗しました";
+          try {
+            const data = await resp.json();
+            if (data && data.message) msg = data.message;
+          } catch (_) {}
+          setStatus(msg);
+          return;
+        }
+        const blob = await resp.blob();
+        downloadBlobFile(`${getSongTitleSafe()}_singkana.pdf`, blob);
+        setStatus("PDFを保存しました");
+      } catch (e) {
+        setStatus("PDF生成に失敗しました");
+      }
     }
 
     // =========================
@@ -2612,7 +2670,6 @@
 
       let t = String(coreText);
       t = t.replace(/\[.*?\]/g, "");
-      t = t.replace(/\(.*?\)/g, "");
       t = t.replace(/[|\/]/g, "");
       // 区切り記号を統一（カンマを「｜」に置換）
       t = t.replace(/[,，]/g, "｜");
@@ -2662,6 +2719,84 @@
       return _renderDisplayPlainText(t, mode);
     }
 
+    function renderKanaHtml(kanaRaw){
+      if (!kanaRaw) return "";
+      const escaped = escapeHtml(String(kanaRaw));
+      let out = "";
+      let inElision = false;
+      for (let i = 0; i < escaped.length; i++) {
+        const ch = escaped[i];
+        if (ch === "(") {
+          if (!inElision) {
+            inElision = true;
+            out += '<span class="mk mk-paren">(</span><span class="mk mk-eli">';
+          } else {
+            out += "(";
+          }
+          continue;
+        }
+        if (ch === ")") {
+          if (inElision) {
+            inElision = false;
+            out += '</span><span class="mk mk-paren">)</span>';
+          } else {
+            out += ")";
+          }
+          continue;
+        }
+        if (ch === "˘") {
+          out += '<span class="mk mk-breath">˘</span><span class="mk-gap"></span>';
+          continue;
+        }
+        if (ch === "↑") {
+          out += '<span class="mk mk-up">↑</span>';
+          continue;
+        }
+        if (ch === "↓") {
+          out += '<span class="mk mk-down">↓</span>';
+          continue;
+        }
+        if (ch === "～") {
+          out += '<span class="mk mk-liaison">～</span>';
+          continue;
+        }
+        out += ch;
+      }
+      if (inElision) {
+        out += "</span>";
+      }
+      return out;
+    }
+
+    function renderKanaHtmlInHtml(html){
+      if (!html) return "";
+      const tpl = document.createElement("template");
+      tpl.innerHTML = html;
+      const walker = document.createTreeWalker(tpl.content, NodeFilter.SHOW_TEXT);
+      const targets = [];
+      let node;
+      while ((node = walker.nextNode())) {
+        if (!node.nodeValue) continue;
+        if (/[˘↑↓～()]/.test(node.nodeValue)) {
+          targets.push(node);
+        }
+      }
+      targets.forEach((textNode) => {
+        if (!textNode.parentNode) return;
+        const replacement = document.createElement("template");
+        replacement.innerHTML = renderKanaHtml(textNode.nodeValue);
+        textNode.parentNode.replaceChild(replacement.content, textNode);
+      });
+      return tpl.innerHTML;
+    }
+
+    function renderDisplayWithKanaMarks(coreText, mode, hasHtml = false){
+      if (!coreText) return "";
+      const rendered = renderDisplay(coreText, mode);
+      if (!rendered) return "";
+      return hasHtml ? renderKanaHtmlInHtml(rendered) : renderKanaHtml(rendered);
+    }
+
     function __displayModeChangeHandler(){
       if (!window.currentConvertedLines.length) return;
       const mode = __getDisplayMode();
@@ -2686,7 +2821,7 @@
               if (isPro()) {
                 highlighted = addBreathMarks(highlighted);
               }
-              textDiv.innerHTML = renderDisplay(highlighted, mode);
+              textDiv.innerHTML = renderDisplayWithKanaMarks(highlighted, mode, true);
             } else {
               // Standard版または通常表示
               textDiv.textContent = renderDisplay(line.kana || line.singkana || line.standard || "", mode);
@@ -3170,7 +3305,7 @@
           highlighted = addBreathMarks(highlighted);
         }
         
-        textDiv.innerHTML = renderDisplay(highlighted, __getDisplayMode());
+        textDiv.innerHTML = renderDisplayWithKanaMarks(highlighted, __getDisplayMode(), true);
         
         // Pro側だけ「Singability」を表示（仮実装）
         if (isPro()) {
