@@ -14,6 +14,7 @@ import secrets
 import json
 import hashlib
 import html
+import threading
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
@@ -352,6 +353,13 @@ DB_PATH = _env("SINGKANA_DB_PATH", str(BASE_DIR / "singkana.db"))
 TRANSFER_CODE_TTL_SEC = int(_env("TRANSFER_CODE_TTL_SEC", "600"))  # 10分
 TRANSFER_CODE_LEN = int(_env("TRANSFER_CODE_LEN", "10"))
 TRANSFER_CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"  # 0/O, 1/I/L 等を除外
+# One-shot PDF
+SHEET_ONESHOT_JPY = int(_env("SHEET_ONESHOT_JPY", "300"))      # ¥300
+SHEET_DRAFT_TTL_SEC = int(_env("SHEET_DRAFT_TTL_SEC", "1800")) # 30分
+SHEET_TOKEN_TTL_SEC = int(_env("SHEET_TOKEN_TTL_SEC", "600"))  # 10分
+SHEET_TOKEN_LEN = int(_env("SHEET_TOKEN_LEN", "32"))
+SHEET_MAX_PARALLEL = int(_env("SHEET_MAX_PARALLEL", "2"))
+_SHEET_SEM = threading.BoundedSemaphore(max(1, SHEET_MAX_PARALLEL))
 
 # ref_code
 REF_CODE_LEN = int(_env("REF_CODE_LEN", "6"))
@@ -477,6 +485,38 @@ def _init_db():
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_events_name_created ON events(name, created_at)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_events_ref_created ON events(ref_code, created_at)")
+
+    # One-shot PDF draft + token
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS sheet_drafts (
+            draft_id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            title TEXT,
+            artist TEXT,
+            payload_json TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL,
+            consumed_at INTEGER,
+            stripe_session_id TEXT
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sheet_drafts_user_created ON sheet_drafts(user_id, created_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sheet_drafts_expires ON sheet_drafts(expires_at)")
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS sheet_pdf_tokens (
+            token_hash TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            draft_id TEXT NOT NULL,
+            stripe_session_id TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL,
+            used_at INTEGER,
+            used_by_ip TEXT
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sheet_pdf_tokens_user ON sheet_pdf_tokens(user_id, created_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sheet_pdf_tokens_expires ON sheet_pdf_tokens(expires_at)")
 
     conn.commit()
     conn.close()
@@ -737,6 +777,97 @@ def _safe_int(value) -> Optional[int]:
         return int(float(s))
     except Exception:
         return None
+
+def _normalize_sheet_lines(lines: Any) -> list[dict[str, str]]:
+    if not isinstance(lines, list):
+        return []
+    safe_lines: list[dict[str, str]] = []
+    for item in lines:
+        if not isinstance(item, dict):
+            continue
+        orig = str(item.get("orig") or "").strip()
+        kana = str(item.get("kana") or "").strip()
+        if not orig and not kana:
+            continue
+        safe_lines.append({"orig": orig, "kana": kana})
+    return safe_lines
+
+def _extract_sheet_payload(data: Dict[str, Any]) -> tuple[str, str, list[dict[str, str]], Optional[Response]]:
+    title = str(data.get("title") or "").strip()
+    artist = str(data.get("artist") or "").strip()
+    safe_lines = _normalize_sheet_lines(data.get("lines"))
+    if not safe_lines:
+        return title, artist, [], _json_error(400, "bad_input", "lines is empty.")
+    return title, artist, safe_lines, None
+
+def _hash_sheet_token(token: str) -> str:
+    return hashlib.sha256((token or "").encode("utf-8")).hexdigest()
+
+def _gen_sheet_token() -> str:
+    raw_len = max(24, SHEET_TOKEN_LEN)
+    return secrets.token_urlsafe(raw_len)
+
+def _create_sheet_checkout_session(conn, user_id: str, title: str, artist: str, safe_lines: list[dict[str, str]]):
+    envs = _stripe_required_env()
+    secret = envs["STRIPE_SECRET_KEY"]
+    base = (envs["APP_BASE_URL"] or "https://singkana.com").rstrip("/")
+    success_url = _env("STRIPE_SHEET_SUCCESS_URL", f"{base}/?sheet_checkout=success&session_id={{CHECKOUT_SESSION_ID}}")
+    cancel_url = _env("STRIPE_SHEET_CANCEL_URL", f"{base}/?sheet_checkout=cancel")
+    if not secret:
+        return None, _json_error(400, "stripe_not_configured", "Stripe env is missing.", missing=["STRIPE_SECRET_KEY"])
+
+    stripe, import_err = _stripe_import()
+    if stripe is None:
+        return None, _json_error(501, "stripe_sdk_missing", "stripe package is not installed.", detail=import_err)
+
+    now = _now_ts()
+    expires_at = now + max(300, SHEET_DRAFT_TTL_SEC)
+    draft_id = f"sd_{secrets.token_hex(12)}"
+    payload = json.dumps({"title": title, "artist": artist, "lines": safe_lines}, ensure_ascii=False)
+
+    conn.execute(
+        """
+        INSERT INTO sheet_drafts (draft_id, user_id, title, artist, payload_json, created_at, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (draft_id, user_id, title, artist, payload, now, expires_at),
+    )
+    conn.commit()
+
+    try:
+        stripe.api_key = secret
+        session = stripe.checkout.Session.create(
+            mode="payment",
+            line_items=[{
+                "price_data": {
+                    "currency": "jpy",
+                    "unit_amount": max(100, SHEET_ONESHOT_JPY),
+                    "product_data": {"name": "SingKANA PDF Sheet (One-shot)"},
+                },
+                "quantity": 1,
+            }],
+            success_url=success_url,
+            cancel_url=cancel_url,
+            allow_promotion_codes=False,
+            client_reference_id=user_id,
+            metadata={
+                "purpose": "sheet_pdf_oneshot",
+                "draft_id": draft_id,
+                "user_id": user_id,
+            },
+        )
+        conn.execute("UPDATE sheet_drafts SET stripe_session_id=? WHERE draft_id=?", (session.id, draft_id))
+        conn.commit()
+        return {
+            "draft_id": draft_id,
+            "checkout_url": session.url,
+            "checkout_id": session.id,
+            "expires_at": expires_at,
+            "amount_jpy": max(100, SHEET_ONESHOT_JPY),
+        }, None
+    except Exception as e:
+        app.logger.exception("sheet checkout creation failed: %s", e)
+        return None, _json_error(500, "stripe_error", "Failed to create one-shot checkout session.", detail=str(e))
 
 @app.before_request
 def _identity_and_plan_bootstrap():
@@ -1612,24 +1743,85 @@ def api_sheet_pdf():
     if err:
         return err
 
-    title = str(data.get("title") or "").strip()
-    artist = str(data.get("artist") or "").strip()
-    lines = data.get("lines")
-    if not isinstance(lines, list):
-        return _json_error(400, "bad_input", "lines is required.")
-
+    uid = getattr(g, "user_id", "") or ""
+    user_plan = getattr(g, "user_plan", "free")
+    is_pro = (user_plan == "pro") or is_pro_override()
+    title = ""
+    artist = ""
     safe_lines: list[dict[str, str]] = []
-    for item in lines:
-        if not isinstance(item, dict):
-            continue
-        orig = str(item.get("orig") or "").strip()
-        kana = str(item.get("kana") or "").strip()
-        if not orig and not kana:
-            continue
-        safe_lines.append({"orig": orig, "kana": kana})
+    token_row = None
+    token_hash = ""
 
-    if not safe_lines:
-        return _json_error(400, "bad_input", "lines is empty.")
+    if is_pro:
+        title, artist, safe_lines, payload_err = _extract_sheet_payload(data)
+        if payload_err:
+            return payload_err
+    else:
+        sheet_token = str(data.get("sheet_token") or "").strip()
+        if not sheet_token:
+            if not uid:
+                return _json_error(400, "no_user", "User identity missing.")
+            title_tmp, artist_tmp, safe_lines_tmp, payload_err = _extract_sheet_payload(data)
+            if payload_err:
+                return payload_err
+            conn = _db()
+            now = _now_ts()
+            try:
+                conn.execute("DELETE FROM sheet_drafts WHERE expires_at < ?", (now - 60,))
+                conn.execute("DELETE FROM sheet_pdf_tokens WHERE expires_at < ?", (now - 60,))
+                conn.commit()
+            except Exception:
+                pass
+            result, checkout_err = _create_sheet_checkout_session(conn, uid, title_tmp, artist_tmp, safe_lines_tmp)
+            if checkout_err:
+                return checkout_err
+            return _json_error(
+                402,
+                "payment_required",
+                "PDF出力はProまたはOne-Shot購入が必要です。決済完了後に自動でダウンロードされます。",
+                required_plan="pro_or_sheet_oneshot",
+                checkout_url=result["checkout_url"],
+                checkout_id=result["checkout_id"],
+                draft_id=result["draft_id"],
+                amount_jpy=result["amount_jpy"],
+            )
+        token_hash = _hash_sheet_token(sheet_token)
+        conn = _db()
+        now = _now_ts()
+        token_row = conn.execute(
+            """
+            SELECT token_hash, user_id, draft_id, expires_at, used_at
+            FROM sheet_pdf_tokens
+            WHERE token_hash=?
+            """,
+            (token_hash,),
+        ).fetchone()
+        if not token_row:
+            return _json_error(401, "invalid_sheet_token", "sheet_token が無効です。")
+        if token_row["used_at"]:
+            return _json_error(409, "sheet_token_used", "このsheet_tokenは使用済みです。")
+        if int(token_row["expires_at"] or 0) < now:
+            return _json_error(410, "sheet_token_expired", "sheet_token の有効期限が切れました。")
+        if uid and token_row["user_id"] and token_row["user_id"] != uid:
+            return _json_error(403, "sheet_token_user_mismatch", "このsheet_tokenは別ユーザー向けです。")
+
+        draft_row = conn.execute(
+            "SELECT title, artist, payload_json, expires_at FROM sheet_drafts WHERE draft_id=?",
+            (token_row["draft_id"],),
+        ).fetchone()
+        if not draft_row:
+            return _json_error(404, "sheet_draft_missing", "購入データが見つかりません。")
+        if int(draft_row["expires_at"] or 0) < now:
+            return _json_error(410, "sheet_draft_expired", "購入データの有効期限が切れました。")
+        try:
+            payload = json.loads(draft_row["payload_json"] or "{}")
+            title = str(payload.get("title") or draft_row["title"] or "").strip()
+            artist = str(payload.get("artist") or draft_row["artist"] or "").strip()
+            safe_lines = _normalize_sheet_lines(payload.get("lines"))
+        except Exception:
+            safe_lines = []
+        if not safe_lines:
+            return _json_error(500, "sheet_draft_invalid", "購入データの形式が不正です。")
 
     try:
         html_str = _render_sheet_html(title, artist, safe_lines)
@@ -1643,6 +1835,10 @@ def api_sheet_pdf():
     except Exception as e:
         return _json_error(501, "playwright_missing", "Playwright is not installed.", detail=str(e))
 
+    acquired = _SHEET_SEM.acquire(blocking=False)
+    if not acquired:
+        return _json_error(429, "pdf_busy", "混雑中です。少し待ってから再試行してください。")
+
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(args=["--no-sandbox"])
@@ -1655,6 +1851,19 @@ def api_sheet_pdf():
     except Exception as e:
         app.logger.exception("Sheet PDF generation failed: %s", e)
         return _json_error(500, "pdf_failed", "PDF生成に失敗しました。", detail=str(e))
+    finally:
+        _SHEET_SEM.release()
+
+    if token_row is not None:
+        try:
+            conn = _db()
+            conn.execute(
+                "UPDATE sheet_pdf_tokens SET used_at=?, used_by_ip=? WHERE token_hash=? AND used_at IS NULL",
+                (_now_ts(), _client_ip(), token_hash),
+            )
+            conn.commit()
+        except Exception as e:
+            app.logger.warning("Failed to mark sheet token as used: %s", e)
 
     filename = "singkana_sheet.pdf"
     if title:
@@ -1666,6 +1875,121 @@ def api_sheet_pdf():
     resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
     return resp
+
+@app.post("/api/sheet/checkout")
+def api_sheet_checkout():
+    if not _origin_ok():
+        return _json_error(403, "invalid_origin", "このページからのみ決済を開始できます。")
+
+    if getattr(g, "user_plan", "free") == "pro" or is_pro_override():
+        return _json_error(409, "already_pro", "Proユーザーは決済不要です。")
+
+    uid = getattr(g, "user_id", "") or ""
+    if not uid:
+        return _json_error(400, "no_user", "User identity missing.")
+
+    data, err = _require_json()
+    if err:
+        return err
+    title, artist, safe_lines, payload_err = _extract_sheet_payload(data)
+    if payload_err:
+        return payload_err
+
+    conn = _db()
+    now = _now_ts()
+    try:
+        conn.execute("DELETE FROM sheet_drafts WHERE expires_at < ?", (now - 60,))
+        conn.execute("DELETE FROM sheet_pdf_tokens WHERE expires_at < ?", (now - 60,))
+        conn.commit()
+    except Exception:
+        pass
+
+    result, checkout_err = _create_sheet_checkout_session(conn, uid, title, artist, safe_lines)
+    if checkout_err:
+        return checkout_err
+    return jsonify({
+        "ok": True,
+        "url": result["checkout_url"],
+        "id": result["checkout_id"],
+        "draft_id": result["draft_id"],
+        "expires_at": result["expires_at"],
+        "amount_jpy": result["amount_jpy"],
+    })
+
+@app.get("/api/sheet/claim")
+def api_sheet_claim():
+    session_id = str(request.args.get("session_id") or "").strip()
+    if not session_id:
+        return _json_error(400, "bad_session_id", "session_id is required.")
+
+    uid = getattr(g, "user_id", "") or ""
+    if not uid:
+        return _json_error(400, "no_user", "User identity missing.")
+
+    envs = _stripe_required_env()
+    secret = envs["STRIPE_SECRET_KEY"]
+    if not secret:
+        return _json_error(400, "stripe_not_configured", "Stripe env is missing.", missing=["STRIPE_SECRET_KEY"])
+
+    stripe, import_err = _stripe_import()
+    if stripe is None:
+        return _json_error(501, "stripe_sdk_missing", "stripe package is not installed.", detail=import_err)
+
+    try:
+        stripe.api_key = secret
+        session = stripe.checkout.Session.retrieve(session_id)
+    except Exception as e:
+        return _json_error(400, "stripe_session_error", "Failed to verify checkout session.", detail=str(e))
+
+    payment_status = str(getattr(session, "payment_status", "") or "")
+    mode = str(getattr(session, "mode", "") or "")
+    metadata = getattr(session, "metadata", {}) or {}
+    draft_id = str(metadata.get("draft_id") or "")
+    uid_meta = str(metadata.get("user_id") or "")
+    if uid_meta and uid_meta != uid:
+        return _json_error(403, "session_user_mismatch", "この決済は別ユーザー向けです。")
+    if mode != "payment":
+        return _json_error(400, "bad_session_mode", "One-shot決済セッションではありません。")
+    if payment_status != "paid":
+        return _json_error(402, "payment_not_completed", "決済完了を確認できませんでした。", payment_status=payment_status)
+    if not draft_id:
+        return _json_error(400, "draft_missing", "決済メタデータが不足しています。")
+
+    conn = _db()
+    now = _now_ts()
+    draft_row = conn.execute(
+        """
+        SELECT draft_id, user_id, expires_at
+        FROM sheet_drafts
+        WHERE draft_id=?
+        """,
+        (draft_id,),
+    ).fetchone()
+    if not draft_row:
+        return _json_error(404, "sheet_draft_missing", "購入データが見つかりません。")
+    if draft_row["user_id"] != uid:
+        return _json_error(403, "draft_user_mismatch", "この購入データは別ユーザー向けです。")
+    if int(draft_row["expires_at"] or 0) < now:
+        return _json_error(410, "sheet_draft_expired", "購入データの有効期限が切れました。")
+
+    token = _gen_sheet_token()
+    token_hash = _hash_sheet_token(token)
+    expires_at = now + max(60, SHEET_TOKEN_TTL_SEC)
+    conn.execute(
+        """
+        INSERT OR REPLACE INTO sheet_pdf_tokens
+        (token_hash, user_id, draft_id, stripe_session_id, created_at, expires_at, used_at, used_by_ip)
+        VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)
+        """,
+        (token_hash, uid, draft_id, session_id, now, expires_at),
+    )
+    conn.commit()
+    return jsonify({
+        "ok": True,
+        "sheet_token": token,
+        "expires_at": expires_at,
+        "draft_id": draft_id,
+    })
 
 # ======================================================================
 # Billing: config + checkout + webhook

@@ -1794,6 +1794,8 @@
 
     let __checkoutInFlight = false;
     let __portalInFlight = false;
+    let __sheetCheckoutInFlight = false;
+    const SHEET_CHECKOUT_DRAFT_KEY = "singkana_sheet_checkout_draft_v1";
 
     function syncProCtas() {
       const buyBtn = document.getElementById("pro-checkout-btn");
@@ -2125,6 +2127,8 @@
         const url = new URL(window.location.href);
         const checkout = url.searchParams.get("checkout");
         const portal = url.searchParams.get("portal");
+        const sheetCheckout = url.searchParams.get("sheet_checkout");
+        const sheetSessionId = url.searchParams.get("session_id");
         if (checkout === "success") {
           setProCheckoutStatus("決済完了。Pro状態を確認中…");
           
@@ -2142,6 +2146,31 @@
         } else if (checkout === "cancel") {
           setProCheckoutStatus("決済をキャンセルしました。");
         }
+        if (sheetCheckout === "success" && sheetSessionId) {
+          setStatus("決済を確認中…");
+          const draft = loadSheetCheckoutDraft();
+          const fallbackTitle = (draft && draft.title) ? String(draft.title) : getSongTitleSafe();
+          (async () => {
+            try {
+              const token = await claimSheetToken(sheetSessionId);
+              const resp = await requestPdfWithToken(token);
+              const ct = (resp.headers.get("content-type") || "").toLowerCase();
+              if (resp.ok && ct.includes("application/pdf")) {
+                await downloadPdfBlobResponse(resp, fallbackTitle);
+                clearSheetCheckoutDraft();
+              } else {
+                let j = {};
+                try { j = await resp.json(); } catch (_) {}
+                const msg = (j && j.message) ? j.message : "PDFダウンロードに失敗しました。";
+                setStatus(msg);
+              }
+            } catch (e) {
+              setStatus((e && e.message) ? e.message : "決済確認に失敗しました。");
+            }
+          })();
+        } else if (sheetCheckout === "cancel") {
+          setStatus("PDF決済をキャンセルしました。");
+        }
         if (portal === "return") {
           const ps = document.getElementById("billing-portal-status");
           if (ps) ps.textContent = "請求管理から戻りました";
@@ -2152,6 +2181,11 @@
         }
         if (portal) {
           url.searchParams.delete("portal");
+          window.history.replaceState({}, "", url.toString());
+        }
+        if (sheetCheckout) {
+          url.searchParams.delete("sheet_checkout");
+          url.searchParams.delete("session_id");
           window.history.replaceState({}, "", url.toString());
         }
       } catch (e) {}
@@ -2539,6 +2573,78 @@
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
+    function buildSheetPayloadFromCurrentResult() {
+      if (!window.currentConvertedLines.length) return null;
+      const mode = __getDisplayMode();
+      const title = (document.getElementById("song-title")?.value || "").toString().trim();
+      const lines = window.currentConvertedLines.map((line) => {
+        const orig = (line.en || line.orig || "").toString().trim();
+        const raw = (line.singkana || line.kana || line.standard || "").toString().trim();
+        const kana = renderDisplay(raw, mode);
+        return { orig, kana };
+      }).filter((x) => x.orig || x.kana);
+      if (!lines.length) return null;
+      return { title, artist: "", lines };
+    }
+    function saveSheetCheckoutDraft(payload) {
+      try { localStorage.setItem(SHEET_CHECKOUT_DRAFT_KEY, JSON.stringify(payload || {})); } catch (_) {}
+    }
+    function loadSheetCheckoutDraft() {
+      try {
+        const raw = localStorage.getItem(SHEET_CHECKOUT_DRAFT_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return null;
+        return parsed;
+      } catch (_) {
+        return null;
+      }
+    }
+    function clearSheetCheckoutDraft() {
+      try { localStorage.removeItem(SHEET_CHECKOUT_DRAFT_KEY); } catch (_) {}
+    }
+    async function requestSheetCheckout(payload) {
+      const res = await fetch("/api/sheet/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.ok || !j.url) {
+        const msg = (j && j.message) ? j.message : "決済画面を開けませんでした。";
+        throw new Error(msg);
+      }
+      return j.url;
+    }
+    async function claimSheetToken(sessionId) {
+      const res = await fetch(`/api/sheet/claim?session_id=${encodeURIComponent(sessionId)}`);
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || !j.ok || !j.sheet_token) {
+        const msg = (j && j.message) ? j.message : "決済確認に失敗しました。";
+        throw new Error(msg);
+      }
+      return j.sheet_token;
+    }
+    async function requestPdfWithPayload(payload) {
+      return fetch("/api/sheet/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    }
+    async function requestPdfWithToken(sheetToken) {
+      return fetch("/api/sheet/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sheet_token: sheetToken }),
+      });
+    }
+    async function downloadPdfBlobResponse(resp, fallbackTitle = "") {
+      const blob = await resp.blob();
+      const safeTitle = (fallbackTitle || getSongTitleSafe() || "singkana").trim();
+      downloadBlobFile(`${safeTitle}_singkana.pdf`, blob);
+      setStatus("PDFを保存しました");
+    }
     function copyKanaOnly(){ copyTextToClipboard(buildKanaOnlyText()); }
     function copyEnKana(){ copyTextToClipboard(buildEnKanaText()); }
     function downloadTxt(){
@@ -2564,39 +2670,42 @@
     }
 
     async function downloadPdfSheet(){
-      if (!window.currentConvertedLines.length) { setStatus("出力がありません"); return; }
-      const mode = __getDisplayMode();
-      const title = (document.getElementById("song-title")?.value || "").toString().trim();
-      const lines = window.currentConvertedLines.map((line) => {
-        const orig = (line.en || line.orig || "").toString().trim();
-        const raw = (line.singkana || line.kana || line.standard || "").toString().trim();
-        const kana = renderDisplay(raw, mode);
-        return { orig, kana };
-      }).filter((x) => x.orig || x.kana);
-
-      if (!lines.length) { setStatus("出力がありません"); return; }
+      const payload = buildSheetPayloadFromCurrentResult();
+      if (!payload) { setStatus("出力がありません"); return; }
+      if (__sheetCheckoutInFlight) { setStatus("決済処理中です…"); return; }
 
       setStatus("PDFを生成中…");
       try {
-        const resp = await fetch("/api/sheet/pdf", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, artist: "", lines }),
-        });
-        if (!resp.ok) {
-          let msg = "PDF生成に失敗しました";
-          try {
-            const data = await resp.json();
-            if (data && data.message) msg = data.message;
-          } catch (_) {}
-          setStatus(msg);
+        const resp = await requestPdfWithPayload(payload);
+        const ct = (resp.headers.get("content-type") || "").toLowerCase();
+        if (resp.ok && ct.includes("application/pdf")) {
+          await downloadPdfBlobResponse(resp, payload.title || getSongTitleSafe());
           return;
         }
-        const blob = await resp.blob();
-        downloadBlobFile(`${getSongTitleSafe()}_singkana.pdf`, blob);
-        setStatus("PDFを保存しました");
+
+        let data = {};
+        try { data = await resp.json(); } catch (_) {}
+        if (resp.status === 402) {
+          __sheetCheckoutInFlight = true;
+          setStatus("決済画面へ移動します…");
+          saveSheetCheckoutDraft(payload);
+          try {
+            const url = (data && data.checkout_url) ? data.checkout_url : await requestSheetCheckout(payload);
+            window.location.href = url;
+            return;
+          } catch (e) {
+            setStatus((e && e.message) ? e.message : "決済を開始できませんでした。");
+            __sheetCheckoutInFlight = false;
+            return;
+          }
+        }
+
+        const msg = (data && data.message) ? data.message : "PDF生成に失敗しました";
+        setStatus(msg);
       } catch (e) {
         setStatus("PDF生成に失敗しました");
+      } finally {
+        __sheetCheckoutInFlight = false;
       }
     }
 
