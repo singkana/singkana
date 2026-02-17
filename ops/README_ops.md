@@ -127,6 +127,15 @@ sudo chown www-data:www-data /var/log/singkana /run/singkana
 sudo chmod +x /var/www/singkana/ops/backup_full_encrypted.sh
 ```
 
+### 5-0. 安全確認（導入前に1分）
+
+```bash
+sudo head -n 80 /var/www/singkana/ops/backup_full_encrypted.sh
+sudo grep -nE "gpg|AES256|BACKUP_GPG_PASSPHRASE|--batch|loopback|passphrase-fd|sha256|manifest" \
+  /var/www/singkana/ops/backup_full_encrypted.sh
+command -v gpg && gpg --version | head -n 2
+```
+
 ### 5-1. パスフレーズを EnvironmentFile で管理（推奨）
 
 `BACKUP_GPG_PASSPHRASE=...` をコマンドラインに直接書かず、root のみ読めるファイルで管理します。

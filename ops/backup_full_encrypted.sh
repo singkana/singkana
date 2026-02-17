@@ -7,7 +7,7 @@
 #
 # Usage:
 #   sudo /var/www/singkana/ops/backup_full_encrypted.sh
-#   sudo BACKUP_GPG_PASSPHRASE='your-pass' /var/www/singkana/ops/backup_full_encrypted.sh
+#   # Recommended: set BACKUP_GPG_PASSPHRASE via EnvironmentFile (/etc/singkana/backup.env)
 # ================================================================
 set -euo pipefail
 
@@ -67,7 +67,7 @@ if [[ "$(id -u)" -ne 0 ]]; then
   exit 1
 fi
 
-for cmd in tar gpg sha256sum date chmod; do
+for cmd in tar gpg sha256sum date chmod find; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
     echo "[backup] ERROR: required command not found: $cmd" >&2
     exit 1

@@ -1096,7 +1096,7 @@
         <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
           <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">02 / Marking</p>
           <h3 class="text-sm font-semibold text-slate-50">カラオケ風 “歌い方マーク”</h3>
-          <p class="text-xs text-slate-300 leading-relaxed">視覚ガイドで練習効率を上げる（Natural/Preciseで段階適用）。</p>
+          <p class="text-xs text-slate-300 leading-relaxed">本文は読みやすく保ちつつ、下段チップでガイドを表示（段階適用）。</p>
         </div>
         <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
           <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">03 / Web Studio</p>
@@ -2585,8 +2585,7 @@
       const lines = window.currentConvertedLines.map((line) => {
         const orig = (line.en || line.orig || "").toString().trim();
         const raw = (__modePrimaryKana(line, mode) || "").toString().trim();
-        const guided = addKaraokeGuideMarksPlain(raw, mode);
-        const kana = renderDisplay(guided, mode);
+        const kana = renderDisplay(raw, mode);
         return { orig, kana };
       }).filter((x) => x.orig || x.kana);
       if (!lines.length) return null;
@@ -2999,68 +2998,51 @@
       return hasHtml ? renderKanaHtmlInHtml(rendered) : renderKanaHtml(rendered);
     }
 
-    // Natural/Precise向けに、歌い方マークを視覚ガイドとして補助付与
-    function addKaraokeGuideMarksPlain(text, mode){
-      if (!text) return "";
+    // 本文の可読性を壊さず、下段チップでガイド情報だけ提示する
+    function inferGuideBadges(text, mode){
       const m = (mode || __getDisplayMode() || "natural").toLowerCase();
-      let t = String(text).replace(/\s+/g, " ").trim();
-      if (!t) return "";
-      if (m === "basic") return t; // Basicは最短表示を優先
-      if (!/[ァ-ヴぁ-ん]/.test(t)) return t;
-
-      const words = t.split(" ").filter(Boolean);
-      if (!words.length) return t;
-
-      const out = [];
-      const breathInterval = m === "precise" ? 4 : 5;
-      for (let i = 0; i < words.length; i++) {
-        const word = words[i];
-
-        // BR: 一定語数ごとに息継ぎガイド
-        if (i > 0 && i % breathInterval === 0) out.push("˘");
-        // VIB(簡易): preciseのみ、強調位置の目印を補助
-        if (m === "precise" && i > 0 && i % 6 === 0) out.push("↑");
-
-        out.push(word);
-
-        // HLD: 短語・機能語の前に連結マークを挿入
-        if (i < words.length - 1) {
-          const next = words[i + 1];
-          if (/^(トゥ|ト|ダ|ザ|ナ|ノ|ニ|ネ|デ|ディ|イン|オン|ア|オ|エ|ウ)$/.test(next) || /^[ァ-ヴー]{1,2}$/.test(next)) {
-            out.push("～");
-          }
-        }
+      if (m === "basic") {
+        return [{ label: "MARK OFF", active: false }];
       }
 
-      let guided = out.join(" ").replace(/\s{2,}/g, " ").trim();
+      const src = String(text || "");
+      const hasBR = /˘/.test(src);
+      const hasHLD = /～/.test(src);
+      const hasVIB = /[↑↓]/.test(src);
+      const hasELI = /[()]/.test(src);
+
+      const badges = [
+        { label: "BR", active: hasBR },
+        { label: "HLD", active: hasHLD },
+      ];
       if (m === "precise") {
-        guided = guided.replace(/([ァ-ヴー]{2,})ト(?=\s|$)/, "$1(ト)");
-        if (!/[↓↑]\s*$/.test(guided)) guided += " ↓";
+        badges.push({ label: "VIB", active: hasVIB });
       }
-      return guided;
+      if (hasELI) {
+        badges.push({ label: "ELI", active: true });
+      }
+      return badges;
     }
 
-    function addKaraokeGuideMarksHtml(html, mode){
-      if (!html) return "";
-      const tpl = document.createElement("template");
-      tpl.innerHTML = html;
-      const walker = document.createTreeWalker(tpl.content, NodeFilter.SHOW_TEXT);
-      const targets = [];
-      let node;
-      while ((node = walker.nextNode())) {
-        if (!node.nodeValue) continue;
-        if (/[ァ-ヴぁ-ん]/.test(node.nodeValue)) targets.push(node);
-      }
-      targets.forEach((textNode) => {
-        textNode.nodeValue = addKaraokeGuideMarksPlain(textNode.nodeValue, mode);
+    function createGuideBadgeRow(text, mode){
+      const row = document.createElement("div");
+      row.className = "mt-1 flex flex-wrap items-center gap-1.5";
+
+      const badges = inferGuideBadges(text, mode);
+      badges.forEach((b) => {
+        const chip = document.createElement("span");
+        chip.className = b.active
+          ? "rounded-full border border-white/20 bg-slate-800/60 px-2 py-0.5 text-[9px] text-slate-200"
+          : "rounded-full border border-white/10 bg-slate-900/40 px-2 py-0.5 text-[9px] text-slate-500";
+        chip.textContent = b.label;
+        row.appendChild(chip);
       });
-      return tpl.innerHTML;
-    }
 
-    function karaokeGuideLegend(mode){
-      if (mode === "precise") return "BR: ˘  /  HLD: ～  /  VIB: ↑↓";
-      if (mode === "natural") return "BR: ˘  /  HLD: ～";
-      return "Basic: マークなし（最短表示）";
+      const hint = document.createElement("span");
+      hint.className = "text-[9px] text-slate-500";
+      hint.textContent = "記号は必要箇所のみ表示";
+      row.appendChild(hint);
+      return row;
     }
 
     function __displayModeChangeHandler(){
@@ -3587,10 +3569,6 @@
         if (compareText) {
           // SingKANA版: 差分ハイライトを適用
           let highlighted = highlightDifferences(compareText, text);
-
-          // Natural/Preciseで歌い方ガイドマークを補助挿入
-          highlighted = addKaraokeGuideMarksHtml(highlighted, mode);
-
           textDiv.innerHTML = renderDisplayWithKanaMarks(highlighted, mode, true);
           
           // Precise + Pro のときだけ「Singability」を表示
@@ -3608,14 +3586,9 @@
           }
         } else {
           // Basic等: 差分ハイライトなしでそのまま表示
-          const guided = addKaraokeGuideMarksPlain(text || "", mode);
-          textDiv.innerHTML = renderDisplayWithKanaMarks(guided, mode, false);
+          textDiv.innerHTML = renderDisplayWithKanaMarks(text || "", mode, false);
         }
-
-        const guideLegend = document.createElement("div");
-        guideLegend.className = "mt-1 text-[10px] text-slate-400/90";
-        guideLegend.textContent = karaokeGuideLegend(mode);
-        textDiv.appendChild(guideLegend);
+        textDiv.appendChild(createGuideBadgeRow(text || "", mode));
       } else {
         // Standard版: 通常表示（文字色は普通、背景・枠・装飾を削る）
         textDiv.textContent = renderDisplay(text || "", __getDisplayMode());
