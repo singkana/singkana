@@ -6,11 +6,12 @@
   new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
   j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-  })(window,document,'script','dataLayer','GTM-MQKTJV7H');</script>
+  })(window,document,'script','dataLayer','GTM-WV3GHF7D');</script>
   <!-- End Google Tag Manager -->
   <meta charset="UTF-8" />
   <title>SingKANA プライバシーポリシー</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,follow" />
   <style>
     :root {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -66,7 +67,7 @@
 </head>
 <body>
   <!-- Google Tag Manager (noscript) -->
-  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MQKTJV7H"
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WV3GHF7D"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <!-- End Google Tag Manager (noscript) -->
   <main>
@@ -82,7 +83,7 @@
       <li><strong>決済情報</strong>：Proプランをご利用いただく場合、Stripe社を通じて決済情報（クレジットカード情報等）を取得します。決済情報はStripe社が管理し、本サービス運営者は直接取得・保存しません。</li>
       <li><strong>ユーザーID</strong>：本サービスの利用状況を管理するための、自動生成される識別子（Cookieに保存）</li>
     </ul>
-    <p><strong>重要な点</strong>：本サービスのメイン機能である「テキストからかな表記への変換」に際して、ユーザーが入力した歌詞・テキストの内容は、運営側サーバーには送信・保存されません。変換処理はユーザーの端末（ブラウザ）内のみで行われます。</p>
+    <p><strong>重要な点</strong>：本サービスのメイン機能である「テキストからかな表記への変換」に際して、Freeプランの基本変換ではユーザーが入力した歌詞・テキストの内容は運営側サーバーには送信されず、端末（ブラウザ）内のみで処理されます。ただし、Proプランの「AI発音補正」機能およびPDF練習シート生成時には、歌詞テキストがサーバーに送信されます。AI発音補正ではOpenAI社のAPI（GPT-4o-mini）を利用しており、歌詞テキストがOpenAI社に送信されます。</p>
 
     <h2>2. 情報の利用目的</h2>
     <p>本サービスでは、取得した情報を以下の目的で利用します。</p>
@@ -104,7 +105,8 @@
     <p>1. 本サービスは、法令に基づく場合を除き、ユーザーに関する情報を第三者に提供することはありません。</p>
     <p>2. ただし、以下の場合には情報を提供することがあります。</p>
     <ul>
-      <li><strong>決済サービス（Stripe）</strong>：Proプランの決済処理のため、Stripe社に必要最小限の情報（ユーザーID、メールアドレス等）を提供します。決済情報（クレジットカード情報等）はStripe社が直接管理します。</li>
+      <li><strong>AI発音補正（OpenAI）</strong>：Proプランの「AI発音補正」機能利用時に、歌詞テキストがOpenAI社のAPI（GPT-4o-mini）に送信されます。OpenAI社のAPI利用ポリシーに基づき、API経由で送信されたデータはモデルの学習には使用されません。OpenAI社のプライバシーポリシーは<a href="https://openai.com/policies/privacy-policy" target="_blank" rel="noopener">こちら</a>をご確認ください。</li>
+      <li><strong>決済サービス（Stripe）</strong>：Proプランおよび単品PDF購入の決済処理のため、Stripe社に必要最小限の情報（ユーザーID、メールアドレス等）を提供します。決済情報（クレジットカード情報等）はStripe社が直接管理します。</li>
       <li><strong>法的要請</strong>：法令に基づく要請がある場合、または裁判所・警察等の公的機関からの要請がある場合</li>
     </ul>
 
@@ -121,6 +123,7 @@
     <h2>6. 外部サービスとの連携</h2>
     <p>本サービスでは、以下の外部サービスを利用しています。</p>
     <ul>
+      <li><strong>OpenAI</strong>：Proプランの「AI発音補正」機能で利用。歌詞テキストの発音補正処理のため。OpenAI社のプライバシーポリシーは<a href="https://openai.com/policies/privacy-policy" target="_blank" rel="noopener">こちら</a>をご確認ください。</li>
       <li><strong>Stripe</strong>：決済処理サービス。Stripe社のプライバシーポリシーは<a href="https://stripe.com/jp/privacy" target="_blank" rel="noopener">こちら</a>をご確認ください。</li>
       <li><strong>ホスティングサービス</strong>：本サービスのサーバー運用のため</li>
     </ul>
@@ -148,7 +151,7 @@
     <p>本プライバシーポリシーに関するお問い合わせは、以下のメールアドレスまでご連絡ください。</p>
     <p>メールアドレス：<a href="mailto:singkana.official@gmail.com">singkana.official@gmail.com</a></p>
 
-    <p class="small">制定日：2026年1月14日<br>最終更新日：2026年1月14日</p>
+    <p class="small">制定日：2026年1月14日<br>最終更新日：2026年2月16日</p>
   </main>
 </body>
 </html>

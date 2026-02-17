@@ -13,6 +13,7 @@ import time
 import secrets
 import json
 import hashlib
+import hmac
 import html
 import threading
 from pathlib import Path
@@ -49,10 +50,11 @@ if load_dotenv:
 import singkana_engine as engine
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", secrets.token_hex(32))
 
-# --- DEBUG HOOK (local only) ---------------------------------
+# --- Logging -------------------------------------------------
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO))
 
 # 外部ライブラリ（Stripe/HTTP）の生ログを抑制（URLやレスポンスbodyがログに残る事故を防ぐ）
 logging.getLogger("stripe").setLevel(logging.WARNING)
@@ -126,6 +128,20 @@ def _render_kana_html(kana_raw: str) -> str:
         out.append("</span>")
     return "".join(out)
 
+def _generate_qr_data_uri(url: str) -> str:
+    """Generate a QR code as a base64 data URI (SVG). Returns empty string on failure."""
+    try:
+        import segno
+        import io
+        import base64
+        qr = segno.make(url, error="L")
+        buf = io.BytesIO()
+        qr.save(buf, kind="svg", scale=2, border=1, dark="#999")
+        svg_b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        return f"data:image/svg+xml;base64,{svg_b64}"
+    except Exception:
+        return ""
+
 def _render_sheet_html(title: str, artist: str, lines: list[dict[str, str]]) -> str:
     tpl_path = (BASE_DIR / "singkana_sheet.html")
     if not tpl_path.exists():
@@ -136,9 +152,15 @@ def _render_sheet_html(title: str, artist: str, lines: list[dict[str, str]]) -> 
     before, rest = tpl.split("{{#lines}}", 1)
     block, after = rest.split("{{/lines}}", 1)
 
+    # QR code for footer
+    site_url = _app_base_url() or "https://singkana.com"
+    qr_uri = _generate_qr_data_uri(site_url)
+
     header_map = {
         "{{title}}": _escape_html(title or ""),
         "{{artist}}": _escape_html(artist or ""),
+        "{{qr_data_uri}}": qr_uri,
+        "{{site_url}}": _escape_html(site_url),
     }
     for k, v in header_map.items():
         before = before.replace(k, v)
@@ -265,7 +287,7 @@ def _dev_pro_token_ok() -> bool:
     
     # まずURLパラメータをチェック（初回アクセス時）
     req_token = (request.args.get("dev_pro") or "").strip()
-    if req_token and req_token == token:
+    if req_token and hmac.compare_digest(req_token, token):
         return True
     
     # Cookieをチェック（2回目以降: Cookieにはフラグ "1" が入っている）
@@ -518,6 +540,15 @@ def _init_db():
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sheet_pdf_tokens_user ON sheet_pdf_tokens(user_id, created_at)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sheet_pdf_tokens_expires ON sheet_pdf_tokens(expires_at)")
 
+    # GPT発音補正のキャッシュ
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS gpt_kana_cache (
+            lyrics_hash TEXT PRIMARY KEY,
+            result_json TEXT NOT NULL,
+            created_at INTEGER NOT NULL
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -690,7 +721,7 @@ https://singkana.com
   <h2 style="color: #a78bfa;">SingKANA Pro先行登録完了</h2>
   <p>SingKANA Pro先行登録ありがとうございます！</p>
   <p>以下のメールアドレスで先行登録を受け付けました：</p>
-  <p style="background: #f5f5f5; padding: 10px; border-radius: 4px;"><strong>{email}</strong></p>
+  <p style="background: #f5f5f5; padding: 10px; border-radius: 4px;"><strong>{html.escape(email)}</strong></p>
   <p>準備が整い次第、Proプランの優先案内をお送りします。<br>今しばらくお待ちください。</p>
   <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
   <p style="color: #666; font-size: 12px;">
@@ -867,7 +898,7 @@ def _create_sheet_checkout_session(conn, user_id: str, title: str, artist: str, 
         }, None
     except Exception as e:
         app.logger.exception("sheet checkout creation failed: %s", e)
-        return None, _json_error(500, "stripe_error", "Failed to create one-shot checkout session.", detail=str(e))
+        return None, _json_error(500, "stripe_error", "Failed to create one-shot checkout session.")
 
 @app.before_request
 def _identity_and_plan_bootstrap():
@@ -1188,18 +1219,14 @@ def _content_hash_for_ugc(user_id: str, before_text: str, after_text: str, hook:
 
 def _admin_allowed() -> bool:
     token = _env("SINGKANA_ADMIN_TOKEN", "")
-    if token:
-        req = (request.args.get("token") or request.headers.get("X-Admin-Token") or "").strip()
-        return req == token
-    # fallback: local/private only
-    try:
+    if not token:
+        # 本番ではADMIN_TOKEN必須。未設定時はローカルループバックのみ許可
         ip = _client_ip()
-        if ip in ("127.0.0.1", "::1"):
-            return True
-        import ipaddress
-        return ipaddress.ip_address(ip).is_private
-    except Exception:
+        return ip in ("127.0.0.1", "::1")
+    req = (request.args.get("token") or request.headers.get("X-Admin-Token") or "").strip()
+    if not req:
         return False
+    return hmac.compare_digest(req, token)
 
 @app.get("/static/ugc/<path:filename>")
 def ugc_static(filename: str) -> Response:
@@ -1220,9 +1247,97 @@ def api_me_ref():
     share_url = f"{_app_base_url()}/?ref={ref_code}"
     return jsonify({"ok": True, "ref_code": ref_code, "share_url": share_url})
 
+# ======================================================================
+# Feedback: JSONL保存 + Discord Webhook通知
+# ======================================================================
+FEEDBACK_PATH = BASE_DIR / "docs" / "feedback.jsonl"
+
+def _get_discord_webhook_url() -> str:
+    return (_env("SINGKANA_FEEDBACK_WEBHOOK", "") or "").strip()
+
+def _post_feedback_to_discord(record: dict) -> None:
+    url = _get_discord_webhook_url()
+    if not url:
+        app.logger.info("Discord webhook skipped: SINGKANA_FEEDBACK_WEBHOOK is empty")
+        return
+    import urllib.request
+    song = (record.get("song") or "").strip()
+    note = (record.get("note") or record.get("text") or "").strip()
+    ts = record.get("created_at") or ""
+    engine_ver = (record.get("engine_version") or "").strip()
+    desc_lines = []
+    if ts:
+        desc_lines.append(f"Time: {ts}")
+    if engine_ver:
+        desc_lines.append(f"Engine: {engine_ver}")
+    if song:
+        desc_lines.append(f"Song: {song}")
+    if note:
+        desc_lines.append(f"Note: {note}")
+    embeds = [{"title": "SingKANA Feedback", "description": "\n".join(desc_lines), "color": 0x6366F1}] if desc_lines else []
+    payload_json = json.dumps({"content": "", "embeds": embeds or None}, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(url, data=payload_json, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            app.logger.info("Discord webhook response: status=%s", getattr(resp, "status", "unknown"))
+    except Exception as e:
+        app.logger.error("Discord feedback webhook failed: %s", e)
+
+_feedback_timestamps: dict = {}  # IP -> list of timestamps
+
+@app.post("/api/feedback")
+def api_feedback():
+    if not _origin_ok():
+        return _json_error(403, "invalid_origin", "このページからのみ送信できます。")
+
+    # レート制限: 1IPあたり5分間に3回まで
+    ip = _client_ip()
+    now = time.time()
+    window = 300
+    max_per_window = 3
+    ts_list = _feedback_timestamps.get(ip, [])
+    ts_list = [t for t in ts_list if now - t < window]
+    if len(ts_list) >= max_per_window:
+        return _json_error(429, "feedback_rate_limit", "送信回数の上限に達しました。しばらくしてから再度お試しください。")
+    ts_list.append(now)
+    _feedback_timestamps[ip] = ts_list
+
+    data, err = _require_json()
+    if err:
+        return err
+    text = str(data.get("text") or "").strip()
+    if not text:
+        return _json_error(400, "empty_feedback", "テキストが空です。")
+    meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
+    song = str(meta.get("song") or "").strip()[:200]
+    engine_ver = str(meta.get("engine_version") or "").strip()[:50]
+    ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    ip = _client_ip()
+    record = {
+        "created_at": ts,
+        "ip": ip,
+        "song": song,
+        "note": text[:2000],
+        "engine_version": engine_ver,
+        "user_id": getattr(g, "user_id", "") or "",
+    }
+    try:
+        FEEDBACK_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with FEEDBACK_PATH.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception as e:
+        app.logger.exception("feedback write failed: %s", e)
+        return _json_error(500, "write_failed", "フィードバックの保存に失敗しました。")
+    try:
+        _post_feedback_to_discord(record)
+    except Exception:
+        pass  # 通知失敗しても本体は成功扱い
+    _track_event("feedback_submit", meta={"song": song[:60]})
+    return jsonify({"ok": True})
+
 @app.post("/api/events")
 def api_events():
-    # lightweight tracking for UI actions (ugc_* only)
+    # lightweight tracking for UI actions
     if not _origin_ok():
         return _json_error(403, "invalid_origin", "このページからのみ送信できます。")
     data, err = _require_json()
@@ -1230,7 +1345,7 @@ def api_events():
         return err
     name = str(data.get("name") or "").strip()
     meta = data.get("meta") if isinstance(data.get("meta"), dict) else None
-    allowed = name.startswith("ugc_") or name in ("convert_success",)
+    allowed = name.startswith("ugc_") or name.startswith("sheet_") or name in ("convert_success",)
     if not allowed:
         return _json_error(400, "bad_event", "invalid event name")
     _track_event(name, ref_code=_ref_cookie_value(), meta=meta)
@@ -1282,7 +1397,7 @@ def api_ugc_generate():
     try:
         png = _ugc_render_image_1080x1920(hook, before_text, after_text, share_url)
     except Exception as e:
-        return _json_error(500, "ugc_generate_failed", "UGC生成に失敗しました。", detail=str(e))
+        return _json_error(500, "ugc_generate_failed", "UGC生成に失敗しました。")
 
     # filename
     short = uid.replace("sk_", "")[:6]
@@ -1291,7 +1406,7 @@ def api_ugc_generate():
     try:
         fpath.write_bytes(png)
     except Exception as e:
-        return _json_error(500, "ugc_write_failed", "UGC画像の保存に失敗しました。", detail=str(e))
+        return _json_error(500, "ugc_write_failed", "UGC画像の保存に失敗しました。")
 
     # persist assets
     try:
@@ -1390,6 +1505,43 @@ def admin_ugc():
     out.append("</tbody></table>")
     return Response("\n".join(out), mimetype="text/html; charset=utf-8")
 
+@app.get("/admin/feedback")
+def admin_feedback():
+    if not _admin_allowed():
+        return _json_error(403, "forbidden", "admin only")
+    entries = []
+    if FEEDBACK_PATH.exists():
+        try:
+            with FEEDBACK_PATH.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entries.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        entries.append({"_raw": line})
+        except Exception as e:
+            return Response(f"Error reading feedback: {e}", mimetype="text/plain", status=500)
+    entries.reverse()
+    def _h(s):
+        return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+    out = []
+    out.append("<!doctype html><meta charset='utf-8'><title>Feedback Admin</title>")
+    out.append("<style>body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:24px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;font-size:12px;vertical-align:top}th{background:#f5f5f5;text-align:left}.note{max-width:400px;white-space:pre-wrap;word-break:break-word}</style>")
+    out.append(f"<h2>フィードバック一覧（{len(entries)}件）</h2>")
+    out.append("<p><a href='/admin/dashboard'>dashboard</a></p>")
+    out.append("<table><thead><tr><th>#</th><th>日時</th><th>曲名</th><th>内容</th><th>Engine</th><th>User</th></tr></thead><tbody>")
+    for i, e in enumerate(entries, 1):
+        ts = _h(str(e.get("created_at") or ""))
+        song = _h(str(e.get("song") or ""))
+        note = _h(str(e.get("note") or e.get("text") or e.get("_raw") or ""))
+        engine = _h(str(e.get("engine_version") or ""))
+        uid = _h(str(e.get("user_id") or "")[:12])
+        out.append(f"<tr><td>{i}</td><td>{ts}</td><td>{song}</td><td class='note'>{note}</td><td>{engine}</td><td>{uid}</td></tr>")
+    out.append("</tbody></table>")
+    return Response("\n".join(out), mimetype="text/html; charset=utf-8")
+
 @app.get("/admin/dashboard")
 def admin_dashboard():
     if not _admin_allowed():
@@ -1423,7 +1575,7 @@ def admin_dashboard():
     out.append("<!doctype html><meta charset='utf-8'><title>UGC Dashboard</title>")
     out.append("<style>body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:24px}table{border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;font-size:12px}th{background:#f5f5f5;text-align:left}</style>")
     out.append("<h2>UGCファネル（日次 / 直近14日）</h2>")
-    out.append("<p><a href='/admin/ugc'>ugc posts</a></p>")
+    out.append("<p><a href='/admin/ugc'>ugc posts</a> | <a href='/admin/feedback'>feedback</a></p>")
     out.append("<table><thead><tr><th>day</th>")
     for n in names:
         out.append(f"<th>{n}</th>")
@@ -1468,23 +1620,6 @@ def dev_logout():
 
 @app.get("/api/me")
 def api_me():
-    # デバッグ用: 開発者モードの状態を確認（常に返す）
-    dev_pro_env = os.getenv("SINGKANA_DEV_PRO", "0")
-    debug_info = {
-        "dev_pro_env_value": dev_pro_env,
-        "dev_pro_enabled": dev_pro_env == "1",
-        "dev_pro_token_set": bool(os.getenv("SINGKANA_DEV_PRO_TOKEN", "")),
-        "dev_pro_token_value": os.getenv("SINGKANA_DEV_PRO_TOKEN", "")[:10] + "..." if os.getenv("SINGKANA_DEV_PRO_TOKEN") else "",
-        "dev_pro_token_match": _dev_pro_token_ok(),
-        "request_token": (request.args.get("dev_pro") or "")[:10] + "..." if request.args.get("dev_pro") else "",
-        "cookie_flag": request.cookies.get(COOKIE_NAME_DEV_PRO, ""),  # Cookieにはフラグ "1" が入っている
-        "client_ip": _client_ip(),
-        "allowed_ips": os.getenv("SINGKANA_DEV_PRO_ALLOW_IPS", ""),
-        "ip_ok": _dev_pro_ip_ok(),
-        "is_pro_override": is_pro_override(),
-        "dotenv_loaded": load_dotenv is not None,
-    }
-    
     # subscription snapshot (best-effort; do not fail /api/me if schema is old)
     sub_info = None
     try:
@@ -1508,15 +1643,25 @@ def api_me():
     except Exception:
         sub_info = None
 
-    return jsonify({
+    result = {
         "ok": True,
         "user_id": getattr(g, "user_id", ""),
         "plan": getattr(g, "user_plan", "free"),
-        "dev_pro_override": getattr(g, "dev_pro_override", False),  # UI表示用
+        "dev_pro_override": getattr(g, "dev_pro_override", False),
         "subscription": sub_info,
         "time": _utc_iso(),
-        "debug": debug_info,  # デバッグ情報（常に返す）
-    })
+    }
+
+    # デバッグ情報は admin のみに返す（本番では非公開）
+    if _admin_allowed():
+        result["debug"] = {
+            "dev_pro_enabled": os.getenv("SINGKANA_DEV_PRO", "0") == "1",
+            "is_pro_override": is_pro_override(),
+            "ip_ok": _dev_pro_ip_ok(),
+            "client_ip": _client_ip(),
+        }
+
+    return jsonify(result)
 
 # ======================================================================
 # Static: robots.txt
@@ -1533,6 +1678,8 @@ def robots_txt():
 
 @app.route("/api/convert", methods=["POST"])
 def api_convert():
+    if not _origin_ok():
+        return _json_error(403, "origin_rejected", "Origin not allowed.")
     data, err = _require_json()
     if err:
         return err
@@ -1540,11 +1687,14 @@ def api_convert():
     lyrics = (data.get("text") or data.get("lyrics") or "").strip()
     if not lyrics:
         return _json_error(400, "empty_lyrics", "Lyrics text is required.")
+    MAX_LYRICS_CHARS = 10000
+    if len(lyrics) > MAX_LYRICS_CHARS:
+        return _json_error(400, "lyrics_too_long", f"Lyrics must be under {MAX_LYRICS_CHARS} characters.")
 
     meta = _get_meta(data)
     display_mode = _get_display_mode(meta)
 
-    # ★統治：planで決める（Freeはbasicのみ）
+    # ★統治：planで決める（Freeはbasic/naturalのみ）
     # 開発者モードで上書きされている場合はPro扱い
     user_plan = getattr(g, "user_plan", "free")
     if user_plan != "pro" and display_mode not in FREE_ALLOWED_MODES:
@@ -1586,12 +1736,54 @@ def api_convert():
             500,
             "engine_error",
             "Conversion failed.",
-            detail=str(e),
         )
 
+    # Pro専用: GPT AI発音補正（Preciseモード時のみ）
+    is_pro = (user_plan == "pro") or is_pro_override()
+    gpt_applied = False
+    if is_pro and display_mode == "precise" and hasattr(engine, "gpt_refine_kana"):
+        openai_key = _env("OPENAI_API_KEY", "")
+        if openai_key:
+            # キャッシュ確認
+            lyrics_hash = hashlib.sha256(lyrics.encode("utf-8")).hexdigest()[:32]
+            conn = _db()
+            _GPT_CACHE_TTL_SEC = 7 * 24 * 3600  # 7日
+            cached = conn.execute(
+                "SELECT result_json FROM gpt_kana_cache WHERE lyrics_hash=? AND created_at > ?",
+                (lyrics_hash, _now_ts() - _GPT_CACHE_TTL_SEC),
+            ).fetchone()
+            if cached:
+                try:
+                    result = json.loads(cached["result_json"])
+                    gpt_applied = True
+                    app.logger.info("gpt_refine_kana: cache hit hash=%s", lyrics_hash[:8])
+                except Exception:
+                    pass
+            if not gpt_applied:
+                try:
+                    result = engine.gpt_refine_kana(result, api_key=openai_key)
+                    gpt_applied = True
+                    # キャッシュ保存
+                    try:
+                        conn.execute(
+                            "INSERT OR REPLACE INTO gpt_kana_cache (lyrics_hash, result_json, created_at) VALUES (?, ?, ?)",
+                            (lyrics_hash, json.dumps(result, ensure_ascii=False), _now_ts()),
+                        )
+                        conn.commit()
+                    except Exception:
+                        pass
+                    app.logger.info("gpt_refine_kana: applied hash=%s", lyrics_hash[:8])
+                except Exception as e:
+                    app.logger.warning("gpt_refine_kana failed, using rule-based: %s", e)
+
     # 計測: convert_success（ref cookieがあれば紐付け）
-    _track_event("convert_success", ref_code=_ref_cookie_value(), meta={"endpoint": "/api/convert"})
-    return jsonify({"ok": True, "result": result})
+    _track_event("convert_success", ref_code=_ref_cookie_value(), meta={
+        "endpoint": "/api/convert",
+        "display_mode": display_mode,
+        "gpt_applied": gpt_applied,
+        "plan": user_plan,
+    })
+    return jsonify({"ok": True, "result": result, "gpt_applied": gpt_applied})
 
 # --- Romaji (Phase 1 MVP: 歌うためのローマ字) ----------------------------
 from pykakasi import kakasi  # noqa: E402
@@ -1685,6 +1877,8 @@ def api_romaji():
     日本語→ローマ字変換API（歌うためのローマ字）
     無料プランでは文字数制限あり。
     """
+    if not _origin_ok():
+        return _json_error(403, "origin_rejected", "Origin not allowed.")
     data = request.get_json(silent=True) or {}
     text = (data.get("text") or "").strip()
 
@@ -1728,7 +1922,6 @@ def api_romaji():
             500,
             "conversion_error",
             "ローマ字変換に失敗しました。",
-            detail=str(e),
         )
 
 # ======================================================================
@@ -1775,6 +1968,7 @@ def api_sheet_pdf():
             result, checkout_err = _create_sheet_checkout_session(conn, uid, title_tmp, artist_tmp, safe_lines_tmp)
             if checkout_err:
                 return checkout_err
+            _track_event("sheet_paywall_402", meta={"draft_id": result["draft_id"], "amount_jpy": result["amount_jpy"]})
             return _json_error(
                 402,
                 "payment_required",
@@ -1828,12 +2022,12 @@ def api_sheet_pdf():
     except FileNotFoundError:
         return _json_error(500, "template_missing", "Sheet template is missing.")
     except Exception as e:
-        return _json_error(500, "template_error", "Failed to render sheet template.", detail=str(e))
+        return _json_error(500, "template_error", "Failed to render sheet template.")
 
     try:
         from playwright.sync_api import sync_playwright  # type: ignore
     except Exception as e:
-        return _json_error(501, "playwright_missing", "Playwright is not installed.", detail=str(e))
+        return _json_error(501, "playwright_missing", "Playwright is not installed.")
 
     acquired = _SHEET_SEM.acquire(blocking=False)
     if not acquired:
@@ -1850,7 +2044,7 @@ def api_sheet_pdf():
             browser.close()
     except Exception as e:
         app.logger.exception("Sheet PDF generation failed: %s", e)
-        return _json_error(500, "pdf_failed", "PDF生成に失敗しました。", detail=str(e))
+        return _json_error(500, "pdf_failed", "PDF生成に失敗しました。")
     finally:
         _SHEET_SEM.release()
 
@@ -1871,6 +2065,11 @@ def api_sheet_pdf():
         if safe:
             filename = f"{safe}_singkana.pdf"
 
+    _track_event("sheet_pdf_download_ok", meta={
+        "title": (title or "")[:60],
+        "via": "token" if token_row is not None else "pro",
+        "pdf_size": len(pdf_bytes),
+    })
     resp = Response(pdf_bytes, mimetype="application/pdf")
     resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
@@ -1921,6 +2120,10 @@ def api_sheet_claim():
     session_id = str(request.args.get("session_id") or "").strip()
     if not session_id:
         return _json_error(400, "bad_session_id", "session_id is required.")
+    # Stripe session ID は "cs_live_" or "cs_test_" + 英数字のみ（最大 66 文字）
+    # 不正な値で Stripe API を叩くと resource_missing / invalid_request エラーが蓄積する
+    if not re.fullmatch(r"cs_(live|test)_[A-Za-z0-9]{10,66}", session_id):
+        return _json_error(400, "bad_session_id", "Invalid session_id format.")
     sid_head = session_id[:12]
     app.logger.info("sheet_claim requested session=%s", sid_head)
 
@@ -1942,7 +2145,7 @@ def api_sheet_claim():
         session = stripe.checkout.Session.retrieve(session_id)
     except Exception as e:
         app.logger.warning("sheet_claim stripe retrieve failed session=%s detail=%s", sid_head, str(e))
-        return _json_error(400, "stripe_session_error", "Failed to verify checkout session.", detail=str(e))
+        return _json_error(400, "stripe_session_error", "Failed to verify checkout session.")
 
     payment_status = str(getattr(session, "payment_status", "") or "")
     mode = str(getattr(session, "mode", "") or "")
@@ -1960,12 +2163,16 @@ def api_sheet_claim():
     draft_id = str(metadata.get("draft_id") or "")
     uid_meta = str(metadata.get("user_id") or "")
     if uid_meta and uid_meta != uid:
+        _track_event("sheet_claim_fail", meta={"reason": "session_user_mismatch", "session_id_head": sid_head})
         return _json_error(403, "session_user_mismatch", "この決済は別ユーザー向けです。")
     if mode != "payment":
+        _track_event("sheet_claim_fail", meta={"reason": "bad_session_mode", "session_id_head": sid_head})
         return _json_error(400, "bad_session_mode", "One-shot決済セッションではありません。")
     if payment_status != "paid":
+        _track_event("sheet_claim_fail", meta={"reason": "payment_not_completed", "session_id_head": sid_head, "payment_status": payment_status})
         return _json_error(402, "payment_not_completed", "決済完了を確認できませんでした。", payment_status=payment_status)
     if not draft_id:
+        _track_event("sheet_claim_fail", meta={"reason": "draft_missing", "session_id_head": sid_head})
         return _json_error(400, "draft_missing", "決済メタデータが不足しています。")
 
     conn = _db()
@@ -1997,6 +2204,7 @@ def api_sheet_claim():
         (token_hash, uid, draft_id, session_id, now, expires_at),
     )
     conn.commit()
+    _track_event("sheet_claim_ok", meta={"draft_id": draft_id, "session_id_head": sid_head})
     return jsonify({
         "ok": True,
         "sheet_token": token,
@@ -2010,21 +2218,14 @@ def api_sheet_claim():
 
 @app.get("/api/billing/config")
 def api_billing_config():
+    if not _origin_ok():
+        return _json_error(403, "origin_rejected", "Origin not allowed.")
     envs = _stripe_required_env()
-    required_keys = list(envs.keys())
-    present = {k: bool(envs[k]) for k in required_keys}
-
-    publishable_key = envs["STRIPE_PUBLISHABLE_KEY"] if present["STRIPE_PUBLISHABLE_KEY"] else ""
+    publishable_key = envs["STRIPE_PUBLISHABLE_KEY"] or ""
 
     return jsonify({
         "ok": True,
-        "required_env": required_keys,
-        "present": present,
-        "publishable_key_present": present["STRIPE_PUBLISHABLE_KEY"],
         "publishable_key": publishable_key,
-        "price_pro_month_present": present["STRIPE_PRICE_PRO_MONTHLY"],
-        "price_pro_year_present": present["STRIPE_PRICE_PRO_YEARLY"],
-        "app_base_url": envs["APP_BASE_URL"],
         "server_time": _utc_iso(),
     })
 
@@ -2045,7 +2246,7 @@ def stripe_webhook():
     try:
         event = stripe.Webhook.construct_event(payload, sig, secret)
     except Exception as e:
-        return _json_error(400, "bad_webhook", "Invalid webhook signature or payload.", detail=str(e))
+        return _json_error(400, "bad_webhook", "Invalid webhook signature or payload.")
 
     # まずは「届いた」証拠を残す
     try:
@@ -2287,6 +2488,8 @@ def api_waitlist():
 
 @app.post("/api/billing/checkout")
 def api_billing_checkout():
+    if not _origin_ok():
+        return _json_error(403, "origin_rejected", "Origin not allowed.")
     data, err = _require_json()
     if err:
         return err
@@ -2344,12 +2547,14 @@ def api_billing_checkout():
         )
         return jsonify({"ok": True, "url": session.url, "id": session.id, "plan": plan})
     except Exception as e:
-        traceback.print_exc()
-        return _json_error(500, "stripe_error", "Failed to create checkout session.", detail=str(e))
+        app.logger.exception("billing checkout creation failed: %s", e)
+        return _json_error(500, "stripe_error", "Failed to create checkout session.")
 
 
 @app.post("/api/billing/portal")
 def api_billing_portal():
+    if not _origin_ok():
+        return _json_error(403, "origin_rejected", "Origin not allowed.")
     data, err = _require_json()
     if err:
         return err
@@ -2400,7 +2605,7 @@ def api_billing_portal():
         return jsonify({"ok": True, "url": session.url})
     except Exception as e:
         app.logger.exception("Failed to create billing portal session: %s", e)
-        return _json_error(500, "stripe_error", "Failed to create billing portal session.", detail=str(e))
+        return _json_error(500, "stripe_error", "Failed to create billing portal session.")
 
 # ======================================================================
 # Transfer: 引き継ぎコード（Proの購入状態を別ブラウザへ移す）
@@ -2527,6 +2732,24 @@ def en_static(filename: str) -> Response:
     except Exception as e:
         app.logger.exception("Error serving en asset %s: %s", filename, e)
         raise
+
+@app.get("/guide")
+def guide_redirect() -> Response:
+    from flask import redirect
+    return redirect("/guide/features.html", code=301)
+
+@app.get("/guide/")
+def guide_index_redirect() -> Response:
+    from flask import redirect
+    return redirect("/guide/features.html", code=301)
+
+@app.get("/guide/features.html")
+def guide_features() -> Response:
+    try:
+        return send_from_directory(str(BASE_DIR / "guide"), "features.html")
+    except Exception as e:
+        app.logger.exception("Error serving guide/features.html: %s", e)
+        return _json_error(500, "file_not_found", "機能ガイドページが見つかりません。"), 500
 
 @app.get("/singkana_core.js")
 def singkana_core_js() -> Response:

@@ -536,6 +536,124 @@ def convert_lyrics_with_comparison(*args: Any, **kwargs: Any) -> List[Dict[str, 
     return lines
 
 
+# ===== GPT Pro 後処理（AI発音補正） ===================================
+
+_GPT_SYSTEM_PROMPT = """\
+あなたは英語歌詞の発音コーチです。
+ルールベースで変換された「歌うためのカタカナ」を、実際のネイティブ英語発音に近づけて修正してください。
+さらに、歌唱パフォーマンス用の記号を付与してください。
+
+## 入力形式
+JSON配列: [{"en":"英語行","singkana":"カタカナ行"}, ...]
+
+## 出力形式（厳守）
+必ず以下の形式のJSONオブジェクトを返すこと:
+{"lines": [{"en":"英語行","singkana":"修正後のカタカナ行（記号付き）"}, ...]}
+
+## 発音修正ルール
+1. 各行の "singkana" を修正して返す。"en" はそのまま変更しないこと。
+2. 行数は絶対に変えないこと（入力と同じ行数を返す）。
+3. カタカナ・長音符（ー）・スペース・下記の歌唱記号のみ使用。ひらがなは使わない。
+4. 以下を重点的に修正:
+   - リエゾン/リンキング（"want you"→"ウォンチュー", "get it"→"ゲリッ"）
+   - リダクション（"t" の脱落: "internet"→"イナーネッ"、語末 "d/t" の弱化）
+   - 弱母音（"a/the/to" → "ア/ダ/トゥ" を文脈に応じて）
+   - 歌唱時の自然な伸ばし（行末の母音を伸ばす等）
+   - 文脈依存の発音（"read"(過去)→"レッド" vs "read"(現在)→"リード"）
+   - 母音の弱化（"of"→"アヴ", "for"→"フォー/フォ"）
+5. 歌いやすさを最優先。学術的な正確性より「口に出して歌える」ことを重視。
+6. 単語間にスペースを入れて読みやすくする。
+
+## 歌唱記号（必ず付与すること）
+以下の記号を適切な位置に挿入してください:
+- ˘ (ブレス/息継ぎ): フレーズの切れ目・息継ぎ位置に入れる。カンマや接続詞の前後、長いフレーズの途中など。1行に1〜2箇所が目安。
+- ↑ (ピッチ上昇): 強調すべき単語・音節の直前に入れる。サビの盛り上がり、感情的に強い箇所。
+- ↓ (ピッチ下降): フレーズ末で下降する箇所の直前に入れる。
+- ～ (連結/リエゾン): 2つの単語が繋がって発音される箇所に入れる（例: "let it" → "レ～リッ"）。
+- ( ) (脱落/弱化): 発音が非常に弱い・ほぼ聞こえない音を括弧で囲む（例: "and" → "アン(ド)"）。
+
+## 具体例
+入力: [{"en":"I want you to know","singkana":"アイ ウォント ユー トゥ ノウ"},{"en":"That I love you so","singkana":"ザット アイ ラヴ ユー ソー"}]
+出力: {"lines":[{"en":"I want you to know","singkana":"↑アイ ウォン～チュー トゥ ノウ"},{"en":"That I love you so","singkana":"ザッ(ト) ˘ アイ ↑ラヴ ユー ソー↓"}]}
+"""
+
+
+def gpt_refine_kana(
+    lines: List[Dict[str, str]],
+    api_key: str = "",
+    model: str = "gpt-4o-mini",
+    timeout: float = 15.0,
+) -> List[Dict[str, str]]:
+    """
+    Pro専用: ルールベース変換済みの行リストを GPT で発音補正する。
+    失敗時は入力をそのまま返す（graceful fallback）。
+    """
+    if not lines:
+        return lines
+    if not api_key:
+        _safe_log(CONVERT_LOG, "gpt_refine_kana: no api_key, skipping")
+        return lines
+
+    import json as _json
+
+    # GPT に渡すペイロード（en + singkana のみ、最大50行に制限）
+    payload = [{"en": l.get("en", ""), "singkana": l.get("singkana", "")} for l in lines[:50]]
+
+    try:
+        import openai  # type: ignore
+        client = openai.OpenAI(api_key=api_key, timeout=timeout)
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": _GPT_SYSTEM_PROMPT},
+                {"role": "user", "content": _json.dumps(payload, ensure_ascii=False)},
+            ],
+            temperature=0.3,
+            max_tokens=4000,
+            response_format={"type": "json_object"},
+        )
+        raw = (response.choices[0].message.content or "").strip()
+        _safe_log(CONVERT_LOG, f"gpt_refine_kana raw response: {raw[:500]}")
+        parsed = _json.loads(raw)
+
+        # レスポンスが配列か、{"lines": [...]} / {"key": [...]} 形式かを吸収
+        refined = []
+        if isinstance(parsed, list):
+            refined = parsed
+        elif isinstance(parsed, dict):
+            # 既知のキーを優先、なければ最初の配列値を使う
+            for key in ("lines", "result", "data"):
+                if key in parsed and isinstance(parsed[key], list):
+                    refined = parsed[key]
+                    break
+            if not refined:
+                # GPTが予期しないキー名を使った場合: 最初のlist値を取得
+                for v in parsed.values():
+                    if isinstance(v, list) and len(v) > 0:
+                        refined = v
+                        break
+
+        if len(refined) != len(lines):
+            _safe_log(CONVERT_LOG, f"gpt_refine_kana: line count mismatch (got {len(refined)}, expected {len(lines)}), fallback. keys={list(parsed.keys()) if isinstance(parsed, dict) else 'array'}")
+            return lines
+
+        # singkana フィールドだけ上書き（standard は触らない）
+        result = []
+        for orig, ref in zip(lines, refined):
+            new_singkana = str(ref.get("singkana") or "").strip()
+            entry = dict(orig)
+            if new_singkana:
+                entry["singkana"] = new_singkana
+            result.append(entry)
+
+        _safe_log(CONVERT_LOG, f"gpt_refine_kana ok: lines={len(result)} model={model}")
+        return result
+
+    except Exception as e:
+        _safe_log(CONVERT_LOG, f"gpt_refine_kana failed: {e}")
+        return lines
+
+
 # ===== フィードバック保存 ============================================
 
 

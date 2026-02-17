@@ -1,9 +1,11 @@
-flask
-gunicorn
-openai
-python-dotenv
+flask>=3.0.0,<4.0.0
+gunicorn>=23.0.0,<24.0.0
+openai>=1.0.0,<2.0.0
+python-dotenv>=1.0.0,<2.0.0
 ulid-py==1.1.0
 
-pykakasi
-pillow
-playwright
+pykakasi>=2.2.0,<3.0.0
+pillow>=10.0.0,<11.0.0
+playwright>=1.40.0,<2.0.0
+segno>=1.6.0,<2.0.0
+stripe>=7.0.0,<9.0.0

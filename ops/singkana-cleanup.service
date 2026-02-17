@@ -1,0 +1,12 @@
+[Unit]
+Description=SingKANA DB Cleanup (expired rows)
+After=network.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+EnvironmentFile=/etc/singkana/secrets.env
+ExecStart=/var/www/singkana/ops/cleanup_db.sh --verbose
+StandardOutput=journal
+StandardError=journal

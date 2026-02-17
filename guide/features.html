@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <!-- Google Tag Manager -->
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-WV3GHF7D');</script>
+  <!-- End Google Tag Manager -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SingKANA 機能ガイド | 変換モードとOne-Shot PDFの使い方</title>
+  <meta name="description" content="SingKANAの主要機能を図解で説明。Basic/Natural/Preciseの違い、One-Shot PDF（¥300）の表示例、決済後の流れをまとめています。" />
+  <link rel="canonical" href="https://singkana.com/guide/features.html" />
+  <meta name="robots" content="index,follow,max-image-preview:large" />
+  <meta name="theme-color" content="#0b1220" />
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="shortcut icon" href="/assets/favicon/favicon.ico?v=3">
+  <link rel="stylesheet" href="/assets/themes/theme.switch.css" />
+  <script defer src="/assets/js/theme_manager.js"></script>
+  <link rel="stylesheet" href="/assets/app.css?v=20260216" />
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
+  <!-- Google Tag Manager (noscript) -->
+  <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WV3GHF7D"
+  height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+  <!-- End Google Tag Manager (noscript) -->
+
+  <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+    <div class="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-singkana-500/40 blur-3xl"></div>
+    <div class="absolute top-40 -left-40 h-96 w-96 rounded-full bg-fuchsia-500/30 blur-3xl"></div>
+    <div class="absolute bottom-[-10rem] right-[-5rem] h-80 w-80 rounded-full bg-cyan-400/20 blur-3xl"></div>
+  </div>
+
+  <header class="border-b border-white/5 bg-slate-950/70 backdrop-blur-sm sticky top-0 z-30">
+    <div class="mx-auto max-w-7xl 2xl:max-w-[1440px] px-4 py-3 md:py-4 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3">
+        <img src="/assets/favicon/favicon-32.png" alt="SingKANA" class="h-7 w-7 rounded-xl" />
+        <div>
+          <p class="text-lg font-semibold tracking-wide">SingKANA</p>
+          <p class="text-xs text-slate-400">機能ガイド</p>
+        </div>
+      </a>
+      <nav class="hidden md:flex items-center gap-6 text-sm text-slate-200">
+        <a href="/#pricing" class="hover:text-singkana-200 transition">料金</a>
+        <a href="/#studio" class="hover:text-singkana-200 transition">かな変換を試す</a>
+        <a href="/#faq" class="hover:text-singkana-200 transition">FAQ</a>
+      </nav>
+      <a href="/#studio" class="rounded-full border border-singkana-400/70 bg-slate-950/80 px-4 py-1.5 text-xs font-semibold text-singkana-100 shadow-soft hover:bg-singkana-500/10 hover:shadow-glow transition">
+        まず無料で試す
+      </a>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-7xl 2xl:max-w-[1440px] px-4 pb-20 pt-8 space-y-16">
+    <section class="rounded-3xl border border-white/10 bg-slate-900/60 p-6 md:p-8 shadow-soft">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-singkana-200">Features Guide</p>
+      <h1 class="mt-3 text-2xl md:text-4xl font-semibold leading-tight">
+        SingKANAの主要機能を
+        <span class="bg-gradient-to-r from-singkana-200 via-fuchsia-200 to-cyan-200 bg-clip-text text-transparent">図解でわかりやすく</span>
+      </h1>
+      <p class="mt-4 text-sm md:text-base text-slate-300 max-w-3xl">
+        「どのモードを使えばいいか」「One-Shot PDFはどう表示されるか」「購入後の流れ」をこのページで確認できます。
+        読み終わったらそのままスタジオで試せます。
+      </p>
+      <div class="mt-6 flex flex-wrap gap-3">
+        <a href="/#studio" class="inline-flex items-center rounded-xl bg-singkana-500/90 px-4 py-2 text-sm font-semibold text-white border border-singkana-300/30 hover:bg-singkana-500 transition">今すぐ試す</a>
+        <a href="/#pricing" class="inline-flex items-center rounded-xl bg-slate-100/10 px-4 py-2 text-sm font-semibold text-slate-100 border border-white/10 hover:bg-slate-100/15 transition">料金プランへ</a>
+      </div>
+    </section>
+
+    <section class="space-y-5">
+      <h2 class="text-xl md:text-2xl font-semibold">1. 変換モードの違い</h2>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-soft">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Basic</p>
+          <p class="text-2xl font-semibold text-slate-50 mt-3">読みやすさ重視</p>
+          <ul class="mt-4 space-y-2 text-xs text-slate-200">
+            <li>✅ まず歌詞を読めるようにしたい人向け</li>
+            <li>✅ カタカナの見通しが良い</li>
+            <li>✅ 初回の試用に最適</li>
+          </ul>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-soft">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Natural</p>
+          <p class="text-2xl font-semibold text-slate-50 mt-3">英語っぽさ重視</p>
+          <ul class="mt-4 space-y-2 text-xs text-slate-200">
+            <li>✅ 日本人でも歌いやすい自然な発音</li>
+            <li>✅ Freeでも利用可能</li>
+            <li>✅ 迷ったらまずこれ</li>
+          </ul>
+        </div>
+        <div class="rounded-2xl border border-singkana-400/30 bg-slate-950/60 p-5 shadow-glow">
+          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-singkana-100">Precise (Pro)</p>
+          <p class="text-2xl font-semibold text-slate-50 mt-3">精度重視</p>
+          <ul class="mt-4 space-y-2 text-xs text-slate-200">
+            <li>✅ AI発音補正でさらに歌唱精度UP</li>
+            <li>✅ 制作/録音用途に向いた調整</li>
+            <li>✅ ブレス位置や歌唱補助情報を活用</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="space-y-5">
+      <h2 class="text-xl md:text-2xl font-semibold">2. One-Shot PDF（¥300）の表示イメージ</h2>
+      <div class="grid lg:grid-cols-2 gap-6">
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-soft">
+          <p class="text-sm font-semibold text-slate-100">PDFの主な内容</p>
+          <ul class="mt-4 space-y-2 text-xs text-slate-200">
+            <li>✅ 原歌詞 + かな発音（歌唱向け）</li>
+            <li>✅ ブレス記号・つなぎ記号</li>
+            <li>✅ 練習メモ欄</li>
+            <li>✅ フッターにQR（共有導線）</li>
+          </ul>
+          <div class="mt-4 rounded-xl border border-white/10 bg-slate-950/60 p-4 text-xs text-slate-300">
+            <p class="font-semibold text-slate-100">購入後の流れ（約30秒）</p>
+            <ol class="mt-2 space-y-1 list-decimal list-inside">
+              <li>PDFボタンを押す</li>
+              <li>¥300 One-Shotを選んで決済</li>
+              <li>ページへ戻ると自動ダウンロード</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-soft">
+          <p class="text-sm font-semibold text-slate-100 mb-3">サンプルレイアウト</p>
+          <div class="rounded-xl border border-slate-300/40 bg-white text-slate-800 p-5">
+            <p class="text-2xl font-semibold">chorus-practice</p>
+            <p class="text-xs text-slate-500 mt-3">ブレス ` ・ 強調: ↑↓ ・ 連結: 〜 ・ 脱落: ( )</p>
+            <div class="mt-5 space-y-4">
+              <div>
+                <p class="text-sm text-slate-500">We are rising, we are shining</p>
+                <p class="text-xl font-semibold mt-1">↑ウィ アー ↑ライジン〜 ｜ ウィ アー ↑シャイニン</p>
+              </div>
+              <div>
+                <p class="text-sm text-slate-500">In the night, we keep on flying</p>
+                <p class="text-xl font-semibold mt-1">イ 〜ン ザ ナイト ｜ ウィ キープ゜ オン フライイン〜</p>
+              </div>
+            </div>
+            <div class="mt-8 border-t border-dashed border-slate-400 pt-4 text-xs text-slate-500">メモ</div>
+            <div class="mt-10 flex items-end justify-between">
+              <div class="text-[11px] text-slate-400">
+                <p>Generated by <span class="font-semibold">SingKANA</span></p>
+                <p>https://singkana.com</p>
+              </div>
+              <div class="grid grid-cols-5 gap-[2px] rounded bg-slate-300 p-1">
+                <span class="h-2 w-2 bg-slate-700"></span><span class="h-2 w-2 bg-white"></span><span class="h-2 w-2 bg-slate-700"></span><span class="h-2 w-2 bg-white"></span><span class="h-2 w-2 bg-slate-700"></span>
+                <span class="h-2 w-2 bg-white"></span><span class="h-2 w-2 bg-slate-700"></span><span class="h-2 w-2 bg-white"></span><span class="h-2 w-2 bg-slate-700"></span><span class="h-2 w-2 bg-white"></span>
+                <span class="h-2 w-2 bg-slate-700"></span><span class="h-2 w-2 bg-white"></span><span class="h-2 w-2 bg-slate-700"></span><span class="h-2 w-2 bg-white"></span><span class="h-2 w-2 bg-slate-700"></span>
+                <span class="h-2 w-2 bg-white"></span><span class="h-2 w-2 bg-slate-700"></span><span class="h-2 w-2 bg-white"></span><span class="h-2 w-2 bg-slate-700"></span><span class="h-2 w-2 bg-white"></span>
+                <span class="h-2 w-2 bg-slate-700"></span><span class="h-2 w-2 bg-white"></span><span class="h-2 w-2 bg-slate-700"></span><span class="h-2 w-2 bg-white"></span><span class="h-2 w-2 bg-slate-700"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="space-y-5">
+      <h2 class="text-xl md:text-2xl font-semibold">3. よくある質問</h2>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+          <p class="text-sm font-semibold text-slate-100">Q. FreeでもPDFは使えますか？</p>
+          <p class="text-xs text-slate-300 mt-2">はい。One-Shot（¥300）で1回ごとのPDF生成が可能です。</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+          <p class="text-sm font-semibold text-slate-100">Q. 決済後はどうなりますか？</p>
+          <p class="text-xs text-slate-300 mt-2">決済完了後にページへ戻ると、PDFが自動ダウンロードされます。</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+          <p class="text-sm font-semibold text-slate-100">Q. Proとの違いは？</p>
+          <p class="text-xs text-slate-300 mt-2">Proは月額で無制限利用 + AI発音補正など高度機能が使えます。</p>
+        </div>
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5">
+          <p class="text-sm font-semibold text-slate-100">Q. カード情報は保存されますか？</p>
+          <p class="text-xs text-slate-300 mt-2">カード情報はStripeが管理し、運営側では保持しません。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="rounded-3xl border border-singkana-400/25 bg-slate-950/70 p-6 md:p-8 shadow-glow text-center">
+      <p class="text-xs font-semibold uppercase tracking-[0.16em] text-singkana-200">Ready</p>
+      <h2 class="mt-3 text-2xl md:text-3xl font-semibold">理解したら、まず1曲試してみる</h2>
+      <p class="mt-3 text-sm text-slate-300">体験が一番早いです。Freeで試して、必要ならOne-ShotやProへ。</p>
+      <div class="mt-6 flex items-center justify-center gap-3 flex-wrap">
+        <a href="/#studio" class="inline-flex items-center rounded-xl bg-singkana-500/90 px-5 py-2.5 text-sm font-semibold text-white border border-singkana-300/30 hover:bg-singkana-500 transition">かな変換を試す</a>
+        <a href="/#pricing" class="inline-flex items-center rounded-xl bg-slate-100/10 px-5 py-2.5 text-sm font-semibold text-slate-100 border border-white/10 hover:bg-slate-100/15 transition">料金を確認する</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

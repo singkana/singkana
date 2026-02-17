@@ -11,10 +11,14 @@ _bak/
 *_bak/
 *.bak
 *.bak.*
+index_backup_*.html
 assets.bak.*/
 assets.rollback_*/
+_archive/
+backup_full.ps1
 billing.db
 singkana.db
 
 .env
 *.env
+node_modules/

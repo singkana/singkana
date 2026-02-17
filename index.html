@@ -54,16 +54,12 @@
   <meta name="twitter:title" content="SingKANA｜歌詞を“歌いやすく”最適化するAI" />
   <meta name="twitter:description" content="歌詞を日本人向けに発音・ブレス・リズム最適化。ボーカル特化の歌唱支援AI。" />
   <meta name="twitter:image" content="https://singkana.com/ogp.png" />
-  <meta name="twitter:site" content="@SOVEREIGN_SaaS" />
+  <meta name="twitter:site" content="@SingKANA_ai" />
 
   <!-- 言語（将来 en ページができたら追加） -->
   <link rel="alternate" href="https://singkana.com/" hreflang="ja" />
+  <link rel="alternate" href="https://en.singkana.com/" hreflang="en" />
   <link rel="alternate" href="https://singkana.com/" hreflang="x-default" />
-
-  <!-- パフォーマンス（CDNに preconnect） -->
-  <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin />
-  <link rel="dns-prefetch" href="https://cdn.tailwindcss.com" />
-
 
   <!-- =========================================================
   2) Theme / CSS (first: your theme switch, then Tailwind, then custom)
@@ -71,37 +67,7 @@
   <link rel="stylesheet" href="/assets/themes/theme.switch.css" />
   <script defer src="/assets/js/theme_manager.js"></script>
 
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            singkana: {
-              50: '#f7f4ff',
-              100: '#ede7ff',
-              200: '#d9ceff',
-              300: '#c0aeff',
-              400: '#a184ff',
-              500: '#8a5dff',
-              600: '#7441f0',
-              700: '#5c32c4',
-              800: '#472898',
-              900: '#362073'
-            }
-          },
-          boxShadow: {
-            soft: '0 18px 45px rgba(0,0,0,0.35)',
-            glow: '0 0 40px rgba(138,93,255,0.45)'
-          },
-          backdropBlur: {
-            xs: '2px'
-          }
-        }
-      }
-    };
-  </script>
+  <link rel="stylesheet" href="/assets/app.css?v=20260216" />
 
   <!-- Studio CSS -->
   <style>
@@ -643,12 +609,7 @@
         "url": "https://singkana.com/",
         "name": "SingKANA",
         "description": "英語歌詞を“歌えるかな表記”に変換するAIスタジオ。発音ガイド、ブレス位置、ロングトーン、ニュアンスまで可視化。",
-        "inLanguage": "ja",
-        "potentialAction": {
-          "@type": "SearchAction",
-          "target": "https://singkana.com/?q={search_term_string}",
-          "query-input": "required name=search_term_string"
-        }
+        "inLanguage": "ja"
       },
       {
         "@type": "SoftwareApplication",
@@ -670,9 +631,9 @@
           {
             "@type": "Offer",
             "name": "Pro",
-            "price": "0",
+            "price": "980",
             "priceCurrency": "JPY",
-            "availability": "https://schema.org/PreOrder",
+            "availability": "https://schema.org/InStock",
             "url": "https://singkana.com/#pricing"
           }
         ]
@@ -702,12 +663,13 @@
             "name": "フィードバック送信はどこに届きますか？",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "現状は準備中です。API未接続のため送信に失敗する場合があります。"
+              "text": "フィードバックは開発チームに直接届きます（Discord連携）。改善に活用させていただきます。"
             }
           }
         ]
       }
     ]
+  }
   </script>
 
 
@@ -750,6 +712,7 @@
       <nav class="hidden md:flex items-center gap-7 text-sm text-slate-200">
         <a href="#about" class="hover:text-singkana-200 transition">SingKANAとは</a>
         <a href="#features" class="hover:text-singkana-200 transition">機能</a>
+        <a href="/guide/features.html" class="hover:text-singkana-200 transition">機能ガイド</a>
         <a href="#how-it-works" class="hover:text-singkana-200 transition">使い方</a>
         <a href="#pricing" class="hover:text-singkana-200 transition">料金</a>
         <a href="#faq" class="hover:text-singkana-200 transition">FAQ</a>
@@ -843,7 +806,7 @@
             </li>
             <li class="flex items-start gap-2">
               <span class="text-singkana-400 mt-0.5">•</span>
-              <span>無料で試せる / 高精度変換はProプラン対応</span>
+              <span>無料で試せる / 詳細表示・PDF出力・比較モードはPro対応</span>
             </li>
           </ul>
         </div>
@@ -1181,29 +1144,56 @@
         </a>
       </div>
 
-      <div class="grid md:grid-cols-3 gap-4">
-        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-soft">
-          <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Free</p>
-          <p class="text-sm text-slate-300 mt-2">まずは体験したい方向け。</p>
-          <div class="mt-4">
-            <p class="text-2xl font-semibold text-slate-50">¥0</p>
-            <p class="text-[11px] text-slate-400 mt-1">Basic / Natural 利用可能</p>
+      <div class="grid md:grid-cols-3 gap-4 items-stretch">
+        <div class="md:h-full grid grid-cols-1 md:grid-rows-2 gap-4">
+          <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-soft h-full flex flex-col">
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Free</p>
+            <p class="text-sm text-slate-300 mt-2">まずは体験したい方向け。</p>
+            <div class="mt-4">
+              <p class="text-2xl font-semibold text-slate-50">¥0</p>
+              <p class="text-[11px] text-slate-400 mt-1">Basic / Natural 利用可能</p>
+            </div>
+            <ul class="mt-4 space-y-2 text-xs text-slate-200">
+              <li>✅ Basic（読みやすいカタカナ）</li>
+              <li>✅ Natural（英語っぽく歌う）</li>
+              <li>✅ 比較UIで違いを確認</li>
+              <li class="text-slate-400">❌ Precise（日本語歌唱最適）はPro</li>
+            </ul>
+            <a href="#studio"
+              class="mt-auto inline-flex w-full items-center justify-center rounded-xl bg-slate-100/10 px-4 py-2 text-xs font-semibold text-slate-50 border border-white/10 hover:bg-slate-100/15 transition">
+              まず無料で試す
+            </a>
           </div>
-          <ul class="mt-4 space-y-2 text-xs text-slate-200">
-            <li>✅ Basic（読むためのカタカナ）</li>
-            <li>✅ Natural（英語っぽく歌う）</li>
-            <li>✅ 比較UIで違いを確認</li>
-            <li>✅ 登録不要で即利用</li>
-            <li class="text-slate-400">❌ Precise（日本語として歌う・最適）</li>
-          </ul>
 
-          <a href="#studio"
-            class="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-slate-100/10 px-4 py-2 text-xs font-semibold text-slate-50 border border-white/10 hover:bg-slate-100/15 transition">
-            無料で試す
-          </a>
+          <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-soft h-full flex flex-col">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">One-Shot</p>
+                <p class="text-sm text-slate-300 mt-2">まず1曲だけ試したい方向け（Freeユーザー向け）。</p>
+              </div>
+              <span class="rounded-full border border-white/15 bg-slate-100/10 px-2.5 py-1 text-[10px] font-semibold text-slate-200 whitespace-nowrap">PDF練習シート</span>
+            </div>
+            <div class="mt-4 rounded-xl border border-white/10 bg-slate-900/50 p-3">
+              <p class="text-2xl font-semibold text-slate-50">¥300</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">1回限り・買い切り（サブスク不要）</p>
+            </div>
+            <ul class="mt-4 space-y-2 text-xs text-slate-200">
+              <li>✅ 決済後すぐにPDFをダウンロード</li>
+              <li>✅ QRコード付きで友達にもシェア可能</li>
+              <li>✅ Stripe安全決済（カード情報は当社非保持）</li>
+            </ul>
+            <a href="#studio"
+              class="mt-auto inline-flex w-full items-center justify-center rounded-xl bg-slate-100/10 px-4 py-2 text-xs font-semibold text-slate-50 border border-white/10 hover:bg-slate-100/15 transition">
+              PDFを1回購入して試す（¥300）
+            </a>
+            <a href="/guide/features.html"
+              class="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-transparent px-4 py-2 text-xs font-semibold text-slate-200 border border-white/10 hover:bg-slate-100/10 transition">
+              使い方とPDF見本を見る
+            </a>
+          </div>
         </div>
 
-        <div class="rounded-2xl border border-singkana-400/30 bg-slate-950/60 p-5 shadow-glow">
+        <div class="rounded-2xl border border-singkana-400/30 bg-slate-950/60 p-5 shadow-glow h-full">
           <p class="text-xs font-semibold uppercase tracking-[0.16em] text-singkana-100">Pro</p>
           <p class="text-sm text-slate-300 mt-2">本格的に歌える形に仕上げたい方向け。</p>
           <p id="pro-checkout-status" class="text-[10px] text-slate-400 mt-1"></p>
@@ -1242,8 +1232,10 @@
           </div>
 
           <ul class="mt-4 space-y-2 text-xs text-slate-200">
+            <li>✅ AI発音補正（GPTによる歌唱発音の自動補正）</li>
             <li>✅ 歌唱最適化（精密）モード</li>
             <li>✅ 無制限変換（回数制限なし）</li>
+            <li>✅ One-Shot PDF（¥300買い切り）にも対応</li>
             <li>✅ Singability 表示</li>
             <li>✅ ブロック境界（息継ぎ位置）表示</li>
             <li>✅ 制作・録音用途に最適</li>
@@ -1322,7 +1314,7 @@
           </div>
         </div>
 
-        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-soft">
+        <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-5 shadow-soft h-full">
           <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Studio / School</p>
           <p class="text-sm text-slate-300 mt-2">教室・スタジオ導入向け。</p>
           <ul class="mt-4 space-y-2 text-xs text-slate-200">
@@ -1330,7 +1322,7 @@
             <li>✅ 管理・請求の一括化</li>
             <li>✅ カスタム要件相談</li>
           </ul>
-          <a href="/#contact"
+          <a href="mailto:singkana.official@gmail.com"
             class="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-slate-100/10 px-4 py-2 text-xs font-semibold text-slate-50 border border-white/10 hover:bg-slate-100/15 transition">
             お問い合わせ
           </a>
@@ -1353,10 +1345,16 @@
                 <td class="py-2 pr-3">価格</td><td class="py-2 pr-3">¥0</td><td class="py-2 pr-3">¥980/月</td>
               </tr>
               <tr class="border-t border-white/10">
+                <td class="py-2 pr-3">PDF練習シート（単品）</td><td class="py-2 pr-3">¥300/回（One-Shot）</td><td class="py-2 pr-3">利用可（＋Pro機能）</td>
+              </tr>
+              <tr class="border-t border-white/10">
                 <td class="py-2 pr-3">変換回数</td><td class="py-2 pr-3">制限なし</td><td class="py-2 pr-3">無制限</td>
               </tr>
               <tr class="border-t border-white/10">
                 <td class="py-2 pr-3">変換モード</td><td class="py-2 pr-3">Basic / Natural</td><td class="py-2 pr-3">Basic + Natural + Precise</td>
+              </tr>
+              <tr class="border-t border-white/10">
+                <td class="py-2 pr-3">AI発音補正</td><td class="py-2 pr-3">—</td><td class="py-2 pr-3">✅</td>
               </tr>
               <tr class="border-t border-white/10">
                 <td class="py-2 pr-3">精密（日本語歌唱最適）</td><td class="py-2 pr-3">—</td><td class="py-2 pr-3">✅</td>
@@ -1392,7 +1390,7 @@
         <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
           <p class="text-sm font-semibold text-slate-50 mb-1">Q. フィードバック送信はどこに届きますか？</p>
           <p class="text-xs text-slate-300 leading-relaxed">
-            現状は準備中です（API未接続）。テキスト欄は今後のために残しています。
+            フィードバックは開発チームに直接届きます（Discord連携）。改善に活用させていただきます。
           </p>
         </div>
       </div>
@@ -1489,7 +1487,7 @@
             </button>
 
             <p class="text-[11px] text-slate-400 mt-3 leading-relaxed">
-              入力されたテキストは端末内のみで処理されます。サーバーには送信されません。<br />
+              基本変換は端末内のみで処理されます。Pro AI発音補正利用時のみサーバーへ送信されます。<br />
               商用楽曲の歌詞は著作権で保護されています。本サービスは<strong>個人の練習用途</strong>を想定しています。
             </p>
           </div>
@@ -1522,6 +1520,7 @@
 
                   <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
                     onclick="downloadPdfSheet()">⬇ PDF</button>
+                  <span class="text-[10px] text-violet-200/90 md:ml-1">Free: 1回¥300 / Pro: 無制限</span>
                 </div>
 
                 <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
@@ -1684,9 +1683,9 @@
               <div id="feedback-status" class="feedback-status text-[11px] text-slate-300 mt-1"></div>
 
               <div class="text-[11px] text-slate-400 mt-3">
-                <a href="/tokusho.html" target="_blank" class="underline">特定商取引法に基づく表記</a> ・
-                <a href="/terms.html" target="_blank" class="underline">利用規約</a> ・
-                <a href="/privacy.html" target="_blank" class="underline">プライバシーポリシー</a>
+                <a href="/tokusho.html" target="_blank" rel="noopener" class="underline">特定商取引法に基づく表記</a> ・
+                <a href="/terms.html" target="_blank" rel="noopener" class="underline">利用規約</a> ・
+                <a href="/privacy.html" target="_blank" rel="noopener" class="underline">プライバシーポリシー</a>
               </div>
             </div>
 
@@ -1717,18 +1716,18 @@
 
   <footer class="border-t border-white/10 bg-slate-950/80">
     <div class="mx-auto max-w-7xl 2xl:max-w-[1440px] px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-2">
-      <p class="text-[11px] text-slate-500">© <span id="year"></span> SingKANA. All rights reserved.</p>
+      <p class="text-[11px] text-slate-500">© <span id="year">2026</span> SingKANA. All rights reserved.</p>
       <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
         <div class="flex flex-wrap items-center gap-3">
-          <a href="/tokusho.html" target="_blank" class="text-[11px] text-slate-400 hover:text-singkana-200 transition">特定商取引法に基づく表記</a>
-          <a href="/terms.html" target="_blank" class="text-[11px] text-slate-400 hover:text-singkana-200 transition">利用規約</a>
-          <a href="/privacy.html" target="_blank" class="text-[11px] text-slate-400 hover:text-singkana-200 transition">プライバシーポリシー</a>
+          <a href="/tokusho.html" target="_blank" rel="noopener" class="text-[11px] text-slate-400 hover:text-singkana-200 transition">特定商取引法に基づく表記</a>
+          <a href="/terms.html" target="_blank" rel="noopener" class="text-[11px] text-slate-400 hover:text-singkana-200 transition">利用規約</a>
+          <a href="/privacy.html" target="_blank" rel="noopener" class="text-[11px] text-slate-400 hover:text-singkana-200 transition">プライバシーポリシー</a>
         </div>
         <div class="flex items-center gap-4">
           <a href="https://en.singkana.com" target="_blank" rel="noopener" class="text-[11px] text-slate-400 hover:text-singkana-200 transition">
             Global users? Check English LP here →
           </a>
-          <a href="/whitepaper" target="_blank" rel="noopener" class="text-[11px] text-slate-500 hover:text-singkana-200 transition underline underline-offset-2 decoration-slate-500/60 px-1 py-0.5">
+          <a href="/lp/whitepaper.html" target="_blank" rel="noopener" class="text-[11px] text-slate-500 hover:text-singkana-200 transition underline underline-offset-2 decoration-slate-500/60 px-1 py-0.5">
             Powered by Sovereign Cognitive Architecture.
           </a>
         </div>
@@ -1772,6 +1771,7 @@
     // =========================
     window.currentConvertedLines = [];  // ← displayMode再描画のため、グローバルに確実に置く
     window.activeIndex = -1;
+    window.__lastGptApplied = false;
     let currentActiveBlock = null;
 
     // =========================
@@ -1852,7 +1852,6 @@
         if (out) out.textContent = j.code;
         if (status) status.textContent = "このコードを別ブラウザに入力してください。";
       } catch (e) {
-        console.warn(e);
         if (status) status.textContent = "通信に失敗しました。";
       } finally {
         __transferIssueInFlight = false;
@@ -1882,7 +1881,6 @@
         if (status) status.textContent = "完了。再読み込みします…";
         window.location.reload();
       } catch (e) {
-        console.warn(e);
         if (status) status.textContent = "通信に失敗しました。";
       } finally {
         __transferClaimInFlight = false;
@@ -1918,7 +1916,6 @@
         }
         window.location.href = j.url;
       } catch (e) {
-        console.warn(e);
         if (status) status.textContent = "通信に失敗しました。";
       } finally {
         __portalInFlight = false;
@@ -2006,7 +2003,6 @@
         didNavigate = true;
         window.location.href = j.url;
       } catch (e) {
-        console.warn(e);
         setProCheckoutStatus("");
         alert("決済を開始できませんでした。通信環境を確認して再度お試しください。");
       } finally {
@@ -2032,32 +2028,25 @@
         
         const res = await fetch(apiUrl);
         const data = await res.json();
-        console.log("[loadUserPlan] API response:", data); // デバッグ用
         
         if (data.ok) {
           PLAN.tier = data.plan || "free";
           PLAN.devProOverride = data.dev_pro_override || false;
           
-          console.log("[loadUserPlan] PLAN:", PLAN); // デバッグ用
-          
           // 開発者モードバッジを表示
           const badge = document.getElementById("dev-pro-badge");
-          console.log("[loadUserPlan] Badge element:", badge); // デバッグ用
           
           if (badge) {
             if (PLAN.devProOverride) {
-              console.log("[loadUserPlan] Showing badge"); // デバッグ用
               badge.classList.remove("hidden");
             } else {
-              console.log("[loadUserPlan] Hiding badge"); // デバッグ用
               badge.classList.add("hidden");
             }
-          } else {
-            console.warn("[loadUserPlan] Badge element not found!");
           }
           
           // 精密モードの選択肢を更新（Freeの場合は無効化）
           const preciseOption = document.querySelector('#displayMode option[value="precise"]');
+          const modeSelect = document.getElementById("displayMode");
           if (preciseOption) {
             if (isPro()) {
               preciseOption.removeAttribute('disabled');
@@ -2065,6 +2054,13 @@
             } else {
               preciseOption.setAttribute('disabled', 'disabled');
               preciseOption.textContent = 'Precise [Pro]';
+              if (modeSelect && modeSelect.value === "precise") {
+                modeSelect.value = "natural";
+                try { localStorage.setItem("displayMode", "natural"); } catch (_) {}
+                if (window.currentConvertedLines && window.currentConvertedLines.length) {
+                  __displayModeChangeHandler();
+                }
+              }
             }
           }
 
@@ -2081,7 +2077,7 @@
           return data;
         }
       } catch (e) {
-        console.warn("Failed to load user plan:", e);
+        // silently fail - plan defaults to free
       }
       return null;
     }
@@ -2148,23 +2144,28 @@
         }
         if (sheetCheckout === "success" && sheetSessionId) {
           setStatus("決済を確認中…");
+          _trackSheet("sheet_checkout_complete");
           const draft = loadSheetCheckoutDraft();
           const fallbackTitle = (draft && draft.title) ? String(draft.title) : getSongTitleSafe();
           (async () => {
             try {
               const token = await claimSheetToken(sheetSessionId);
+              _trackSheet("sheet_claim_ok");
               const resp = await requestPdfWithToken(token);
               const ct = (resp.headers.get("content-type") || "").toLowerCase();
               if (resp.ok && ct.includes("application/pdf")) {
+                _trackSheet("sheet_pdf_download_ok", { via: "oneshot" });
                 await downloadPdfBlobResponse(resp, fallbackTitle);
                 clearSheetCheckoutDraft();
               } else {
                 let j = {};
                 try { j = await resp.json(); } catch (_) {}
                 const msg = (j && j.message) ? j.message : "PDFダウンロードに失敗しました。";
+                _trackSheet("sheet_claim_fail", { reason: msg.slice(0, 80) });
                 setStatus(msg);
               }
             } catch (e) {
+              _trackSheet("sheet_claim_fail", { reason: ((e && e.message) || "unknown").slice(0, 80) });
               setStatus((e && e.message) ? e.message : "決済確認に失敗しました。");
             }
           })();
@@ -2275,8 +2276,9 @@
       if (!window.currentConvertedLines || !window.currentConvertedLines.length) {
         return { before_text: "", after_text: "" };
       }
+      const mode = __getDisplayMode();
       const before_text = window.currentConvertedLines.map(x => (x.standard || x.kana || "").trim()).filter(Boolean).join("\n");
-      const after_text = window.currentConvertedLines.map(x => (x.singkana || x.kana || "").trim()).filter(Boolean).join("\n");
+      const after_text = window.currentConvertedLines.map(x => (__modePrimaryKana(x, mode) || "").trim()).filter(Boolean).join("\n");
       return { before_text, after_text };
     }
 
@@ -2435,7 +2437,6 @@
         localStorage.setItem(LS_KEY, JSON.stringify(st));
         if (!silent) setStudioStatus("保存しました");
       } catch (e) {
-        console.warn(e);
         if (!silent) setStudioStatus("保存に失敗（localStorage不可）");
       }
     }
@@ -2448,7 +2449,6 @@
         writeStudioStateToUI(st);
         if (!silent) setStudioStatus("復元しました");
       } catch (e) {
-        console.warn(e);
         if (!silent) setStudioStatus("復元に失敗");
       }
     }
@@ -2526,13 +2526,18 @@
     }
     function buildKanaOnlyText() {
       if (!window.currentConvertedLines.length) return "";
-      return window.currentConvertedLines.map(x => (x.kana || "").trim()).filter(Boolean).join("\n");
+      const mode = __getDisplayMode();
+      return window.currentConvertedLines
+        .map(x => (__modePrimaryKana(x, mode) || "").trim())
+        .filter(Boolean)
+        .join("\n");
     }
     function buildEnKanaText() {
       if (!window.currentConvertedLines.length) return "";
+      const mode = __getDisplayMode();
       return window.currentConvertedLines.map(x => {
         const en = (x.en || "").trim();
-        const ka = (x.kana || "").trim();
+        const ka = (__modePrimaryKana(x, mode) || "").trim();
         const no = x.lineNo ? `#${x.lineNo}` : "";
         return `${no} ${en}\n${ka}`.trim();
       }).join("\n\n");
@@ -2579,7 +2584,7 @@
       const title = (document.getElementById("song-title")?.value || "").toString().trim();
       const lines = window.currentConvertedLines.map((line) => {
         const orig = (line.en || line.orig || "").toString().trim();
-        const raw = (line.singkana || line.kana || line.standard || "").toString().trim();
+        const raw = (__modePrimaryKana(line, mode) || "").toString().trim();
         const kana = renderDisplay(raw, mode);
         return { orig, kana };
       }).filter((x) => x.orig || x.kana);
@@ -2655,11 +2660,12 @@
     }
     function downloadSrt(){
       if (!window.currentConvertedLines.length) { setStatus("出力がありません"); return; }
+      const mode = __getDisplayMode();
       const dur = 2.2;
       let t = 0;
       let idx = 1;
       const srt = window.currentConvertedLines.map(line => {
-        const text = (line.kana || line.en || "").trim();
+        const text = (__modePrimaryKana(line, mode) || line.en || "").trim();
         const start = secToSrtTime(t);
         const end = secToSrtTime(t + dur);
         t += dur;
@@ -2669,16 +2675,34 @@
       setStatus("SRT(簡易)を保存しました");
     }
 
+    // --- 事業KPI計測ヘルパー ---
+    function _trackSheet(eventName, meta) {
+      try {
+        // GTM dataLayer
+        if (typeof dataLayer !== 'undefined') {
+          dataLayer.push({ event: eventName, timestamp: new Date().toISOString(), ...(meta || {}) });
+        }
+        // Backend /api/events
+        fetch("/api/events", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: eventName, meta: meta || {} }),
+        }).catch(() => {});
+      } catch (_) {}
+    }
+
     async function downloadPdfSheet(){
       const payload = buildSheetPayloadFromCurrentResult();
       if (!payload) { setStatus("出力がありません"); return; }
       if (__sheetCheckoutInFlight) { setStatus("決済処理中です…"); return; }
 
+      _trackSheet("sheet_try_submit", { title: (payload.title || "").slice(0, 60) });
       setStatus("PDFを生成中…");
       try {
         const resp = await requestPdfWithPayload(payload);
         const ct = (resp.headers.get("content-type") || "").toLowerCase();
         if (resp.ok && ct.includes("application/pdf")) {
+          _trackSheet("sheet_pdf_download_ok", { via: "pro" });
           await downloadPdfBlobResponse(resp, payload.title || getSongTitleSafe());
           return;
         }
@@ -2686,18 +2710,75 @@
         let data = {};
         try { data = await resp.json(); } catch (_) {}
         if (resp.status === 402) {
-          __sheetCheckoutInFlight = true;
-          setStatus("決済画面へ移動します…");
+          const amountJpy = data.amount_jpy || 300;
+          _trackSheet("sheet_paywall_402", { amount_jpy: amountJpy });
           saveSheetCheckoutDraft(payload);
-          try {
-            const url = (data && data.checkout_url) ? data.checkout_url : await requestSheetCheckout(payload);
-            window.location.href = url;
-            return;
-          } catch (e) {
-            setStatus((e && e.message) ? e.message : "決済を開始できませんでした。");
+          setStatus("");
+
+          // Paywall modal
+          const existing = document.getElementById("sheet-paywall-modal");
+          if (existing) existing.remove();
+
+          const modal = document.createElement("div");
+          modal.id = "sheet-paywall-modal";
+          modal.style.cssText = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px)";
+          modal.innerHTML = `
+            <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px 24px;max-width:380px;width:90%;text-align:center;color:#e2e8f0;font-family:system-ui,sans-serif">
+              <div style="font-size:32px;margin-bottom:8px">📄</div>
+              <h3 style="font-size:18px;font-weight:700;margin:0 0 6px;color:#fff">PDF練習シート</h3>
+              <p style="font-size:13px;color:#94a3b8;margin:0 0 16px;line-height:1.6">
+                歌詞・かな表記・ブレス記号入りの<br>
+                <strong style="color:#c0aeff">印刷用練習シート</strong>を生成します
+              </p>
+              <div style="background:#0f172a;border-radius:10px;padding:14px;margin-bottom:16px">
+                <div style="font-size:28px;font-weight:800;color:#a184ff">¥${amountJpy}</div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px">1回限り・買い切り</div>
+              </div>
+              <ul style="text-align:left;font-size:12px;color:#cbd5e1;margin:0 0 16px;padding-left:20px;line-height:1.8">
+                <li>決済完了後すぐにPDFダウンロード</li>
+                <li>QRコード付き（友達にもシェア可能）</li>
+                <li>Stripe安全決済（カード情報は当社に届きません）</li>
+              </ul>
+              <button id="sheet-paywall-buy" style="width:100%;padding:12px;border:none;border-radius:10px;background:linear-gradient(135deg,#8a5dff,#7441f0);color:#fff;font-size:14px;font-weight:700;cursor:pointer;transition:opacity 0.2s">
+                ¥${amountJpy} で購入する
+              </button>
+              <button id="sheet-paywall-close" style="display:block;margin:12px auto 0;background:none;border:none;color:#64748b;font-size:12px;cursor:pointer">
+                キャンセル
+              </button>
+              <p style="font-size:10px;color:#475569;margin-top:12px">
+                Proプラン（月額¥980）ならPDF無制限 + AI発音補正つき
+              </p>
+            </div>
+          `;
+          document.body.appendChild(modal);
+
+          modal.querySelector("#sheet-paywall-close").onclick = () => {
+            modal.remove();
             __sheetCheckoutInFlight = false;
-            return;
-          }
+          };
+          modal.addEventListener("click", (ev) => {
+            if (ev.target === modal) { modal.remove(); __sheetCheckoutInFlight = false; }
+          });
+
+          modal.querySelector("#sheet-paywall-buy").onclick = async () => {
+            const btn = modal.querySelector("#sheet-paywall-buy");
+            btn.textContent = "決済画面へ移動中…";
+            btn.style.opacity = "0.6";
+            btn.disabled = true;
+            __sheetCheckoutInFlight = true;
+            try {
+              const url = (data && data.checkout_url) ? data.checkout_url : await requestSheetCheckout(payload);
+              _trackSheet("sheet_checkout_open", { url: (url || "").slice(0, 80) });
+              window.location.href = url;
+            } catch (e) {
+              btn.textContent = `¥${amountJpy} で購入する`;
+              btn.style.opacity = "1";
+              btn.disabled = false;
+              setStatus((e && e.message) ? e.message : "決済を開始できませんでした。");
+              __sheetCheckoutInFlight = false;
+            }
+          };
+          return;
         }
 
         const msg = (data && data.message) ? data.message : "PDF生成に失敗しました";
@@ -2759,7 +2840,7 @@
       if (target) {
         setActiveBlock(target);
         const line = window.currentConvertedLines[window.activeIndex];
-        const speakText = (line.kana && line.kana.trim()) ? line.kana : (line.en || "");
+        const speakText = (__modePrimaryKana(line, __getDisplayMode()) || line.en || "");
         speakKana(speakText);
         scrollActiveIntoView();
       }
@@ -2773,6 +2854,17 @@
     function __getDisplayMode(){
       const el = document.getElementById("displayMode");
       return el ? el.value : "basic";
+    }
+
+    // モードに応じて、実際に表示/出力するかな列を選ぶ
+    function __modePrimaryKana(line, mode){
+      if (!line) return "";
+      const m = (mode || __getDisplayMode() || "natural").toLowerCase();
+      if (m === "basic") {
+        return line.standard || line.kana || line.singkana || "";
+      }
+      // natural / precise は SingKANA 系を優先
+      return line.singkana || line.kana || line.standard || "";
     }
     function _renderDisplayPlainText(coreText, mode){
       if (!coreText) return "";
@@ -2908,89 +3000,20 @@
 
     function __displayModeChangeHandler(){
       if (!window.currentConvertedLines.length) return;
-      const mode = __getDisplayMode();
-      
-      // モード切替時に結果が変わることを視覚的に示す（軽いアニメーション）
-      const textDivs = document.querySelectorAll(".result-ka");
-      textDivs.forEach((textDiv, i) => {
-        // フェードアウト
-        textDiv.style.opacity = "0.3";
-        textDiv.style.transition = "opacity 0.15s ease";
-        
-        setTimeout(() => {
-          const line = window.currentConvertedLines[i];
-          if (textDiv && line) {
-            // 比較UIの場合は差分ハイライトを適用
-            const block = textDiv.closest(".rounded-lg, .rounded-xl");
-            const isSingkana = block && block.classList.contains("border-singkana-400");
-            
-            if (isSingkana && line.standard) {
-              // SingKANA版: 差分ハイライトを適用
-              let highlighted = highlightDifferences(line.standard, line.singkana || "");
-              if (isPro()) {
-                highlighted = addBreathMarks(highlighted);
-              }
-              textDiv.innerHTML = renderDisplayWithKanaMarks(highlighted, mode, true);
-            } else {
-              // Standard版または通常表示
-              textDiv.textContent = renderDisplay(line.kana || line.singkana || line.standard || "", mode);
-            }
-            
-            // フェードイン
-            textDiv.style.opacity = "1";
-          }
-        }, 100);
-      });
-      
-      // モードバッジを更新（SingKANA側のブロックのみ）
-      document.querySelectorAll(".border-singkana-400").forEach((block) => {
-        const labelDiv = block.querySelector(".flex.items-center.gap-1.5");
-        if (labelDiv) {
-          // 既存のバッジを削除（ラベルテキスト以外のspan要素）
-          const badges = labelDiv.querySelectorAll("span.inline-flex.items-center");
-          badges.forEach(badge => badge.remove());
-          
-          // 新しいバッジを追加
-          const badge = document.createElement("span");
-          if (mode === "precise") {
-            badge.className = "inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-purple-500/15 border border-purple-400/25 text-[8px] font-medium text-purple-200/80";
-            badge.innerHTML = "🟪<span class=\"hidden md:inline\"> 日本語歌唱最適化</span>";
-          } else if (mode === "natural") {
-            badge.className = "inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-green-500/15 border border-green-400/25 text-[8px] font-medium text-green-200/80";
-            badge.innerHTML = "🟩<span class=\"hidden md:inline\"> 英語リズム保持</span>";
-          } else {
-            badge.className = "inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-singkana-500/10 border border-singkana-400/20 text-[8px] font-medium text-singkana-200/70";
-            badge.innerHTML = "🎤<span class=\"hidden md:inline\"> 歌唱向け</span>";
-          }
-          labelDiv.appendChild(badge);
-          
-          // 見出しテキストを更新
-          const labelText = labelDiv.querySelector("span.text-\\[10px\\], span.text-singkana-100");
-          if (labelText) {
-            let newLabel, newShortLabel;
-            if (mode === "precise") {
-              newLabel = "日本語として歌えるカタカナ（最適）";
-              newShortLabel = "日本語として歌える";
-            } else if (mode === "natural") {
-              newLabel = "英語っぽく歌えるカタカナ";
-              newShortLabel = "英語っぽく歌える";
-            } else {
-              newLabel = "読むためのカタカナ";
-              newShortLabel = "読むためのカタカナ";
-            }
-            labelText.innerHTML = `<span class="hidden md:inline">${newLabel}</span><span class="md:hidden">${newShortLabel}</span>`;
-          }
-        }
-      });
+      _renderConvertResult(window.currentConvertedLines, !!window.__lastGptApplied);
     }
 
     // =========================
-    // Convert (クライアントサイド一発変換 + 2段比較表示)
+    // Convert (クライアントサイド一発変換 + Pro時GPT後処理)
     // =========================
+    let __convertInFlight = false;
+
     function convertLyrics() {
+      if (__convertInFlight) return;
       const errorBanner = document.getElementById("error-banner");
       const resultPanel = document.getElementById("result-panel");
       const lyrics = document.getElementById("lyrics-input").value || "";
+      let mode = __getDisplayMode();
 
       if (errorBanner) {
         errorBanner.style.display = "none";
@@ -3005,9 +3028,13 @@
         return;
       }
 
+      // FreeでPreciseが選ばれている場合はNaturalへ戻して処理
+      if (!guardDisplayMode(mode)) {
+        mode = __getDisplayMode();
+      }
+
       // SingKanaCoreが読み込まれているか確認
       if (!window.SingKanaCore || !window.SingKanaCore.convertLyrics) {
-        console.error("[convertLyrics] SingKanaCore is not loaded");
         if (errorBanner) {
           errorBanner.textContent = "変換エンジンが読み込まれていません。ページを再読み込みしてください。";
           errorBanner.style.display = "block";
@@ -3019,11 +3046,10 @@
         return;
       }
 
+      // まずクライアントサイドで即座に変換（全ユーザー共通ベース）
       let lines;
       try {
-        // クライアントサイドで即座に変換（一発変換）
         lines = window.SingKanaCore.convertLyrics(lyrics);
-        console.log("[convertLyrics] Converted lines:", lines);
 
         if (!lines || !lines.length) {
           window.currentConvertedLines = [];
@@ -3036,7 +3062,6 @@
           return;
         }
       } catch (error) {
-        console.error("[convertLyrics] Error:", error);
         if (errorBanner) {
           errorBanner.textContent = `変換エラー: ${error.message}`;
           errorBanner.style.display = "block";
@@ -3048,8 +3073,7 @@
         return;
       }
 
-      // 変換成功: 結果を表示
-      // Standard変換（最適化なし）をクライアントサイドで生成
+      // クライアントサイド変換結果を先に表示
       const linesWithComparison = lines.map(line => {
         const standard = convertToStandardKana(line.en || "");
         return {
@@ -3060,8 +3084,82 @@
         };
       });
 
+      // PreciseはPro時のみ、サーバー側のAI発音補正を適用
+      if (mode === "precise" && isPro()) {
+        _renderConvertResult(linesWithComparison, false); // まずルールベース結果を表示
+        _proGptRefine(lyrics, linesWithComparison, mode);
+        return;
+      }
+
+      // Basic/Natural はローカル結果をそのまま表示（モードに応じて出力列を切替）
+      _renderConvertResult(linesWithComparison, false);
+    }
+
+    // Pro専用: サーバーサイドGPT AI発音補正
+    async function _proGptRefine(lyrics, fallbackLines, displayMode = "precise") {
+      const resultPanel = document.getElementById("result-panel");
+      const errorBanner = document.getElementById("error-banner");
+
+      // ローディング表示を結果上部に追加
+      const loadingEl = document.createElement("div");
+      loadingEl.id = "gpt-loading-banner";
+      loadingEl.className = "mb-3 rounded-lg border border-singkana-400/40 bg-singkana-500/10 px-4 py-2 text-xs text-singkana-100 flex items-center gap-2";
+      loadingEl.innerHTML = `
+        <svg class="animate-spin h-4 w-4 text-singkana-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+        <span>AI発音補正を適用中... (数秒かかります)</span>
+      `;
+      if (resultPanel && resultPanel.firstChild) {
+        resultPanel.insertBefore(loadingEl, resultPanel.firstChild);
+      }
+
+      __convertInFlight = true;
+      try {
+        const resp = await fetch("/api/convert", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            text: lyrics,
+            meta: { display_mode: displayMode }
+          }),
+        });
+
+        const data = await resp.json();
+        // ローディング除去
+        const banner = document.getElementById("gpt-loading-banner");
+        if (banner) banner.remove();
+
+        if (data.ok && data.result && data.result.length) {
+          // サーバー結果にstandard列を補完
+          const refined = data.result.map((line, i) => ({
+            en: line.en || "",
+            standard: fallbackLines[i] ? fallbackLines[i].standard : convertToStandardKana(line.en || ""),
+            singkana: line.singkana || (fallbackLines[i] ? fallbackLines[i].singkana : ""),
+            lineNo: i + 1,
+          }));
+          _renderConvertResult(refined, data.gpt_applied || false);
+        } else {
+          // APIエラー時はクライアントサイド結果をそのまま使う
+        }
+      } catch (e) {
+        const banner = document.getElementById("gpt-loading-banner");
+        if (banner) banner.remove();
+      } finally {
+        __convertInFlight = false;
+      }
+    }
+
+    // 変換結果をDOMに描画する共通関数
+    function _renderConvertResult(linesWithComparison, gptApplied) {
+      const resultPanel = document.getElementById("result-panel");
+      if (!resultPanel) return;
+      const mode = __getDisplayMode();
+
       window.currentConvertedLines = linesWithComparison;
       window.activeIndex = -1;
+      window.__lastGptApplied = !!gptApplied;
 
       // 2段比較表示を構築
       const frag = document.createDocumentFragment();
@@ -3081,54 +3179,68 @@
         const singkanaBlock = createComparisonBlock(
           "singkana",
           (() => {
-            const mode = __getDisplayMode();
-            if (mode === "precise") return "日本語として歌えるカタカナ（最適）";
-            if (mode === "natural") return "英語っぽく歌えるカタカナ";
-            return "読むためのカタカナ";
+            if (mode === "precise") return "原音に近いカタカナ（練習向け）";
+            if (mode === "natural") return "自然に聞こえるカタカナ（おすすめ）";
+            return "とりあえず歌えるカタカナ（最短）";
           })(),
-          line.singkana || "",
+          __modePrimaryKana(line, mode),
           i,
           "singkana",
-          line.standard || "" // Standard版と比較してハイライト
+          (mode === "basic") ? null : (line.standard || "") // Basicは比較ハイライトを使わない
         );
         lineContainer.appendChild(singkanaBlock);
 
-        // 比較トグル（Standard版を折りたたみ）
-        const compareToggle = document.createElement("div");
-        compareToggle.className = "mt-2";
-        const toggleBtn = document.createElement("button");
-        toggleBtn.className = "text-[10px] text-slate-400 hover:text-slate-300 transition flex items-center gap-1";
-        toggleBtn.innerHTML = `<span>▼</span> <span>一般的なカタカナと比較する（歌いにくさの原因を見る）</span>`;
-        
-        const standardContainer = document.createElement("div");
-        standardContainer.className = "hidden mt-2";
-        const standardBlock = createComparisonBlock(
-          "standard",
-          "一般的なカタカナ（歌いやすさ最適化なし）",
-          line.standard || "",
-          i,
-          "standard",
-          null
-        );
-        standardContainer.appendChild(standardBlock);
-        
-        toggleBtn.onclick = () => {
-          const isHidden = standardContainer.classList.contains("hidden");
-          if (isHidden) {
-            standardContainer.classList.remove("hidden");
-            toggleBtn.innerHTML = `<span>▲</span> <span>一般的なカタカナを非表示</span>`;
-          } else {
-            standardContainer.classList.add("hidden");
-            toggleBtn.innerHTML = `<span>▼</span> <span>一般的なカタカナと比較する（歌いにくさの原因を見る）</span>`;
-          }
-        };
-        
-        compareToggle.appendChild(toggleBtn);
-        compareToggle.appendChild(standardContainer);
-        lineContainer.appendChild(compareToggle);
+        // Basic以外は、比較トグル（Standard版）を表示
+        if (mode !== "basic") {
+          const compareToggle = document.createElement("div");
+          compareToggle.className = "mt-2";
+          const toggleBtn = document.createElement("button");
+          toggleBtn.className = "text-[10px] text-slate-400 hover:text-slate-300 transition flex items-center gap-1";
+          toggleBtn.innerHTML = `<span>▼</span> <span>一般的なカタカナと比較する（歌いにくさの原因を見る）</span>`;
+          
+          const standardContainer = document.createElement("div");
+          standardContainer.className = "hidden mt-2";
+          const standardBlock = createComparisonBlock(
+            "standard",
+            "一般的なカタカナ（歌いやすさ最適化なし）",
+            line.standard || "",
+            i,
+            "standard",
+            null
+          );
+          standardContainer.appendChild(standardBlock);
+          
+          toggleBtn.onclick = () => {
+            const isHidden = standardContainer.classList.contains("hidden");
+            if (isHidden) {
+              standardContainer.classList.remove("hidden");
+              toggleBtn.innerHTML = `<span>▲</span> <span>一般的なカタカナを非表示</span>`;
+            } else {
+              standardContainer.classList.add("hidden");
+              toggleBtn.innerHTML = `<span>▼</span> <span>一般的なカタカナと比較する（歌いにくさの原因を見る）</span>`;
+            }
+          };
+          
+          compareToggle.appendChild(toggleBtn);
+          compareToggle.appendChild(standardContainer);
+          lineContainer.appendChild(compareToggle);
+        }
 
         frag.appendChild(lineContainer);
       });
+
+      // GPT AI発音補正が適用された場合のバッジ
+      if (gptApplied && isPro()) {
+        const gptBadge = document.createElement("div");
+        gptBadge.className = "mb-3 rounded-lg border border-emerald-400/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200 flex items-center gap-2";
+        gptBadge.innerHTML = `<span class="text-emerald-400">&#10003;</span> <span>AI発音補正が適用されました（Pro専用機能）</span>`;
+        // fragの先頭に挿入
+        if (frag.firstChild) {
+          frag.insertBefore(gptBadge, frag.firstChild);
+        } else {
+          frag.appendChild(gptBadge);
+        }
+      }
 
       // Pro誘導ボタン（比較UIの直下に配置）
       if (!isPro()) {
@@ -3137,8 +3249,8 @@
         proCta.innerHTML = `
           <div class="flex flex-col md:flex-row items-center justify-between gap-3">
             <div>
-              <p class="text-sm font-semibold text-singkana-100 mb-1">この品質で変換し続ける</p>
-              <p class="text-xs text-slate-300">Proで無制限変換・精密（日本語歌唱最適）・Singability</p>
+              <p class="text-sm font-semibold text-singkana-100 mb-1">さらに高品質に変換する</p>
+              <p class="text-xs text-slate-300">ProでAI発音補正・無制限変換・精密モード・Singability</p>
             </div>
             <button type="button" id="pro-start-btn" onclick="startCheckout('pro_month')" class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition whitespace-nowrap">
               <span>今すぐProで歌える</span>
@@ -3158,10 +3270,11 @@
 
       // 計測: convert_success（歌詞は送らず、成功イベントだけ送る）
       try {
+        const mode = __getDisplayMode();
         fetch("/api/events", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: "convert_success", meta: { source: "client" } }),
+          body: JSON.stringify({ name: "convert_success", meta: { source: "client", display_mode: mode, gpt_applied: gptApplied } }),
         }).catch(() => {});
       } catch (e) {}
     }
@@ -3331,11 +3444,11 @@
       if (type === "singkana") {
         const mode = __getDisplayMode();
         if (mode === "precise") {
-          shortLabel = "日本語として歌える";
+          shortLabel = "原音に近い";
         } else if (mode === "natural") {
-          shortLabel = "英語っぽく歌える";
+          shortLabel = "自然に聞こえる";
         } else {
-          shortLabel = "読むためのカタカナ";
+          shortLabel = "とりあえず歌える";
         }
       } else {
         shortLabel = "一般的なカタカナ";
@@ -3354,15 +3467,15 @@
         if (mode === "precise") {
           // 精密モード：日本語歌唱最適化バッジ
           badge.className = "inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-purple-500/15 border border-purple-400/25 text-[8px] font-medium text-purple-200/80";
-          badge.innerHTML = "🟪<span class=\"hidden md:inline\"> 日本語歌唱最適化</span>";
+          badge.innerHTML = "🟪<span class=\"hidden md:inline\"> 原音に近い / 練習向け</span>";
         } else if (mode === "natural") {
           // ナチュラルモード：英語リズム保持バッジ
           badge.className = "inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-green-500/15 border border-green-400/25 text-[8px] font-medium text-green-200/80";
-          badge.innerHTML = "🟩<span class=\"hidden md:inline\"> 英語リズム保持</span>";
+          badge.innerHTML = "🟩<span class=\"hidden md:inline\"> 自然に聞こえる / おすすめ</span>";
         } else {
           // ベーシックモード：読む用バッジ
           badge.className = "inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-singkana-500/10 border border-singkana-400/20 text-[8px] font-medium text-singkana-200/70";
-          badge.innerHTML = "🎤<span class=\"hidden md:inline\"> 歌唱向け</span>";
+          badge.innerHTML = "🎤<span class=\"hidden md:inline\"> とりあえず歌える / 最短</span>";
         }
         
         labelDiv.appendChild(badge);
@@ -3404,30 +3517,34 @@
       const textDiv = document.createElement("div");
       textDiv.className = "result-ka text-xs md:text-sm text-slate-100 leading-loose md:leading-loose whitespace-pre-wrap";
       
-      if (type === "singkana" && compareText) {
-        // SingKANA版: 差分ハイライトを適用
-        let highlighted = highlightDifferences(compareText, text);
-        
-        // Pro側だけブロック境界（息継ぎ位置）を表示（色ではなく記号で）
-        if (isPro()) {
-          // 息継ぎ位置に「｜」セパレータを挿入（色ではなく記号で区切りを表現）
-          highlighted = addBreathMarks(highlighted);
-        }
-        
-        textDiv.innerHTML = renderDisplayWithKanaMarks(highlighted, __getDisplayMode(), true);
-        
-        // Pro側だけ「Singability」を表示（仮実装）
-        if (isPro()) {
-          const scoreDiv = document.createElement("div");
-          scoreDiv.className = "mt-2 pt-2 border-t border-singkana-400/20";
-          scoreDiv.innerHTML = `
-            <div class="flex items-center gap-2 text-[10px] text-singkana-200">
-              <span class="font-semibold">Singability:</span>
-              <span class="text-singkana-100 font-bold">86/100</span>
-              <span class="text-slate-400 ml-1">（息継ぎ・母音安定・連結自然さ）</span>
-            </div>
-          `;
-          textDiv.appendChild(scoreDiv);
+      if (type === "singkana") {
+        if (compareText) {
+          // SingKANA版: 差分ハイライトを適用
+          let highlighted = highlightDifferences(compareText, text);
+          
+          // Precise + Pro のときだけ、息継ぎ境界を補助表示
+          if (isPro() && __getDisplayMode() === "precise") {
+            highlighted = addBreathMarks(highlighted);
+          }
+          
+          textDiv.innerHTML = renderDisplayWithKanaMarks(highlighted, __getDisplayMode(), true);
+          
+          // Precise + Pro のときだけ「Singability」を表示
+          if (isPro() && __getDisplayMode() === "precise") {
+            const scoreDiv = document.createElement("div");
+            scoreDiv.className = "mt-2 pt-2 border-t border-singkana-400/20";
+            scoreDiv.innerHTML = `
+              <div class="flex items-center gap-2 text-[10px] text-singkana-200">
+                <span class="font-semibold">Singability:</span>
+                <span class="text-singkana-100 font-bold">86/100</span>
+                <span class="text-slate-400 ml-1">（息継ぎ・母音安定・連結自然さ）</span>
+              </div>
+            `;
+            textDiv.appendChild(scoreDiv);
+          }
+        } else {
+          // Basic等: 差分ハイライトなしでそのまま表示
+          textDiv.textContent = renderDisplay(text || "", __getDisplayMode());
         }
       } else {
         // Standard版: 通常表示（文字色は普通、背景・枠・装飾を削る）
@@ -3528,8 +3645,7 @@
     }
 
     // =========================
-    // Feedback (NOTE: /api/feedback が未実装なら必ず失敗する)
-    // → 失敗してもUXが壊れないようにする
+    // Feedback → /api/feedback (JSONL + Discord webhook)
     // =========================
     async function sendFeedback() {
       const textBox = document.getElementById("feedback-text");
@@ -3558,7 +3674,6 @@
           status.textContent = "送信に失敗しました（API未接続の可能性）。";
         }
       } catch (e) {
-        console.error(e);
         status.textContent = "送信に失敗しました（ネットワーク/API未接続）。";
       }
     }
@@ -3618,7 +3733,7 @@
         const res = await fetch("/api/waitlist", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email })
+          body: JSON.stringify({ email, source: "ja_main" })
         });
         
         // HTTPステータスコードをチェック
@@ -3712,7 +3827,6 @@
           }
         }
       } catch (e) {
-        console.error("Waitlist registration error:", e);
         statusDiv.textContent = "登録に失敗しました。しばらくしてから再度お試しください。";
         statusDiv.className = "text-xs text-red-400 mt-2";
         
@@ -3781,9 +3895,9 @@
               class="mt-0.5 accent-singkana-400"
             />
             <span>
-              <a href="/terms.html" target="_blank" class="text-singkana-300 hover:text-singkana-100 underline">利用規約</a>と
-              <a href="/privacy.html" target="_blank" class="text-singkana-300 hover:text-singkana-100 underline">プライバシーポリシー</a>および
-              <a href="/tokusho.html" target="_blank" class="text-singkana-300 hover:text-singkana-100 underline">特定商取引法に基づく表記</a>に同意します
+              <a href="/terms.html" target="_blank" rel="noopener" class="text-singkana-300 hover:text-singkana-100 underline">利用規約</a>と
+              <a href="/privacy.html" target="_blank" rel="noopener" class="text-singkana-300 hover:text-singkana-100 underline">プライバシーポリシー</a>および
+              <a href="/tokusho.html" target="_blank" rel="noopener" class="text-singkana-300 hover:text-singkana-100 underline">特定商取引法に基づく表記</a>に同意します
             </span>
           </label>
         </div>
@@ -3847,7 +3961,8 @@
             <li>Freeプラン：基本的な変換機能を無料でご利用いただけます。</li>
             <li>Proプラン：より精密な変換、比較表示、Singabilityスコア等の高度な機能をご利用いただけます（月額980円）。</li>
           </ul>
-          <p>3. 本サービスにおける変換処理は、ユーザーの端末（ブラウザ）内で行われます。運営側サーバーは、ユーザーが入力した歌詞やテキストの内容を取得・保存・解析しません。</p>
+          <p>3. 本サービスにおける基本変換処理は、ユーザーの端末（ブラウザ）内で行われます。ただし、Proプランの「AI発音補正」機能を利用する場合、歌詞テキストは当社サーバーを経由してOpenAI社のAPI（GPT）に送信され、発音補正処理が行われます。送信されたテキストは補正処理完了後、当社サーバーには保存されません（キャッシュを除く）。OpenAI社によるデータの取り扱いについては、同社のプライバシーポリシーをご確認ください。</p>
+          <p>4. PDF練習シート（One-Shot購入）の生成時にも、歌詞テキストはサーバーに送信されPDF生成処理が行われます。</p>
 
           <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">第3条（会員登録・アカウント）</h2>
           <p>1. 本サービスの利用にあたり、会員登録は不要です。ただし、Proプランをご利用いただく場合は、決済情報の登録が必要です。</p>
@@ -3900,7 +4015,7 @@
           <p>1. 本規約の解釈には、日本法を準拠法とします。</p>
           <p>2. 本サービスに関して紛争が生じた場合、運営者の所在地を管轄する日本の裁判所を専属的合意管轄とします。</p>
 
-          <p class="text-sm text-slate-400 mt-8">制定日：2026年1月14日<br>最終更新日：2026年1月31日</p>
+          <p class="text-sm text-slate-400 mt-8">制定日：2026年1月14日<br>最終更新日：2026年2月16日</p>
         </div>
       </div>
     </div>
@@ -3923,7 +4038,7 @@
             <li><strong>決済情報</strong>：Proプランをご利用いただく場合、Stripe社を通じて決済情報（クレジットカード情報等）を取得します。決済情報はStripe社が管理し、本サービス運営者は直接取得・保存しません。</li>
             <li><strong>ユーザーID</strong>：本サービスの利用状況を管理するための、自動生成される識別子（Cookieに保存）</li>
           </ul>
-          <p><strong>重要な点</strong>：本サービスのメイン機能である「テキストからかな表記への変換」に際して、ユーザーが入力した歌詞・テキストの内容は、運営側サーバーには送信・保存されません。変換処理はユーザーの端末（ブラウザ）内のみで行われます。</p>
+          <p><strong>重要な点</strong>：本サービスのメイン機能である「テキストからかな表記への変換」に際して、Freeプランの基本変換ではユーザーが入力した歌詞・テキストの内容は運営側サーバーには送信されず、端末（ブラウザ）内のみで処理されます。ただし、Proプランの「AI発音補正」機能およびPDF練習シート生成時には、歌詞テキストがサーバーに送信されます。AI発音補正ではOpenAI社のAPI（GPT-4o-mini）を利用しており、歌詞テキストがOpenAI社に送信されます。</p>
 
           <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">2. 情報の利用目的</h2>
           <p>本サービスでは、取得した情報を以下の目的で利用します。</p>
@@ -3945,7 +4060,8 @@
           <p>1. 本サービスは、法令に基づく場合を除き、ユーザーに関する情報を第三者に提供することはありません。</p>
           <p>2. ただし、以下の場合には情報を提供することがあります。</p>
           <ul class="list-disc pl-6 space-y-2">
-            <li><strong>決済サービス（Stripe）</strong>：Proプランの決済処理のため、Stripe社に必要最小限の情報（ユーザーID、メールアドレス等）を提供します。決済情報（クレジットカード情報等）はStripe社が直接管理します。</li>
+            <li><strong>AI発音補正（OpenAI）</strong>：Proプランの「AI発音補正」機能利用時に、歌詞テキストがOpenAI社のAPI（GPT-4o-mini）に送信されます。OpenAI社のAPI利用ポリシーに基づき、API経由で送信されたデータはモデルの学習には使用されません。OpenAI社のプライバシーポリシーは<a href="https://openai.com/policies/privacy-policy" target="_blank" rel="noopener" class="text-singkana-300 hover:text-singkana-100 underline">こちら</a>をご確認ください。</li>
+            <li><strong>決済サービス（Stripe）</strong>：Proプランおよび単品PDF購入の決済処理のため、Stripe社に必要最小限の情報（ユーザーID、メールアドレス等）を提供します。決済情報（クレジットカード情報等）はStripe社が直接管理します。</li>
             <li><strong>法的要請</strong>：法令に基づく要請がある場合、または裁判所・警察等の公的機関からの要請がある場合</li>
           </ul>
 
@@ -3962,6 +4078,7 @@
           <h2 class="text-xl font-semibold text-slate-100 mt-8 mb-4">6. 外部サービスとの連携</h2>
           <p>本サービスでは、以下の外部サービスを利用しています。</p>
           <ul class="list-disc pl-6 space-y-2">
+            <li><strong>OpenAI</strong>：Proプランの「AI発音補正」機能で利用。歌詞テキストの発音補正処理のため。OpenAI社のプライバシーポリシーは<a href="https://openai.com/policies/privacy-policy" target="_blank" rel="noopener" class="text-singkana-300 hover:text-singkana-100 underline">こちら</a>をご確認ください。</li>
             <li><strong>Stripe</strong>：決済処理サービス。Stripe社のプライバシーポリシーは<a href="https://stripe.com/jp/privacy" target="_blank" rel="noopener" class="text-singkana-300 hover:text-singkana-100 underline">こちら</a>をご確認ください。</li>
             <li><strong>ホスティングサービス</strong>：本サービスのサーバー運用のため</li>
           </ul>
@@ -3989,7 +4106,7 @@
           <p>本プライバシーポリシーに関するお問い合わせは、以下のメールアドレスまでご連絡ください。</p>
           <p>メールアドレス：<a href="mailto:singkana.official@gmail.com" class="text-singkana-300 hover:text-singkana-100 underline">singkana.official@gmail.com</a></p>
 
-          <p class="text-sm text-slate-400 mt-8">制定日：2026年1月14日<br>最終更新日：2026年1月14日</p>
+          <p class="text-sm text-slate-400 mt-8">制定日：2026年1月14日<br>最終更新日：2026年2月16日</p>
         </div>
       </div>
     </div>
