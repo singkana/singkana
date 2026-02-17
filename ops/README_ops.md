@@ -5,6 +5,9 @@
 | ファイル | 用途 |
 |----------|------|
 | `cleanup_db.sh` | DB の期限切れレコード掃除（1日1回） |
+| `backup_full_encrypted.sh` | フルバックアップ作成 + GPG暗号化 + SHA256生成 |
+| `singkana-backup-encrypted.service` | 暗号化フルバックアップの systemd service |
+| `singkana-backup-encrypted.timer` | 暗号化フルバックアップの日次 timer |
 | `logrotate-singkana.conf` | ログローテーション定義 |
 | `singkana-cleanup.service` | cleanup の systemd service unit |
 | `singkana-cleanup.timer` | cleanup の systemd timer（cron代替） |
@@ -114,3 +117,63 @@ sudo journalctl -u singkana --since today --no-pager \
 sudo mkdir -p /var/log/singkana /run/singkana
 sudo chown www-data:www-data /var/log/singkana /run/singkana
 ```
+
+---
+
+## 5. 暗号化フルバックアップ（推奨: systemd timer 運用）
+
+```bash
+# 実行権限（初回のみ）
+sudo chmod +x /var/www/singkana/ops/backup_full_encrypted.sh
+```
+
+### 5-1. パスフレーズを EnvironmentFile で管理（推奨）
+
+`BACKUP_GPG_PASSPHRASE=...` をコマンドラインに直接書かず、root のみ読めるファイルで管理します。
+
+```bash
+sudo install -d -m 700 /etc/singkana
+sudo tee /etc/singkana/backup.env >/dev/null <<'EOF'
+BACKUP_GPG_PASSPHRASE=YOUR_STRONG_PASS
+EOF
+sudo chmod 600 /etc/singkana/backup.env
+sudo chown root:root /etc/singkana/backup.env
+```
+
+### 5-2. systemd service/timer を配置
+
+```bash
+sudo cp /var/www/singkana/ops/singkana-backup-encrypted.service /etc/systemd/system/
+sudo cp /var/www/singkana/ops/singkana-backup-encrypted.timer   /etc/systemd/system/
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now singkana-backup-encrypted.timer
+```
+
+### 5-3. 即時テスト
+
+```bash
+# 手動で1回実行
+sudo systemctl start singkana-backup-encrypted.service
+
+# 結果確認
+systemctl list-timers --all | grep singkana-backup-encrypted
+sudo journalctl -u singkana-backup-encrypted.service --no-pager -n 80
+sudo ls -lh /var/backups/singkana | tail -n 20
+```
+
+### 5-4. 直接実行（必要時のみ）
+
+```bash
+# 対話式（gpgがパスフレーズを聞く）
+sudo /var/www/singkana/ops/backup_full_encrypted.sh
+```
+
+### 生成物
+
+- `<backup_dir>/singkana_FULL_YYYYmmdd-HHMMSS.tgz.gpg`
+- `<backup_dir>/singkana_FULL_YYYYmmdd-HHMMSS.tgz.gpg.sha256`
+- `<backup_dir>/singkana_FULL_YYYYmmdd-HHMMSS.manifest.txt`
+
+デフォルトでは平文の `.tgz` は削除されます（`--keep-plain` 指定時のみ保持）。
+また、デフォルトで 14 日より古いバックアップを自動削除します（`--retention-days 0` で無効化可能）。

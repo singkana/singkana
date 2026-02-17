@@ -1096,7 +1096,7 @@
         <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
           <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">02 / Marking</p>
           <h3 class="text-sm font-semibold text-slate-50">カラオケ風 “歌い方マーク”</h3>
-          <p class="text-xs text-slate-300 leading-relaxed">視覚ガイドで練習効率を上げる（今後拡張）。</p>
+          <p class="text-xs text-slate-300 leading-relaxed">視覚ガイドで練習効率を上げる（Natural/Preciseで段階適用）。</p>
         </div>
         <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
           <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">03 / Web Studio</p>
@@ -2585,7 +2585,8 @@
       const lines = window.currentConvertedLines.map((line) => {
         const orig = (line.en || line.orig || "").toString().trim();
         const raw = (__modePrimaryKana(line, mode) || "").toString().trim();
-        const kana = renderDisplay(raw, mode);
+        const guided = addKaraokeGuideMarksPlain(raw, mode);
+        const kana = renderDisplay(guided, mode);
         return { orig, kana };
       }).filter((x) => x.orig || x.kana);
       if (!lines.length) return null;
@@ -2996,6 +2997,70 @@
       const rendered = renderDisplay(coreText, mode);
       if (!rendered) return "";
       return hasHtml ? renderKanaHtmlInHtml(rendered) : renderKanaHtml(rendered);
+    }
+
+    // Natural/Precise向けに、歌い方マークを視覚ガイドとして補助付与
+    function addKaraokeGuideMarksPlain(text, mode){
+      if (!text) return "";
+      const m = (mode || __getDisplayMode() || "natural").toLowerCase();
+      let t = String(text).replace(/\s+/g, " ").trim();
+      if (!t) return "";
+      if (m === "basic") return t; // Basicは最短表示を優先
+      if (!/[ァ-ヴぁ-ん]/.test(t)) return t;
+
+      const words = t.split(" ").filter(Boolean);
+      if (!words.length) return t;
+
+      const out = [];
+      const breathInterval = m === "precise" ? 4 : 5;
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+
+        // BR: 一定語数ごとに息継ぎガイド
+        if (i > 0 && i % breathInterval === 0) out.push("˘");
+        // VIB(簡易): preciseのみ、強調位置の目印を補助
+        if (m === "precise" && i > 0 && i % 6 === 0) out.push("↑");
+
+        out.push(word);
+
+        // HLD: 短語・機能語の前に連結マークを挿入
+        if (i < words.length - 1) {
+          const next = words[i + 1];
+          if (/^(トゥ|ト|ダ|ザ|ナ|ノ|ニ|ネ|デ|ディ|イン|オン|ア|オ|エ|ウ)$/.test(next) || /^[ァ-ヴー]{1,2}$/.test(next)) {
+            out.push("～");
+          }
+        }
+      }
+
+      let guided = out.join(" ").replace(/\s{2,}/g, " ").trim();
+      if (m === "precise") {
+        guided = guided.replace(/([ァ-ヴー]{2,})ト(?=\s|$)/, "$1(ト)");
+        if (!/[↓↑]\s*$/.test(guided)) guided += " ↓";
+      }
+      return guided;
+    }
+
+    function addKaraokeGuideMarksHtml(html, mode){
+      if (!html) return "";
+      const tpl = document.createElement("template");
+      tpl.innerHTML = html;
+      const walker = document.createTreeWalker(tpl.content, NodeFilter.SHOW_TEXT);
+      const targets = [];
+      let node;
+      while ((node = walker.nextNode())) {
+        if (!node.nodeValue) continue;
+        if (/[ァ-ヴぁ-ん]/.test(node.nodeValue)) targets.push(node);
+      }
+      targets.forEach((textNode) => {
+        textNode.nodeValue = addKaraokeGuideMarksPlain(textNode.nodeValue, mode);
+      });
+      return tpl.innerHTML;
+    }
+
+    function karaokeGuideLegend(mode){
+      if (mode === "precise") return "BR: ˘  /  HLD: ～  /  VIB: ↑↓";
+      if (mode === "natural") return "BR: ˘  /  HLD: ～";
+      return "Basic: マークなし（最短表示）";
     }
 
     function __displayModeChangeHandler(){
@@ -3518,19 +3583,18 @@
       textDiv.className = "result-ka text-xs md:text-sm text-slate-100 leading-loose md:leading-loose whitespace-pre-wrap";
       
       if (type === "singkana") {
+        const mode = __getDisplayMode();
         if (compareText) {
           // SingKANA版: 差分ハイライトを適用
           let highlighted = highlightDifferences(compareText, text);
-          
-          // Precise + Pro のときだけ、息継ぎ境界を補助表示
-          if (isPro() && __getDisplayMode() === "precise") {
-            highlighted = addBreathMarks(highlighted);
-          }
-          
-          textDiv.innerHTML = renderDisplayWithKanaMarks(highlighted, __getDisplayMode(), true);
+
+          // Natural/Preciseで歌い方ガイドマークを補助挿入
+          highlighted = addKaraokeGuideMarksHtml(highlighted, mode);
+
+          textDiv.innerHTML = renderDisplayWithKanaMarks(highlighted, mode, true);
           
           // Precise + Pro のときだけ「Singability」を表示
-          if (isPro() && __getDisplayMode() === "precise") {
+          if (isPro() && mode === "precise") {
             const scoreDiv = document.createElement("div");
             scoreDiv.className = "mt-2 pt-2 border-t border-singkana-400/20";
             scoreDiv.innerHTML = `
@@ -3544,8 +3608,14 @@
           }
         } else {
           // Basic等: 差分ハイライトなしでそのまま表示
-          textDiv.textContent = renderDisplay(text || "", __getDisplayMode());
+          const guided = addKaraokeGuideMarksPlain(text || "", mode);
+          textDiv.innerHTML = renderDisplayWithKanaMarks(guided, mode, false);
         }
+
+        const guideLegend = document.createElement("div");
+        guideLegend.className = "mt-1 text-[10px] text-slate-400/90";
+        guideLegend.textContent = karaokeGuideLegend(mode);
+        textDiv.appendChild(guideLegend);
       } else {
         // Standard版: 通常表示（文字色は普通、背景・枠・装飾を削る）
         textDiv.textContent = renderDisplay(text || "", __getDisplayMode());

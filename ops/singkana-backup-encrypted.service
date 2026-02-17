@@ -1,0 +1,18 @@
+[Unit]
+Description=SingKANA Encrypted Full Backup (tgz + gpg + sha256 + manifest)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/var/www/singkana
+EnvironmentFile=/etc/singkana/backup.env
+ExecStart=/var/www/singkana/ops/backup_full_encrypted.sh
+Restart=no
+
+# Optional: reduce impact on production workload
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
