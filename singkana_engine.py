@@ -564,8 +564,8 @@ JSON配列: [{"en":"英語行","singkana":"カタカナ行"}, ...]
 5. 歌いやすさを最優先。学術的な正確性より「口に出して歌える」ことを重視。
 6. 単語間にスペースを入れて読みやすくする。
 
-## 歌唱記号（必ず付与すること）
-以下の記号を適切な位置に挿入してください:
+## 歌唱記号（必要な箇所のみ）
+以下の記号は、必要な行にだけ挿入してください（不要なら入れない）:
 - ˘ (ブレス/息継ぎ): フレーズの切れ目・息継ぎ位置に入れる。カンマや接続詞の前後、長いフレーズの途中など。1行に1〜2箇所が目安。
 - ↑ (ピッチ上昇): 強調すべき単語・音節の直前に入れる。サビの盛り上がり、感情的に強い箇所。
 - ↓ (ピッチ下降): フレーズ末で下降する箇所の直前に入れる。
@@ -576,6 +576,48 @@ JSON配列: [{"en":"英語行","singkana":"カタカナ行"}, ...]
 入力: [{"en":"I want you to know","singkana":"アイ ウォント ユー トゥ ノウ"},{"en":"That I love you so","singkana":"ザット アイ ラヴ ユー ソー"}]
 出力: {"lines":[{"en":"I want you to know","singkana":"↑アイ ウォン～チュー トゥ ノウ"},{"en":"That I love you so","singkana":"ザッ(ト) ˘ アイ ↑ラヴ ユー ソー↓"}]}
 """
+
+
+def _hira_to_kata(text: str) -> str:
+    """ひらがなをカタカナへ正規化する（記号類は維持）。"""
+    if not text:
+        return text
+    out: List[str] = []
+    for ch in text:
+        code = ord(ch)
+        if 0x3041 <= code <= 0x3096:
+            out.append(chr(code + 0x60))
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _normalize_gpt_singkana(text: str) -> str:
+    """
+    GPT出力の最低限の整形:
+    - ひらがな -> カタカナ
+    - 全角空白/連続空白を正規化
+    - 許容外文字の除去（英字等の混入を減らす）
+    """
+    t = _hira_to_kata(str(text or ""))
+    t = t.replace("\u3000", " ")
+    t = re.sub(r"\s+", " ", t).strip()
+    if not t:
+        return t
+
+    kept: List[str] = []
+    for ch in t:
+        is_kata = ("\u30A0" <= ch <= "\u30FF")
+        is_jp_punc = ch in " 、。！？"
+        is_mark = ch in "ー˘↑↓～()"
+        if is_kata or is_jp_punc or is_mark or ch == " ":
+            kept.append(ch)
+    t = "".join(kept)
+    t = re.sub(r"\s+([、。！？])", r"\1", t)
+    t = re.sub(r"\(\s+", "(", t)
+    t = re.sub(r"\s+\)", ")", t)
+    t = re.sub(r"\s{2,}", " ", t).strip()
+    return t
 
 
 def gpt_refine_kana(
@@ -643,7 +685,9 @@ def gpt_refine_kana(
             new_singkana = str(ref.get("singkana") or "").strip()
             entry = dict(orig)
             if new_singkana:
-                entry["singkana"] = new_singkana
+                normalized = _normalize_gpt_singkana(new_singkana)
+                if normalized:
+                    entry["singkana"] = normalized
             result.append(entry)
 
         _safe_log(CONVERT_LOG, f"gpt_refine_kana ok: lines={len(result)} model={model}")

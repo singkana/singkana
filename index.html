@@ -1540,7 +1540,7 @@
                     <div><span class="text-slate-200 font-semibold">Basic</span>：とりあえず歌える / 最短</div>
                     <div><span class="text-slate-200 font-semibold">Natural</span>：自然に聞こえる / おすすめ</div>
                     <div><span class="text-slate-200 font-semibold">Precise</span>：原音に近い / 練習向け</div>
-                    <div class="mt-1 text-[10px] text-slate-500">迷ったら Natural。発音寄せたいなら Precise。</div>
+                    <div class="mt-1 text-[10px] text-slate-500">歌いやすさ優先は Natural。Precise は発音確認向け（必ずしも歌いやすさ最優先ではありません）。</div>
 
                     <div class="mt-2 text-[10px] text-slate-500">例（同じ英語での違い）：Hold on tight in the night</div>
                     <div class="mt-1 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-300">
@@ -1554,7 +1554,7 @@
                       </div>
                       <div>
                         <div class="text-[10px] text-slate-500">Precise</div>
-                        <div class="font-mono text-slate-200/90">ホー ルド オン ターイ ト イン ザ ナーイ ト</div>
+                        <div class="font-mono text-slate-200/90">ホールド オン ターイト イン ザ ナーイト</div>
                       </div>
                     </div>
                   </div>
@@ -2870,12 +2870,20 @@
       if (!coreText) return "";
 
       let t = String(coreText);
+      // 表記ゆれ対策: ひらがな混入はカタカナへ寄せる
+      t = t.replace(/[\u3041-\u3096]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+      t = t.replace(/\u3000/g, " ");
       t = t.replace(/\[.*?\]/g, "");
       t = t.replace(/[|\/]/g, "");
       // 区切り記号を統一（カンマを「｜」に置換）
       t = t.replace(/[,，]/g, "｜");
+      t = t.replace(/\s{2,}/g, " ");
 
       if (mode === "precise") {
+        t = t.replace(/\s+([、。！？])/g, "$1");
+        t = t.replace(/([、。！？])\s*/g, "$1 ");
+        t = t.replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
+        t = t.replace(/\s{2,}/g, " ");
         return t.trim();
       }
 
@@ -3001,9 +3009,7 @@
     // 本文の可読性を壊さず、下段チップでガイド情報だけ提示する
     function inferGuideBadges(text, mode){
       const m = (mode || __getDisplayMode() || "natural").toLowerCase();
-      if (m === "basic") {
-        return [{ label: "MARK OFF", active: false }];
-      }
+      if (m === "basic") return [];
 
       const src = String(text || "");
       const hasBR = /˘/.test(src);
@@ -3011,24 +3017,27 @@
       const hasVIB = /[↑↓]/.test(src);
       const hasELI = /[()]/.test(src);
 
-      const badges = [
-        { label: "BR", active: hasBR },
-        { label: "HLD", active: hasHLD },
+      const candidates = [
+        { label: "BR(息)", active: hasBR },
+        { label: "HLD(連結)", active: hasHLD },
       ];
       if (m === "precise") {
-        badges.push({ label: "VIB", active: hasVIB });
+        candidates.push({ label: "VIB(強調)", active: hasVIB });
       }
       if (hasELI) {
-        badges.push({ label: "ELI", active: true });
+        candidates.push({ label: "ELI(脱落)", active: true });
       }
-      return badges;
+      const active = candidates.filter((b) => b.active);
+      return active.length ? active : [{ label: "マークなし", active: false }];
     }
 
     function createGuideBadgeRow(text, mode){
+      const badges = inferGuideBadges(text, mode);
+      if (!badges.length) return null;
+
       const row = document.createElement("div");
       row.className = "mt-1 flex flex-wrap items-center gap-1.5";
 
-      const badges = inferGuideBadges(text, mode);
       badges.forEach((b) => {
         const chip = document.createElement("span");
         chip.className = b.active
@@ -3038,10 +3047,6 @@
         row.appendChild(chip);
       });
 
-      const hint = document.createElement("span");
-      hint.className = "text-[9px] text-slate-500";
-      hint.textContent = "記号は必要箇所のみ表示";
-      row.appendChild(hint);
       return row;
     }
 
@@ -3571,24 +3576,13 @@
           let highlighted = highlightDifferences(compareText, text);
           textDiv.innerHTML = renderDisplayWithKanaMarks(highlighted, mode, true);
           
-          // Precise + Pro のときだけ「Singability」を表示
-          if (isPro() && mode === "precise") {
-            const scoreDiv = document.createElement("div");
-            scoreDiv.className = "mt-2 pt-2 border-t border-singkana-400/20";
-            scoreDiv.innerHTML = `
-              <div class="flex items-center gap-2 text-[10px] text-singkana-200">
-                <span class="font-semibold">Singability:</span>
-                <span class="text-singkana-100 font-bold">86/100</span>
-                <span class="text-slate-400 ml-1">（息継ぎ・母音安定・連結自然さ）</span>
-              </div>
-            `;
-            textDiv.appendChild(scoreDiv);
-          }
+          // 固定値の擬似スコアは誤解を招くため表示しない（将来は実測値のみ表示）
         } else {
           // Basic等: 差分ハイライトなしでそのまま表示
           textDiv.innerHTML = renderDisplayWithKanaMarks(text || "", mode, false);
         }
-        textDiv.appendChild(createGuideBadgeRow(text || "", mode));
+        const guideRow = createGuideBadgeRow(text || "", mode);
+        if (guideRow) textDiv.appendChild(guideRow);
       } else {
         // Standard版: 通常表示（文字色は普通、背景・枠・装飾を削る）
         textDiv.textContent = renderDisplay(text || "", __getDisplayMode());
