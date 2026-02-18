@@ -14,8 +14,10 @@ import secrets
 import json
 import hashlib
 import hmac
+import io
 import html
 import threading
+import wave
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
@@ -184,6 +186,10 @@ FREE_ALLOWED_MODES = {"basic", "natural"}  # Freeで許す display_mode
 
 # ローマ字変換の無料制限
 ROMAJI_FREE_MAX_CHARS = int(os.getenv("ROMAJI_FREE_MAX_CHARS", "500"))  # 無料プランでの最大文字数
+
+# Coach V0（ユーザー録音のみ）
+COACH_MAX_AUDIO_BYTES = int(os.getenv("COACH_MAX_AUDIO_BYTES", str(20 * 1024 * 1024)))  # 20MB
+COACH_MAX_SECONDS = int(os.getenv("COACH_MAX_SECONDS", "60"))
 
 # ---- Dev Pro Override (3段ロック) ----
 def _client_ip() -> str:
@@ -1350,6 +1356,141 @@ def api_events():
         return _json_error(400, "bad_event", "invalid event name")
     _track_event(name, ref_code=_ref_cookie_value(), meta=meta)
     return jsonify({"ok": True})
+
+@app.post("/api/coach/analyze")
+def api_coach_analyze():
+    """Coach V0 scaffold: ユーザー録音を受け取り、暫定スコアを返す。"""
+    if not _origin_ok():
+        return _json_error(403, "invalid_origin", "このページからのみ送信できます。")
+
+    user_plan = getattr(g, "user_plan", "free")
+    if user_plan != "pro" and not is_pro_override():
+        return _json_error(
+            402,
+            "payment_required",
+            "Coach機能はProで利用できます。",
+            required_plan="pro",
+            checkout_path="/api/billing/checkout",
+        )
+
+    if request.content_length is not None and request.content_length > (COACH_MAX_AUDIO_BYTES + 200_000):
+        return _json_error(
+            413,
+            "payload_too_large",
+            "録音データが大きすぎます。",
+            max_bytes=COACH_MAX_AUDIO_BYTES,
+        )
+
+    audio = request.files.get("audio")
+    if not audio:
+        return _json_error(400, "bad_input", "audioファイルが必要です。")
+
+    mimetype = str(audio.mimetype or "").lower().strip()
+    allowed_mimes = {
+        "audio/webm",
+        "audio/wav",
+        "audio/x-wav",
+        "audio/wave",
+        "audio/mp4",
+        "audio/mpeg",
+        "application/octet-stream",  # 一部ブラウザ互換
+    }
+    if mimetype and mimetype not in allowed_mimes:
+        return _json_error(400, "unsupported_media_type", "対応していない音声形式です。", mime=mimetype)
+
+    raw = audio.read() or b""
+    if not raw:
+        return _json_error(400, "bad_input", "音声データが空です。")
+    if len(raw) > COACH_MAX_AUDIO_BYTES:
+        return _json_error(
+            413,
+            "payload_too_large",
+            "録音データが大きすぎます。",
+            max_bytes=COACH_MAX_AUDIO_BYTES,
+        )
+
+    duration_sec: Optional[float] = None
+    if len(raw) >= 12 and raw[:4] == b"RIFF" and raw[8:12] == b"WAVE":
+        try:
+            with wave.open(io.BytesIO(raw), "rb") as wf:
+                fr = int(wf.getframerate() or 0)
+                frames = int(wf.getnframes() or 0)
+                if fr > 0 and frames >= 0:
+                    duration_sec = round(frames / fr, 2)
+        except Exception:
+            duration_sec = None
+    if duration_sec is None:
+        # webm等はヘッダ解析せず、64kbps前提の簡易推定（V0暫定）
+        duration_sec = round((len(raw) * 8) / 64000.0, 2)
+
+    if duration_sec > (COACH_MAX_SECONDS + 2):
+        return _json_error(
+            400,
+            "duration_too_long",
+            f"録音は{COACH_MAX_SECONDS}秒以内にしてください。",
+            max_seconds=COACH_MAX_SECONDS,
+            duration_sec=duration_sec,
+        )
+
+    meta_raw = str(request.form.get("meta") or "").strip()
+    meta: Dict[str, Any] = {}
+    if meta_raw:
+        try:
+            meta_obj = json.loads(meta_raw)
+            if isinstance(meta_obj, dict):
+                meta = meta_obj
+        except Exception:
+            meta = {}
+
+    digest = int(hashlib.sha256(raw).hexdigest()[:8], 16)
+    swing = (digest % 9) - 4
+    pitch_stability = max(45, min(96, 74 + swing))
+    legato = max(40, min(95, 72 - swing))
+    rhythm = max(45, min(95, 70 + ((digest // 11) % 7) - 3))
+    singability = int(round((pitch_stability + legato + rhythm) / 3))
+
+    breath_candidates: list[float] = []
+    if duration_sec >= 12:
+        breath_candidates = [round(duration_sec * 0.33, 2), round(duration_sec * 0.67, 2)]
+    elif duration_sec >= 6:
+        breath_candidates = [round(duration_sec * 0.5, 2)]
+
+    recommended_mode = "natural" if singability < 78 else "precise"
+    analysis_id = f"coach_{secrets.token_hex(8)}"
+
+    result = {
+        "version": "coach_v0_stub",
+        "duration_sec": duration_sec,
+        "breath_candidates_sec": breath_candidates,
+        "scores": {
+            "pitch_stability": pitch_stability,
+            "legato": legato,
+            "rhythm_stability": rhythm,
+            "singability": singability,
+        },
+        "recommended_mode": recommended_mode,
+        "notes": [
+            "提案はユーザー録音の傾向を示すもので、正解を断定するものではありません。",
+            "原曲音源のアップロード解析には対応していません。",
+            "音声データは解析後に保持しません（結果のみ短期表示向け）。",
+        ],
+        "meta_echo": {
+            "display_mode": str(meta.get("display_mode") or ""),
+            "source": str(meta.get("source") or ""),
+        },
+    }
+
+    _track_event(
+        "coach_analyze",
+        ref_code=_ref_cookie_value(),
+        meta={
+            "mime": mimetype or "unknown",
+            "bytes": len(raw),
+            "duration_sec": duration_sec,
+            "recommended_mode": recommended_mode,
+        },
+    )
+    return jsonify({"ok": True, "analysis_id": analysis_id, "result": result})
 
 @app.post("/api/ugc/generate")
 def api_ugc_generate():

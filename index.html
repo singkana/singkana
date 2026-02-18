@@ -1537,10 +1537,10 @@
                   </label>
 
                   <div class="w-full md:w-auto text-[10px] text-slate-400 leading-snug md:leading-tight md:mt-0 mt-1">
-                    <div><span class="text-slate-200 font-semibold">Basic</span>：とりあえず歌える / 最短</div>
-                    <div><span class="text-slate-200 font-semibold">Natural</span>：自然に聞こえる / おすすめ</div>
-                    <div><span class="text-slate-200 font-semibold">Precise</span>：原音に近い / 練習向け</div>
-                    <div class="mt-1 text-[10px] text-slate-500">歌いやすさ優先は Natural。Precise は発音確認向け（必ずしも歌いやすさ最優先ではありません）。</div>
+                    <div><span class="text-slate-200 font-semibold">Basic</span>：直訳寄り。発音は崩さない。</div>
+                    <div><span class="text-slate-200 font-semibold">Natural（推奨）</span>：歌いやすさ優先。音をつなげて短くする。</div>
+                    <div><span class="text-slate-200 font-semibold">Precise（原音寄り）</span>：英語らしさ優先。連結/脱落/強勢を細かく指示するので、難しく感じることがあります。</div>
+                    <div class="mt-1 text-[10px] text-slate-500">Preciseは歌いやすさより「英語っぽく聞こえる条件」を優先します。まず歌えるようにするならNaturalが最短です。</div>
 
                     <div class="mt-2 text-[10px] text-slate-500">例（同じ英語での違い）：Hold on tight in the night</div>
                     <div class="mt-1 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-300">
@@ -1584,6 +1584,50 @@
                 <p style="font-size:12px;color:#cbd5f5;margin:0;">
                   歌詞を入力して「この歌詞で変換する」を押すと、ここに結果が表示されます。
                 </p>
+              </div>
+
+              <!-- Coach V0 panel (Pro) -->
+              <div id="coach-panel" class="mt-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3 space-y-3">
+                <div class="flex items-center justify-between gap-2">
+                  <div class="text-xs font-semibold text-slate-100">Coach V0（録音チェック）</div>
+                  <div class="text-[10px] text-slate-400">Pro機能 / 30-60秒推奨</div>
+                </div>
+                <p class="text-[10px] text-slate-400 leading-relaxed">
+                  ユーザー自身の録音のみ解析します。原曲音源のアップロード解析は対象外です。<br />
+                  返すのは傾向と候補（提案）であり、正解の断定ではありません。
+                </p>
+
+                <div id="coach-locked" class="rounded-xl border border-amber-300/30 bg-amber-500/10 p-2 text-[11px] text-amber-100">
+                  Coach V0はProで利用できます。
+                  <button type="button"
+                    class="ml-2 inline-flex items-center justify-center gap-1 rounded-full bg-amber-300/15 border border-amber-200/40 px-3 py-1 text-[10px] font-semibold hover:bg-amber-300/25 transition"
+                    onclick="startCheckout('pro_month')">
+                    Proで使う
+                  </button>
+                </div>
+
+                <div id="coach-controls" class="hidden space-y-2">
+                  <div class="flex flex-col md:flex-row md:flex-wrap gap-2">
+                    <button id="coach-record-btn" type="button"
+                      class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-[11px] font-semibold text-white shadow-glow hover:brightness-110 transition w-full md:w-auto"
+                      onclick="toggleCoachRecording()">
+                      ● 録音開始
+                    </button>
+                    <button id="coach-analyze-btn" type="button"
+                      class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-900/80 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-indigo-300/70 hover:text-indigo-100 transition w-full md:w-auto disabled:opacity-40 disabled:cursor-not-allowed"
+                      onclick="analyzeCoachRecording()" disabled>
+                      解析する
+                    </button>
+                    <button id="coach-clear-btn" type="button"
+                      class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-900/80 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-slate-300/70 transition w-full md:w-auto disabled:opacity-40 disabled:cursor-not-allowed"
+                      onclick="clearCoachRecording()" disabled>
+                      クリア
+                    </button>
+                  </div>
+                  <audio id="coach-audio-preview" controls class="hidden w-full"></audio>
+                  <div id="coach-status" class="text-[11px] text-slate-400"></div>
+                  <div id="coach-result" class="hidden rounded-xl border border-white/10 bg-slate-950/50 p-2 text-[11px] text-slate-200"></div>
+                </div>
               </div>
 
               <!-- UGC Panel (always visible; freeでも出す) -->
@@ -1796,6 +1840,14 @@
     let __portalInFlight = false;
     let __sheetCheckoutInFlight = false;
     const SHEET_CHECKOUT_DRAFT_KEY = "singkana_sheet_checkout_draft_v1";
+    const COACH_MAX_SECONDS = 60;
+    let __coachMediaRecorder = null;
+    let __coachStream = null;
+    let __coachChunks = [];
+    let __coachAudioBlob = null;
+    let __coachRecording = false;
+    let __coachAutoStopTimer = null;
+    let __coachAnalyzeInFlight = false;
 
     function syncProCtas() {
       const buyBtn = document.getElementById("pro-checkout-btn");
@@ -1824,6 +1876,20 @@
         if (transferIssueBox) transferIssueBox.classList.add("hidden");
         if (portalStatus) portalStatus.textContent = "";
         // 初期は空（必要時だけ出す）
+      }
+      syncCoachPanelPlan();
+    }
+
+    function syncCoachPanelPlan() {
+      const locked = document.getElementById("coach-locked");
+      const controls = document.getElementById("coach-controls");
+      if (!locked || !controls) return;
+      if (isPro()) {
+        locked.classList.add("hidden");
+        controls.classList.remove("hidden");
+      } else {
+        locked.classList.remove("hidden");
+        controls.classList.add("hidden");
       }
     }
 
@@ -2108,6 +2174,8 @@
     document.addEventListener("DOMContentLoaded", () => {
       // ユーザープラン（開発者モード含む）を読み込み
       loadUserPlan();
+      setCoachButtonsState();
+      syncCoachPanelPlan();
 
       // UGC: panel open (best-effort)
       try {
@@ -2501,6 +2569,230 @@
       const sel = document.getElementById("template-select");
       if (sel) sel.value = "";
       applyTemplateByKey(key);
+    }
+
+    // =========================
+    // Coach V0 (Pro / recording scaffold)
+    // =========================
+    function setCoachStatus(msg, tone = "normal") {
+      const el = document.getElementById("coach-status");
+      if (!el) return;
+      el.textContent = msg || "";
+      el.classList.remove("text-slate-400", "text-rose-300", "text-emerald-300", "text-amber-200");
+      if (tone === "error") {
+        el.classList.add("text-rose-300");
+      } else if (tone === "ok") {
+        el.classList.add("text-emerald-300");
+      } else if (tone === "warn") {
+        el.classList.add("text-amber-200");
+      } else {
+        el.classList.add("text-slate-400");
+      }
+    }
+
+    function coachStopTracks() {
+      if (__coachStream && __coachStream.getTracks) {
+        __coachStream.getTracks().forEach((t) => {
+          try { t.stop(); } catch (_) {}
+        });
+      }
+      __coachStream = null;
+    }
+
+    function setCoachButtonsState() {
+      const recordBtn = document.getElementById("coach-record-btn");
+      const analyzeBtn = document.getElementById("coach-analyze-btn");
+      const clearBtn = document.getElementById("coach-clear-btn");
+      if (recordBtn) {
+        recordBtn.textContent = __coachRecording ? "■ 録音停止" : "● 録音開始";
+        recordBtn.disabled = __coachAnalyzeInFlight;
+      }
+      if (analyzeBtn) analyzeBtn.disabled = !__coachAudioBlob || __coachRecording || __coachAnalyzeInFlight;
+      if (clearBtn) clearBtn.disabled = (!__coachAudioBlob && !__coachRecording) || __coachAnalyzeInFlight;
+    }
+
+    function clearCoachResultView() {
+      const resultBox = document.getElementById("coach-result");
+      if (!resultBox) return;
+      resultBox.classList.add("hidden");
+      resultBox.innerHTML = "";
+    }
+
+    function clearCoachRecording() {
+      if (__coachRecording) {
+        try { __coachMediaRecorder && __coachMediaRecorder.stop(); } catch (_) {}
+      }
+      if (__coachAutoStopTimer) {
+        clearTimeout(__coachAutoStopTimer);
+        __coachAutoStopTimer = null;
+      }
+      __coachChunks = [];
+      __coachAudioBlob = null;
+      __coachMediaRecorder = null;
+      coachStopTracks();
+
+      const audioEl = document.getElementById("coach-audio-preview");
+      if (audioEl) {
+        try { if (audioEl.src) URL.revokeObjectURL(audioEl.src); } catch (_) {}
+        audioEl.removeAttribute("src");
+        audioEl.classList.add("hidden");
+      }
+      clearCoachResultView();
+      setCoachStatus("");
+      __coachRecording = false;
+      setCoachButtonsState();
+    }
+
+    async function toggleCoachRecording() {
+      if (!isPro()) {
+        setCoachStatus("CoachはProで利用できます。", "warn");
+        return;
+      }
+      if (__coachAnalyzeInFlight) return;
+      if (__coachRecording) {
+        try { __coachMediaRecorder && __coachMediaRecorder.stop(); } catch (_) {}
+        return;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || typeof MediaRecorder === "undefined") {
+        setCoachStatus("このブラウザは録音に対応していません。", "error");
+        return;
+      }
+
+      try {
+        clearCoachResultView();
+        __coachChunks = [];
+        __coachAudioBlob = null;
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        __coachStream = stream;
+
+        const prefer = "audio/webm;codecs=opus";
+        const options = (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(prefer))
+          ? { mimeType: prefer }
+          : undefined;
+        const rec = options ? new MediaRecorder(stream, options) : new MediaRecorder(stream);
+        __coachMediaRecorder = rec;
+        __coachRecording = true;
+        setCoachButtonsState();
+        setCoachStatus(`録音中… 最大 ${COACH_MAX_SECONDS} 秒`, "warn");
+
+        rec.ondataavailable = (ev) => {
+          if (ev && ev.data && ev.data.size > 0) __coachChunks.push(ev.data);
+        };
+        rec.onstop = () => {
+          if (__coachAutoStopTimer) {
+            clearTimeout(__coachAutoStopTimer);
+            __coachAutoStopTimer = null;
+          }
+          __coachRecording = false;
+          const mime = (rec.mimeType || "audio/webm").toLowerCase();
+          __coachAudioBlob = new Blob(__coachChunks, { type: mime });
+          __coachChunks = [];
+          coachStopTracks();
+          setCoachButtonsState();
+
+          const audioEl = document.getElementById("coach-audio-preview");
+          if (audioEl && __coachAudioBlob) {
+            try { if (audioEl.src) URL.revokeObjectURL(audioEl.src); } catch (_) {}
+            audioEl.src = URL.createObjectURL(__coachAudioBlob);
+            audioEl.classList.remove("hidden");
+          }
+          const sec = Math.max(1, Math.round(__coachAudioBlob.size / 8000));
+          setCoachStatus(`録音を保存しました（約 ${sec} 秒 / 解析可能）。`, "ok");
+        };
+        rec.onerror = () => {
+          __coachRecording = false;
+          coachStopTracks();
+          setCoachButtonsState();
+          setCoachStatus("録音でエラーが発生しました。", "error");
+        };
+
+        rec.start(300);
+        __coachAutoStopTimer = setTimeout(() => {
+          if (__coachRecording && __coachMediaRecorder && __coachMediaRecorder.state !== "inactive") {
+            try { __coachMediaRecorder.stop(); } catch (_) {}
+            setCoachStatus(`${COACH_MAX_SECONDS} 秒で自動停止しました。`, "warn");
+          }
+        }, COACH_MAX_SECONDS * 1000);
+      } catch (e) {
+        __coachRecording = false;
+        coachStopTracks();
+        setCoachButtonsState();
+        setCoachStatus("マイクの利用が許可されていません。", "error");
+      }
+    }
+
+    function renderCoachResult(result) {
+      const box = document.getElementById("coach-result");
+      if (!box) return;
+      const scores = (result && result.scores) ? result.scores : {};
+      const duration = Number(result && result.duration_sec ? result.duration_sec : 0);
+      const breaths = Array.isArray(result && result.breath_candidates_sec) ? result.breath_candidates_sec : [];
+      const notes = Array.isArray(result && result.notes) ? result.notes : [];
+      const reco = String(result && result.recommended_mode ? result.recommended_mode : "natural");
+
+      const scoreRows = [
+        ["ピッチ安定", Number(scores.pitch_stability || 0)],
+        ["レガート", Number(scores.legato || 0)],
+        ["リズム安定", Number(scores.rhythm_stability || 0)],
+        ["総合Singability", Number(scores.singability || 0)],
+      ].map(([label, val]) => `<div class="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5">${escapeHtml(String(label))}: <strong>${Number.isFinite(val) ? Math.round(val) : "-"}</strong></div>`).join("");
+
+      const breathText = breaths.length ? breaths.map((s) => `${Number(s).toFixed(1)}s`).join(" / ") : "候補なし";
+      const recommendation = reco === "precise" ? "Precise推奨（発音寄り）" : "Natural推奨（歌いやすさ優先）";
+      const notesHtml = notes.map((n) => `<li>${escapeHtml(String(n))}</li>`).join("");
+
+      box.innerHTML = `
+        <div class="text-[10px] text-slate-400 mb-1">解析結果（V0雛形）</div>
+        <div class="text-[11px] text-slate-200 mb-2">録音長: ${duration > 0 ? duration.toFixed(1) : "-"} 秒 / 推奨モード: <strong>${recommendation}</strong></div>
+        <div class="flex flex-wrap gap-1.5 mb-2">${scoreRows}</div>
+        <div class="text-[11px] text-slate-300 mb-1">ブレス候補: ${escapeHtml(breathText)}</div>
+        <ul class="list-disc pl-4 text-[10px] text-slate-400 space-y-0.5">${notesHtml}</ul>
+      `;
+      box.classList.remove("hidden");
+    }
+
+    async function analyzeCoachRecording() {
+      if (!isPro()) {
+        setCoachStatus("CoachはProで利用できます。", "warn");
+        return;
+      }
+      if (__coachAnalyzeInFlight) return;
+      if (!__coachAudioBlob) {
+        setCoachStatus("先に録音してください。", "warn");
+        return;
+      }
+
+      __coachAnalyzeInFlight = true;
+      setCoachButtonsState();
+      setCoachStatus("解析中…", "warn");
+      clearCoachResultView();
+      try {
+        const ext = (__coachAudioBlob.type || "").includes("wav") ? "wav" : "webm";
+        const fd = new FormData();
+        fd.append("audio", __coachAudioBlob, `coach_recording.${ext}`);
+        fd.append("meta", JSON.stringify({
+          source: "user_recording",
+          display_mode: __getDisplayMode(),
+        }));
+
+        const res = await fetch("/api/coach/analyze", {
+          method: "POST",
+          body: fd,
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j.ok) {
+          const msg = (j && (j.message || j.error)) ? (j.message || j.error) : "解析に失敗しました。";
+          setCoachStatus(msg, "error");
+          return;
+        }
+        renderCoachResult(j.result || {});
+        setCoachStatus("解析が完了しました。", "ok");
+      } catch (e) {
+        setCoachStatus("通信に失敗しました。時間を置いて再試行してください。", "error");
+      } finally {
+        __coachAnalyzeInFlight = false;
+        setCoachButtonsState();
+      }
     }
 
     // =========================
@@ -3231,9 +3523,9 @@
         const singkanaBlock = createComparisonBlock(
           "singkana",
           (() => {
-            if (mode === "precise") return "原音に近いカタカナ（練習向け）";
-            if (mode === "natural") return "自然に聞こえるカタカナ（おすすめ）";
-            return "とりあえず歌えるカタカナ（最短）";
+            if (mode === "precise") return "原音寄りカタカナ（英語らしさ優先）";
+            if (mode === "natural") return "歌いやすさ優先カタカナ（推奨）";
+            return "直訳寄りカタカナ（発音は崩さない）";
           })(),
           __modePrimaryKana(line, mode),
           i,
@@ -3496,11 +3788,11 @@
       if (type === "singkana") {
         const mode = __getDisplayMode();
         if (mode === "precise") {
-          shortLabel = "原音に近い";
+          shortLabel = "原音寄り";
         } else if (mode === "natural") {
-          shortLabel = "自然に聞こえる";
+          shortLabel = "歌いやすさ優先";
         } else {
-          shortLabel = "とりあえず歌える";
+          shortLabel = "直訳寄り";
         }
       } else {
         shortLabel = "一般的なカタカナ";
@@ -3519,15 +3811,15 @@
         if (mode === "precise") {
           // 精密モード：日本語歌唱最適化バッジ
           badge.className = "inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-purple-500/15 border border-purple-400/25 text-[8px] font-medium text-purple-200/80";
-          badge.innerHTML = "🟪<span class=\"hidden md:inline\"> 原音に近い / 練習向け</span>";
+          badge.innerHTML = "🟪<span class=\"hidden md:inline\"> 原音寄り / 英語らしさ優先</span>";
         } else if (mode === "natural") {
           // ナチュラルモード：英語リズム保持バッジ
           badge.className = "inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-green-500/15 border border-green-400/25 text-[8px] font-medium text-green-200/80";
-          badge.innerHTML = "🟩<span class=\"hidden md:inline\"> 自然に聞こえる / おすすめ</span>";
+          badge.innerHTML = "🟩<span class=\"hidden md:inline\"> 歌いやすさ優先 / 推奨</span>";
         } else {
           // ベーシックモード：読む用バッジ
           badge.className = "inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-singkana-500/10 border border-singkana-400/20 text-[8px] font-medium text-singkana-200/70";
-          badge.innerHTML = "🎤<span class=\"hidden md:inline\"> とりあえず歌える / 最短</span>";
+          badge.innerHTML = "🎤<span class=\"hidden md:inline\"> 直訳寄り / 発音は崩さない</span>";
         }
         
         labelDiv.appendChild(badge);
