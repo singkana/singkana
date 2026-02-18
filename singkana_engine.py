@@ -174,6 +174,19 @@ WORD_OVERRIDE: Dict[str, str] = {
     "love": "らぶ",
     "live": "りぶ",
     "life": "らいふ",
+    "call": "こーる",
+    "it": "いっと",
+    "one": "わん",
+    "out": "あうと",
+    "of": "おぶ",
+    "the": "ざ",
+    "my": "まい",
+    "eye": "あい",
+    "corner": "こーなー",
+    "with": "うぃず",
+    "down": "だうん",
+    "low": "ろう",
+    "and": "あんど",
     "light": "らいと",
     "night": "ないと",
     "right": "らいと",
@@ -255,27 +268,18 @@ def _roman_to_hiragana(word: str) -> str:
 # かなにスペースを挿入するレイヤー
 def _kana_with_spaces(text: str) -> str:
     """
-    かな文字を 1 文字ずつ区切ってスペースを入れる。
-    記号やスペースはそのまま維持する。
+    かな出力の空白を読みやすい最小限に正規化する。
+    旧実装の「1文字ごとの分かち書き」は可読性/歌いやすさを損なうため廃止。
     """
-    result_chars: List[str] = []
-    prev_kana = False
-
-    for ch in text:
-        # ひらがな or カタカナ or 長音記号なら「かな」
-        is_kana = ("ぁ" <= ch <= "ゟ") or ("゠" <= ch <= "ヿ") or (ch == "ー")
-
-        if is_kana:
-            if prev_kana:
-                result_chars.append(" ")
-            result_chars.append(ch)
-        else:
-            # 記号・スペースなどはそのまま
-            result_chars.append(ch)
-
-        prev_kana = is_kana
-
-    return "".join(result_chars)
+    if not text:
+        return text
+    t = re.sub(r"\s+", " ", text).strip()
+    t = re.sub(r"\s+([、。！？])", r"\1", t)
+    t = re.sub(r"([、。！？])\s*", r"\1 ", t)
+    t = re.sub(r"\(\s+", "(", t)
+    t = re.sub(r"\s+\)", ")", t)
+    t = re.sub(r"\s{2,}", " ", t).strip()
+    return t
 
 
 # 英語の“フェイク発音”をローマ字的に反映するレイヤー
@@ -348,11 +352,9 @@ def _apply_english_phoneme_rules(line: str) -> str:
     # 語尾 -sion → -shon（歌詞では -しょん が自然）
     text = re.sub(r"([A-Za-z]+)sion\b", r"\1shon", text, flags=re.IGNORECASE)
     
-    # 語尾 -ed → -d（過去形の -ed を簡略化）
-    text = re.sub(r"([A-Za-z]+)ed\b", r"\1d", text, flags=re.IGNORECASE)
-    
-    # 語尾 -er → -a（比較級の -er を簡略化、歌詞では -a が自然）
-    text = re.sub(r"([A-Za-z]+)er\b", r"\1a", text, flags=re.IGNORECASE)
+    # NOTE:
+    # -ed / -er の一括簡略化は誤変換が目立つため無効化。
+    # 必要な語のみ WORD_OVERRIDE か文脈処理で吸収する。
 
     return text
 
@@ -620,6 +622,42 @@ def _normalize_gpt_singkana(text: str) -> str:
     return t
 
 
+def _compact_kana_for_similarity(text: str) -> str:
+    """類似度判定用: かな+長音+記号だけを圧縮抽出。"""
+    t = _hira_to_kata(str(text or ""))
+    if not t:
+        return ""
+    out: List[str] = []
+    for ch in t:
+        is_kata = ("\u30A0" <= ch <= "\u30FF")
+        is_mark = ch in "ー˘↑↓～()"
+        if is_kata or is_mark:
+            out.append(ch)
+    return "".join(out)
+
+
+def _is_plausible_refinement(base_text: str, refined_text: str) -> bool:
+    """
+    GPT補正の品質ゲート:
+    - 文字長の逸脱を弾く
+    - ベースからの乖離が大きすぎる補正を弾く
+    """
+    base = _compact_kana_for_similarity(base_text)
+    ref = _compact_kana_for_similarity(refined_text)
+    if not ref:
+        return False
+    if not base:
+        return True
+
+    r = len(ref) / max(1, len(base))
+    if r < 0.55 or r > 1.85:
+        return False
+
+    import difflib
+    sim = difflib.SequenceMatcher(None, base, ref).ratio()
+    return sim >= 0.28
+
+
 def gpt_refine_kana(
     lines: List[Dict[str, str]],
     api_key: str = "",
@@ -686,8 +724,11 @@ def gpt_refine_kana(
             entry = dict(orig)
             if new_singkana:
                 normalized = _normalize_gpt_singkana(new_singkana)
-                if normalized:
+                base = str(orig.get("singkana") or "")
+                if normalized and _is_plausible_refinement(base, normalized):
                     entry["singkana"] = normalized
+                else:
+                    _safe_log(CONVERT_LOG, "gpt_refine_kana: fallback to base singkana (quality gate)")
             result.append(entry)
 
         _safe_log(CONVERT_LOG, f"gpt_refine_kana ok: lines={len(result)} model={model}")
