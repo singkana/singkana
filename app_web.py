@@ -1375,7 +1375,11 @@ def api_events():
         return err
     name = str(data.get("name") or "").strip()
     meta = data.get("meta") if isinstance(data.get("meta"), dict) else None
-    allowed = name.startswith("ugc_") or name.startswith("sheet_") or name in ("convert_success",)
+    allowed = (
+        name.startswith("ugc_")
+        or name.startswith("sheet_")
+        or name in ("convert_success", "cta_pdf_clicked", "cta_sheet_clicked", "preset_selected")
+    )
     if not allowed:
         return _json_error(400, "bad_event", "invalid event name")
     _track_event(name, ref_code=_ref_cookie_value(), meta=meta)

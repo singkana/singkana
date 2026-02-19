@@ -1435,6 +1435,22 @@
               ></textarea>
             </div>
 
+            <div class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 space-y-2">
+              <div class="text-[11px] font-semibold text-slate-100">用途プリセット（準備を最短化）</div>
+              <div class="flex flex-col md:flex-row gap-2">
+                <button type="button"
+                  class="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-slate-900/80 px-4 py-1.5 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
+                  onclick="applyUseCasePreset('utawaku')">
+                  🎤 歌枠
+                </button>
+                <button type="button"
+                  class="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-slate-900/80 px-4 py-1.5 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
+                  onclick="applyUseCasePreset('cover')">
+                  🎧 カバー制作
+                </button>
+              </div>
+            </div>
+
             <div class="flex flex-col md:flex-row md:flex-wrap md:items-center gap-2">
               <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
                 <button type="button" class="mini-btn w-full md:w-auto" onclick="saveStudioState()">💾 保存</button>
@@ -1506,21 +1522,21 @@
 
               <div class="flex flex-col md:flex-row md:flex-wrap md:items-center gap-2">
                 <div class="flex flex-col md:flex-row md:items-center gap-2">
-                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950/50 px-3 py-1 text-[10px] font-medium text-slate-300 border border-slate-700/70 hover:bg-slate-900/70 transition w-full md:w-auto"
                     onclick="copyKanaOnly()">📋 かなだけコピー</button>
 
-                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950/50 px-3 py-1 text-[10px] font-medium text-slate-300 border border-slate-700/70 hover:bg-slate-900/70 transition w-full md:w-auto"
                     onclick="copyEnKana()">📋 EN+かなコピー</button>
 
-                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950/50 px-3 py-1 text-[10px] font-medium text-slate-300 border border-slate-700/70 hover:bg-slate-900/70 transition w-full md:w-auto"
                     onclick="downloadTxt()">⬇ TXT</button>
 
-                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950/50 px-3 py-1 text-[10px] font-medium text-slate-300 border border-slate-700/70 hover:bg-slate-900/70 transition w-full md:w-auto"
                     onclick="downloadSrt()">⬇ SRT(簡易)</button>
 
-                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-3 py-1.5 text-[11px] font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition w-full md:w-auto"
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950/50 px-3 py-1 text-[10px] font-medium text-slate-300 border border-slate-700/70 hover:bg-slate-900/70 transition w-full md:w-auto"
                     onclick="downloadPdfSheet()">⬇ PDF</button>
-                  <span class="text-[10px] text-violet-200/90 md:ml-1">Free: 1回¥300 / Pro: 無制限</span>
+                  <span class="text-[10px] text-slate-500 md:ml-1">補助出力（コピー/TXT/SRT/PDF）</span>
                 </div>
 
                 <div class="w-full md:w-auto rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2 text-[10px] text-slate-300 leading-relaxed">
@@ -1553,6 +1569,23 @@
                 <p style="font-size:12px;color:#cbd5f5;margin:0;">
                   歌詞を入力して「この歌詞で変換する」を押すと、ここに結果が表示されます。
                 </p>
+              </div>
+
+              <div id="next-action-bar" class="rounded-2xl border border-singkana-400/35 bg-gradient-to-r from-singkana-500/10 to-fuchsia-500/10 p-3">
+                <div class="text-[12px] font-semibold text-singkana-100">次のアクション</div>
+                <div class="text-[11px] text-slate-300 mt-0.5">歌枠の準備を一気に終わらせる</div>
+                <div class="mt-2 flex flex-col md:flex-row gap-2">
+                  <button type="button"
+                    class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-4 py-2 text-[12px] font-semibold text-white shadow-glow hover:brightness-110 transition w-full md:w-auto"
+                    onclick="primaryCtaPdf()">
+                    📄 PDF練習シートを作る
+                  </button>
+                  <button type="button"
+                    class="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-slate-900/80 px-4 py-2 text-[12px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
+                    onclick="primaryCtaSheet()">
+                    🗂 Sheetを開く / 共有する
+                  </button>
+                </div>
               </div>
 
               <!-- Coach V0 panel (Pro) -->
@@ -2406,6 +2439,36 @@
       chorus: { label: "サビ練習（汎用）", title: "chorus-practice", lyrics: ["We are rising, we are shining","In the night, we keep on flying","Let it go, and sing it loud"].join("\n") },
       speech: { label: "語尾・子音の練習", title: "consonants", lyrics: ["Just a little bit, step by step","Keep the beat, don't stop, don't slip","Bright light, night ride, right side"].join("\n") }
     };
+    const USECASE_PRESETS = {
+      utawaku: {
+        label: "歌枠",
+        title: "utawaku-set",
+        lyrics: [
+          "Hold on to me tonight",
+          "We will rise and never hide",
+          "Sing it out and keep the light",
+        ].join("\n"),
+      },
+      cover: {
+        label: "カバー制作",
+        title: "cover-session",
+        lyrics: [
+          "I found a way through the dark",
+          "Keep my heart steady and bright",
+          "Take this line and make it yours",
+        ].join("\n"),
+      },
+    };
+
+    function _trackUiEvent(name, meta) {
+      try {
+        fetch("/api/events", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, meta: meta || {} }),
+        }).catch(() => {});
+      } catch (_) {}
+    }
 
     function setStudioStatus(msg) {
       const el = document.getElementById("studio-status");
@@ -2501,6 +2564,28 @@
       const sel = document.getElementById("template-select");
       if (sel) sel.value = "";
       applyTemplateByKey(key);
+    }
+
+    function applyUseCasePreset(kind) {
+      const p = USECASE_PRESETS[kind];
+      if (!p) return;
+      const songEl = document.getElementById("song-title");
+      const lyrEl = document.getElementById("lyrics-input");
+      if (!lyrEl) return;
+
+      const hasInput = ((lyrEl.value || "").trim().length > 0);
+      if (hasInput) {
+        const ok = confirm("現在の歌詞をプリセットで置き換えますか？");
+        if (!ok) return;
+      }
+
+      if (songEl && !(songEl.value || "").trim()) {
+        songEl.value = p.title;
+      }
+      lyrEl.value = p.lyrics;
+      saveStudioState(true);
+      setStudioStatus(`プリセット適用：${p.label}`);
+      _trackUiEvent("preset_selected", { value: kind, source: "studio" });
     }
 
     // =========================
@@ -2896,6 +2981,60 @@
       }).join("\n");
       downloadBlob(`${getSongTitleSafe()}_singkana.srt`, srt, "text/plain;charset=utf-8");
       setStatus("SRT(簡易)を保存しました");
+    }
+
+    function primaryCtaPdf() {
+      _trackUiEvent("cta_pdf_clicked", {
+        has_result: !!(window.currentConvertedLines && window.currentConvertedLines.length),
+        effective_mode: __getDisplayMode(),
+      });
+      downloadPdfSheet();
+    }
+
+    function _openSheetPreviewWindow(payload) {
+      const title = escapeHtml((payload && payload.title) ? payload.title : "singkana-sheet");
+      const rows = (payload && Array.isArray(payload.lines) ? payload.lines : []).map((line) => {
+        const orig = escapeHtml(String(line?.orig || ""));
+        const kana = escapeHtml(String(line?.kana || ""));
+        return `<tr><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#111827;">${orig}</td><td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;color:#0f172a;font-weight:600;">${kana}</td></tr>`;
+      }).join("");
+      const html = `
+<!doctype html>
+<html><head><meta charset="utf-8"><title>${title}</title></head>
+<body style="font-family:system-ui,sans-serif;background:#f8fafc;color:#111827;margin:24px;">
+  <h1 style="font-size:18px;margin:0 0 8px;">${title}</h1>
+  <p style="font-size:12px;color:#475569;margin:0 0 12px;">SingKANA Sheet Preview</p>
+  <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2e8f0;">
+    <thead><tr style="background:#f1f5f9;"><th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;">Original</th><th style="text-align:left;padding:8px;border-bottom:1px solid #e2e8f0;">Kana</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+</body></html>`;
+      const w = window.open("", "_blank", "noopener,noreferrer");
+      if (!w) return false;
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      return true;
+    }
+
+    async function primaryCtaSheet() {
+      const payload = buildSheetPayloadFromCurrentResult();
+      _trackUiEvent("cta_sheet_clicked", {
+        has_result: !!payload,
+        effective_mode: __getDisplayMode(),
+      });
+      if (!payload) {
+        setStatus("先に変換してください");
+        return;
+      }
+      if (_openSheetPreviewWindow(payload)) {
+        setStatus("Sheetプレビューを開きました");
+        return;
+      }
+      // ポップアップ不可環境では共有用テキストをコピー
+      const shareText = payload.lines.map((line) => `${line.orig}\n${line.kana}`).join("\n\n");
+      await copyTextToClipboard(shareText);
+      setStatus("Sheet共有用テキストをコピーしました");
     }
 
     // --- 事業KPI計測ヘルパー ---
