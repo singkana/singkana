@@ -827,7 +827,7 @@
         </div>
 
         <p class="text-[11px] text-slate-400">
-          ブラウザだけで完結 / PC・スマホ対応 / FreeはBasic / Natural利用可能
+          ブラウザだけで完結 / PC・スマホ対応 / FreeはBasic固定・Proは歌いやすさ最適化
         </p>
       </div>
     </div>
@@ -937,7 +937,7 @@
                               BR / HLD / VIB
                             </span>
                             <span class="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1 text-[10px] text-slate-300">
-                              出力：Basic / Natural / Precise
+                              出力：Free=Basic / Pro=Natural（自動最適化）
                             </span>
                           </div>
                           <div class="hero-demo-tags-right">
@@ -1134,7 +1134,7 @@
         <div>
           <h2 class="text-xl md:text-2xl font-semibold text-slate-50">料金プラン</h2>
           <p class="text-sm text-slate-300 mt-2">
-            Free は <span class="font-semibold text-slate-100">Basic / Natural</span> が利用可能。<span class="font-semibold text-singkana-100">精密（日本語歌唱最適）</span> は Pro で解放されます。
+            Free は <span class="font-semibold text-slate-100">Basic固定</span>。Pro は <span class="font-semibold text-singkana-100">Natural（歌いやすさ最適化）</span> が利用できます。
           </p>
         </div>
 
@@ -1151,13 +1151,13 @@
             <p class="text-sm text-slate-300 mt-2">まずは体験したい方向け。</p>
             <div class="mt-4">
               <p class="text-2xl font-semibold text-slate-50">¥0</p>
-              <p class="text-[11px] text-slate-400 mt-1">Basic / Natural 利用可能</p>
+              <p class="text-[11px] text-slate-400 mt-1">Basic 固定</p>
             </div>
             <ul class="mt-4 space-y-2 text-xs text-slate-200">
-              <li>✅ Basic（読みやすいカタカナ）</li>
-              <li>✅ Natural（英語っぽく歌う）</li>
-              <li>✅ 比較UIで違いを確認</li>
-              <li class="text-slate-400">❌ Precise（日本語歌唱最適）はPro</li>
+              <li>✅ Basic（直訳寄りで読みやすい）</li>
+              <li>✅ PDF One-Shot（¥300/回）</li>
+              <li>✅ 比較UIで歌いにくさを確認</li>
+              <li class="text-slate-400">❌ 歌いやすさ最適化（Natural）はPro</li>
             </ul>
             <a href="#studio"
               class="mt-auto inline-flex w-full items-center justify-center rounded-xl bg-slate-100/10 px-4 py-2 text-xs font-semibold text-slate-50 border border-white/10 hover:bg-slate-100/15 transition">
@@ -1336,7 +1336,7 @@
             <thead>
               <tr class="text-slate-400">
                 <th class="text-left py-2 pr-3 font-semibold">項目</th>
-                <th class="text-left py-2 pr-3 font-semibold">Free（Basic）</th>
+                <th class="text-left py-2 pr-3 font-semibold">Free</th>
                 <th class="text-left py-2 pr-3 font-semibold">Pro</th>
               </tr>
             </thead>
@@ -1351,13 +1351,13 @@
                 <td class="py-2 pr-3">変換回数</td><td class="py-2 pr-3">制限なし</td><td class="py-2 pr-3">無制限</td>
               </tr>
               <tr class="border-t border-white/10">
-                <td class="py-2 pr-3">変換モード</td><td class="py-2 pr-3">Basic / Natural</td><td class="py-2 pr-3">Basic + Natural + Precise</td>
+                <td class="py-2 pr-3">変換モード</td><td class="py-2 pr-3">Basic（固定）</td><td class="py-2 pr-3">Natural（固定・自動最適化）</td>
               </tr>
               <tr class="border-t border-white/10">
                 <td class="py-2 pr-3">AI発音補正</td><td class="py-2 pr-3">—</td><td class="py-2 pr-3">✅</td>
               </tr>
               <tr class="border-t border-white/10">
-                <td class="py-2 pr-3">精密（日本語歌唱最適）</td><td class="py-2 pr-3">—</td><td class="py-2 pr-3">✅</td>
+                <td class="py-2 pr-3">難所の内部強化</td><td class="py-2 pr-3">—</td><td class="py-2 pr-3">✅（自動）</td>
               </tr>
               <tr class="border-t border-white/10">
                 <td class="py-2 pr-3">Singability</td><td class="py-2 pr-3">—</td><td class="py-2 pr-3">✅</td>
@@ -1523,41 +1523,10 @@
                   <span class="text-[10px] text-violet-200/90 md:ml-1">Free: 1回¥300 / Pro: 無制限</span>
                 </div>
 
-                <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
-
-                <div class="flex flex-col md:flex-row md:items-center gap-2 w-full md:w-auto">
-                  <label for="displayMode" class="flex flex-col md:flex-row md:items-center gap-2 text-[11px] text-slate-300 select-none w-full md:w-auto">
-                    <span class="hidden md:inline">表示</span>
-                    <select id="displayMode" 
-                      class="rounded-full bg-slate-950/60 border border-slate-600 px-3 py-1 text-[11px] text-slate-100 w-full md:w-auto">
-                      <option value="basic">Basic</option>
-                      <option value="natural" selected>Natural（おすすめ）</option>
-                      <option value="precise">Precise</option>
-                    </select>
-                  </label>
-
-                  <div class="w-full md:w-auto text-[10px] text-slate-400 leading-snug md:leading-tight md:mt-0 mt-1">
-                    <div><span class="text-slate-200 font-semibold">Basic</span>：直訳寄り。発音は崩さない。</div>
-                    <div><span class="text-slate-200 font-semibold">Natural（推奨）</span>：歌いやすさ優先。音をつなげて短くする。</div>
-                    <div><span class="text-slate-200 font-semibold">Precise（原音寄り）</span>：英語らしさ優先。連結/脱落/強勢を細かく指示するので、難しく感じることがあります。</div>
-                    <div class="mt-1 text-[10px] text-slate-500">Preciseは歌いやすさより「英語っぽく聞こえる条件」を優先します。まず歌えるようにするならNaturalが最短です。</div>
-
-                    <div class="mt-2 text-[10px] text-slate-500">例（同じ英語での違い）：Hold on tight in the night</div>
-                    <div class="mt-1 grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-slate-300">
-                      <div>
-                        <div class="text-[10px] text-slate-500">Basic</div>
-                        <div class="font-mono text-slate-200/90">ホールド オン タイト イン ザ ナイト</div>
-                      </div>
-                      <div>
-                        <div class="text-[10px] text-slate-500">Natural</div>
-                        <div class="font-mono text-slate-200/90">ホウドン タイッ インナ ナイッ</div>
-                      </div>
-                      <div>
-                        <div class="text-[10px] text-slate-500">Precise</div>
-                        <div class="font-mono text-slate-200/90">ホールド オン ターイト イン ザ ナーイト</div>
-                      </div>
-                    </div>
-                  </div>
+                <div class="w-full md:w-auto rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2 text-[10px] text-slate-300 leading-relaxed">
+                  <div class="font-semibold text-slate-100">変換モードは自動最適化</div>
+                  <div class="mt-1">Free: Basic（直訳寄り） / Pro: Natural（歌いやすさ優先）</div>
+                  <div class="text-slate-400">難しい箇所は内部で強化処理されます（手動モード選択は廃止）。</div>
                 </div>
 
                 <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
@@ -1813,9 +1782,10 @@
     // =========================
     // Global State
     // =========================
-    window.currentConvertedLines = [];  // ← displayMode再描画のため、グローバルに確実に置く
+    window.currentConvertedLines = [];  // 結果再描画のためグローバル保持
     window.activeIndex = -1;
     window.__lastGptApplied = false;
+    window.__lastConvertMeta = null;
     let currentActiveBlock = null;
 
     // =========================
@@ -1823,7 +1793,8 @@
     // =========================
     const PLAN = {
       tier: "free", // "free" | "pro"
-      devProOverride: false // 開発者モードフラグ
+      devProOverride: false, // 開発者モードフラグ
+      effectiveMode: "basic" // server-side fixed: free=basic / pro=natural
     };
 
     function isPro() {
@@ -2096,8 +2067,10 @@
         const data = await res.json();
         
         if (data.ok) {
+          const prevEffectiveMode = PLAN.effectiveMode;
           PLAN.tier = data.plan || "free";
           PLAN.devProOverride = data.dev_pro_override || false;
+          PLAN.effectiveMode = data.effective_mode || (PLAN.tier === "pro" ? "natural" : "basic");
           
           // 開発者モードバッジを表示
           const badge = document.getElementById("dev-pro-badge");
@@ -2110,28 +2083,13 @@
             }
           }
           
-          // 精密モードの選択肢を更新（Freeの場合は無効化）
-          const preciseOption = document.querySelector('#displayMode option[value="precise"]');
-          const modeSelect = document.getElementById("displayMode");
-          if (preciseOption) {
-            if (isPro()) {
-              preciseOption.removeAttribute('disabled');
-              preciseOption.textContent = 'Precise';
-            } else {
-              preciseOption.setAttribute('disabled', 'disabled');
-              preciseOption.textContent = 'Precise [Pro]';
-              if (modeSelect && modeSelect.value === "precise") {
-                modeSelect.value = "natural";
-                try { localStorage.setItem("displayMode", "natural"); } catch (_) {}
-                if (window.currentConvertedLines && window.currentConvertedLines.length) {
-                  __displayModeChangeHandler();
-                }
-              }
-            }
-          }
-
           // Pricing側CTAも同期
           syncProCtas();
+
+          // プラン更新により表示モードが変わった場合は結果を再描画
+          if (prevEffectiveMode !== PLAN.effectiveMode && window.currentConvertedLines && window.currentConvertedLines.length) {
+            _renderConvertResult(window.currentConvertedLines, !!window.__lastGptApplied);
+          }
 
           // 解約予約中の表示（Webhookの subscription.updated が拾えていれば表示できる）
           try {
@@ -2146,19 +2104,6 @@
         // silently fail - plan defaults to free
       }
       return null;
-    }
-
-    function guardDisplayMode(mode) {
-      if (isPro()) return true;
-
-      // Freeでは精密モードのみ制限（Naturalは利用可能）
-      if (mode === "precise") {
-        alert("精密モード（日本語として歌う・最適）は Pro プランで利用できます。\n\nFree では Basic / Natural が利用可能です。");
-        const sel = document.getElementById("displayMode");
-        if (sel) sel.value = "natural"; // Naturalに戻す
-        return false;
-      }
-      return true;
     }
 
     // =========================
@@ -2297,19 +2242,6 @@
         el.addEventListener("change", scheduleAutoSave);
       });
 
-      // DisplayMode restore/persist
-      const dm = document.getElementById("displayMode");
-      if (dm) {
-        const saved = localStorage.getItem("displayMode");
-        if (saved) dm.value = saved;
-        dm.addEventListener("change", () => {
-          const mode = dm.value;
-          if (!guardDisplayMode(mode)) return;
-
-          try { localStorage.setItem("displayMode", mode); } catch(e){}
-          __displayModeChangeHandler();
-        });
-      }
     });
 
     // =========================
@@ -2738,7 +2670,7 @@
       ].map(([label, val]) => `<div class="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5">${escapeHtml(String(label))}: <strong>${Number.isFinite(val) ? Math.round(val) : "-"}</strong></div>`).join("");
 
       const breathText = breaths.length ? breaths.map((s) => `${Number(s).toFixed(1)}s`).join(" / ") : "候補なし";
-      const recommendation = reco === "precise" ? "Precise推奨（発音寄り）" : "Natural推奨（歌いやすさ優先）";
+      const recommendation = reco === "precise" ? "発音強化推奨（内部ブースト）" : "Natural推奨（歌いやすさ優先）";
       const notesHtml = notes.map((n) => `<li>${escapeHtml(String(n))}</li>`).join("");
 
       box.innerHTML = `
@@ -2772,7 +2704,6 @@
         fd.append("audio", __coachAudioBlob, `coach_recording.${ext}`);
         fd.append("meta", JSON.stringify({
           source: "user_recording",
-          display_mode: __getDisplayMode(),
         }));
 
         const res = await fetch("/api/coach/analyze", {
@@ -3144,8 +3075,9 @@
     // Display Layer
     // =========================
     function __getDisplayMode(){
-      const el = document.getElementById("displayMode");
-      return el ? el.value : "basic";
+      const serverMode = (PLAN.effectiveMode || "").toLowerCase();
+      if (serverMode === "natural" || serverMode === "basic") return serverMode;
+      return isPro() ? "natural" : "basic";
     }
 
     // モードに応じて、実際に表示/出力するかな列を選ぶ
@@ -3155,7 +3087,7 @@
       if (m === "basic") {
         return line.standard || line.kana || line.singkana || "";
       }
-      // natural / precise は SingKANA 系を優先
+      // natural は SingKANA 系を優先
       return line.singkana || line.kana || line.standard || "";
     }
     function _renderDisplayPlainText(coreText, mode){
@@ -3170,14 +3102,6 @@
       // 区切り記号を統一（カンマを「｜」に置換）
       t = t.replace(/[,，]/g, "｜");
       t = t.replace(/\s{2,}/g, " ");
-
-      if (mode === "precise") {
-        t = t.replace(/\s+([、。！？])/g, "$1");
-        t = t.replace(/([、。！？])\s*/g, "$1 ");
-        t = t.replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
-        t = t.replace(/\s{2,}/g, " ");
-        return t.trim();
-      }
 
       if (mode === "basic") {
         t = t.replace(/\s+/g, " ").trim();
@@ -3312,10 +3236,8 @@
       const candidates = [
         { label: "BR(息)", active: hasBR },
         { label: "HLD(連結)", active: hasHLD },
+        { label: "VIB(強調)", active: hasVIB },
       ];
-      if (m === "precise") {
-        candidates.push({ label: "VIB(強調)", active: hasVIB });
-      }
       if (hasELI) {
         candidates.push({ label: "ELI(脱落)", active: true });
       }
@@ -3342,28 +3264,49 @@
       return row;
     }
 
-    function __displayModeChangeHandler(){
-      if (!window.currentConvertedLines.length) return;
-      _renderConvertResult(window.currentConvertedLines, !!window.__lastGptApplied);
-    }
-
     // =========================
-    // Convert (クライアントサイド一発変換 + Pro時GPT後処理)
+    // Convert (server is the source of truth)
     // =========================
     let __convertInFlight = false;
 
-    function convertLyrics() {
+    function _normalizeServerConvertLines(lines) {
+      if (!Array.isArray(lines)) return [];
+      return lines.map((line, i) => {
+        const en = String(line?.en || "");
+        return {
+          en,
+          standard: String(line?.standard || convertToStandardKana(en) || ""),
+          singkana: String(line?.singkana || line?.kana || line?.standard || ""),
+          lineNo: Number(line?.lineNo || (i + 1)),
+        };
+      }).filter((x) => x.en || x.standard || x.singkana);
+    }
+
+    function _normalizeLocalConvertLines(lines) {
+      if (!Array.isArray(lines)) return [];
+      return lines.map((line) => {
+        const en = String(line?.en || "");
+        const basicKana = convertToStandardKana(en);
+        return {
+          en,
+          standard: basicKana,
+          // server failure時はBasic相当に寄せる（表示上の混乱を回避）
+          singkana: basicKana,
+          lineNo: Number(line?.lineNo || 0),
+        };
+      }).filter((x) => x.en || x.standard || x.singkana);
+    }
+
+    async function convertLyrics() {
       if (__convertInFlight) return;
       const errorBanner = document.getElementById("error-banner");
       const resultPanel = document.getElementById("result-panel");
       const lyrics = document.getElementById("lyrics-input").value || "";
-      let mode = __getDisplayMode();
 
       if (errorBanner) {
         errorBanner.style.display = "none";
         errorBanner.textContent = "";
       }
-
       if (!lyrics.trim()) {
         if (resultPanel) {
           resultPanel.innerHTML = "<p style='font-size:12px;color:#cbd5f5;'>歌詞を入力してください。</p>";
@@ -3372,124 +3315,67 @@
         return;
       }
 
-      // FreeでPreciseが選ばれている場合はNaturalへ戻して処理
-      if (!guardDisplayMode(mode)) {
-        mode = __getDisplayMode();
-      }
-
-      // SingKanaCoreが読み込まれているか確認
-      if (!window.SingKanaCore || !window.SingKanaCore.convertLyrics) {
-        if (errorBanner) {
-          errorBanner.textContent = "変換エンジンが読み込まれていません。ページを再読み込みしてください。";
-          errorBanner.style.display = "block";
-        }
+      __convertInFlight = true;
+      try {
         if (resultPanel) {
-          resultPanel.innerHTML = "<p style='font-size:12px;color:#ff6b6b;'>変換エンジンが読み込まれていません。ページを再読み込みしてください。</p>";
+          resultPanel.innerHTML = "<p style='font-size:12px;color:#cbd5f5;'>変換中です...</p>";
           setResultPlaceholderState();
         }
-        return;
-      }
 
-      // まずクライアントサイドで即座に変換（全ユーザー共通ベース）
-      let lines;
-      try {
-        lines = window.SingKanaCore.convertLyrics(lyrics);
+        const resp = await fetch("/api/convert", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: lyrics }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.ok || !Array.isArray(data.result)) {
+          const msg = (data && (data.message || data.error)) ? (data.message || data.error) : "変換に失敗しました。";
+          throw new Error(msg);
+        }
 
-        if (!lines || !lines.length) {
+        const linesWithComparison = _normalizeServerConvertLines(data.result);
+        if (!linesWithComparison.length) {
           window.currentConvertedLines = [];
           window.activeIndex = -1;
           if (resultPanel) {
             resultPanel.innerHTML = "<p style='font-size:12px;color:#cbd5f5;'>有効な行がありませんでした。</p>";
             setResultPlaceholderState();
           }
-          saveStudioState(true);
           return;
         }
+
+        window.__lastConvertMeta = {
+          effective_mode: String(data.effective_mode || __getDisplayMode()),
+          processing_mode: String(data.processing_mode || data.effective_mode || __getDisplayMode()),
+          hard_case: !!data.hard_case,
+          gpt_applied: !!data.gpt_applied,
+        };
+        _renderConvertResult(linesWithComparison, !!data.gpt_applied);
       } catch (error) {
-        if (errorBanner) {
-          errorBanner.textContent = `変換エラー: ${error.message}`;
-          errorBanner.style.display = "block";
+        // サーバー失敗時のみローカル変換へフォールバック
+        if (window.SingKanaCore && window.SingKanaCore.convertLyrics) {
+          try {
+            const localLines = _normalizeLocalConvertLines(window.SingKanaCore.convertLyrics(lyrics));
+            if (localLines.length) {
+              window.__lastConvertMeta = {
+                effective_mode: "basic",
+                processing_mode: "fallback_local",
+                hard_case: false,
+                gpt_applied: false,
+              };
+              _renderConvertResult(localLines, false);
+              if (errorBanner) {
+                errorBanner.textContent = "サーバー最適化に失敗したためローカル結果を表示しています。";
+                errorBanner.style.display = "block";
+              }
+              return;
+            }
+          } catch (_) {}
         }
         if (resultPanel) {
           resultPanel.innerHTML = `<p style='font-size:12px;color:#ff6b6b;'>変換エラーが発生しました: ${error.message}</p>`;
           setResultPlaceholderState();
         }
-        return;
-      }
-
-      // クライアントサイド変換結果を先に表示
-      const linesWithComparison = lines.map(line => {
-        const standard = convertToStandardKana(line.en || "");
-        return {
-          en: line.en || "",
-          standard: standard,
-          singkana: line.kana || "",
-          lineNo: line.lineNo || 0
-        };
-      });
-
-      // PreciseはPro時のみ、サーバー側のAI発音補正を適用
-      if (mode === "precise" && isPro()) {
-        _renderConvertResult(linesWithComparison, false); // まずルールベース結果を表示
-        _proGptRefine(lyrics, linesWithComparison, mode);
-        return;
-      }
-
-      // Basic/Natural はローカル結果をそのまま表示（モードに応じて出力列を切替）
-      _renderConvertResult(linesWithComparison, false);
-    }
-
-    // Pro専用: サーバーサイドGPT AI発音補正
-    async function _proGptRefine(lyrics, fallbackLines, displayMode = "precise") {
-      const resultPanel = document.getElementById("result-panel");
-      const errorBanner = document.getElementById("error-banner");
-
-      // ローディング表示を結果上部に追加
-      const loadingEl = document.createElement("div");
-      loadingEl.id = "gpt-loading-banner";
-      loadingEl.className = "mb-3 rounded-lg border border-singkana-400/40 bg-singkana-500/10 px-4 py-2 text-xs text-singkana-100 flex items-center gap-2";
-      loadingEl.innerHTML = `
-        <svg class="animate-spin h-4 w-4 text-singkana-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-        </svg>
-        <span>AI発音補正を適用中... (数秒かかります)</span>
-      `;
-      if (resultPanel && resultPanel.firstChild) {
-        resultPanel.insertBefore(loadingEl, resultPanel.firstChild);
-      }
-
-      __convertInFlight = true;
-      try {
-        const resp = await fetch("/api/convert", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text: lyrics,
-            meta: { display_mode: displayMode }
-          }),
-        });
-
-        const data = await resp.json();
-        // ローディング除去
-        const banner = document.getElementById("gpt-loading-banner");
-        if (banner) banner.remove();
-
-        if (data.ok && data.result && data.result.length) {
-          // サーバー結果にstandard列を補完
-          const refined = data.result.map((line, i) => ({
-            en: line.en || "",
-            standard: fallbackLines[i] ? fallbackLines[i].standard : convertToStandardKana(line.en || ""),
-            singkana: line.singkana || (fallbackLines[i] ? fallbackLines[i].singkana : ""),
-            lineNo: i + 1,
-          }));
-          _renderConvertResult(refined, data.gpt_applied || false);
-        } else {
-          // APIエラー時はクライアントサイド結果をそのまま使う
-        }
-      } catch (e) {
-        const banner = document.getElementById("gpt-loading-banner");
-        if (banner) banner.remove();
       } finally {
         __convertInFlight = false;
       }
@@ -3523,14 +3409,13 @@
         const singkanaBlock = createComparisonBlock(
           "singkana",
           (() => {
-            if (mode === "precise") return "原音寄りカタカナ（英語らしさ優先）";
-            if (mode === "natural") return "歌いやすさ優先カタカナ（推奨）";
-            return "直訳寄りカタカナ（発音は崩さない）";
+            if (mode === "natural") return "歌いやすさ優先カタカナ（Pro）";
+            return "直訳寄りカタカナ（Free）";
           })(),
           __modePrimaryKana(line, mode),
           i,
           "singkana",
-          (mode === "basic") ? null : (line.standard || "") // Basicは比較ハイライトを使わない
+          (mode === "basic") ? null : (line.standard || "")
         );
         lineContainer.appendChild(singkanaBlock);
 
@@ -3594,7 +3479,7 @@
           <div class="flex flex-col md:flex-row items-center justify-between gap-3">
             <div>
               <p class="text-sm font-semibold text-singkana-100 mb-1">さらに高品質に変換する</p>
-              <p class="text-xs text-slate-300">ProでAI発音補正・無制限変換・精密モード・Singability</p>
+              <p class="text-xs text-slate-300">Proで歌いやすさ最適化・無制限変換・台本出力を強化</p>
             </div>
             <button type="button" id="pro-start-btn" onclick="startCheckout('pro_month')" class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition whitespace-nowrap">
               <span>今すぐProで歌える</span>
@@ -3615,10 +3500,20 @@
       // 計測: convert_success（歌詞は送らず、成功イベントだけ送る）
       try {
         const mode = __getDisplayMode();
+        const meta = window.__lastConvertMeta || {};
         fetch("/api/events", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: "convert_success", meta: { source: "client", display_mode: mode, gpt_applied: gptApplied } }),
+          body: JSON.stringify({
+            name: "convert_success",
+            meta: {
+              source: "client",
+              effective_mode: meta.effective_mode || mode,
+              processing_mode: meta.processing_mode || mode,
+              hard_case: !!meta.hard_case,
+              gpt_applied: (typeof meta.gpt_applied === "boolean") ? meta.gpt_applied : gptApplied,
+            }
+          }),
         }).catch(() => {});
       } catch (e) {}
     }
@@ -3787,9 +3682,7 @@
       let shortLabel;
       if (type === "singkana") {
         const mode = __getDisplayMode();
-        if (mode === "precise") {
-          shortLabel = "原音寄り";
-        } else if (mode === "natural") {
+        if (mode === "natural") {
           shortLabel = "歌いやすさ優先";
         } else {
           shortLabel = "直訳寄り";
@@ -3808,18 +3701,14 @@
         const badge = document.createElement("span");
         
         // モードに応じたバッジを表示
-        if (mode === "precise") {
-          // 精密モード：日本語歌唱最適化バッジ
-          badge.className = "inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-purple-500/15 border border-purple-400/25 text-[8px] font-medium text-purple-200/80";
-          badge.innerHTML = "🟪<span class=\"hidden md:inline\"> 原音寄り / 英語らしさ優先</span>";
-        } else if (mode === "natural") {
+        if (mode === "natural") {
           // ナチュラルモード：英語リズム保持バッジ
           badge.className = "inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-green-500/15 border border-green-400/25 text-[8px] font-medium text-green-200/80";
-          badge.innerHTML = "🟩<span class=\"hidden md:inline\"> 歌いやすさ優先 / 推奨</span>";
+          badge.innerHTML = "🟩<span class=\"hidden md:inline\"> Pro / 歌いやすさ優先</span>";
         } else {
           // ベーシックモード：読む用バッジ
           badge.className = "inline-flex items-center gap-0.5 px-1 py-0.5 rounded-full bg-singkana-500/10 border border-singkana-400/20 text-[8px] font-medium text-singkana-200/70";
-          badge.innerHTML = "🎤<span class=\"hidden md:inline\"> 直訳寄り / 発音は崩さない</span>";
+          badge.innerHTML = "🎤<span class=\"hidden md:inline\"> Free / 直訳寄り</span>";
         }
         
         labelDiv.appendChild(badge);
