@@ -182,7 +182,6 @@ def _render_sheet_html(title: str, artist: str, lines: list[dict[str, str]]) -> 
 
 # ---- Limits / Policy ----
 MAX_JSON_BYTES = int(os.getenv("MAX_JSON_BYTES", "200000"))  # 200KB default
-FREE_ALLOWED_MODES = {"basic", "natural"}  # Freeで許す display_mode
 
 # ローマ字変換の無料制限
 ROMAJI_FREE_MAX_CHARS = int(os.getenv("ROMAJI_FREE_MAX_CHARS", "500"))  # 無料プランでの最大文字数
@@ -350,6 +349,28 @@ def _get_meta(data: Dict[str, Any]) -> Dict[str, Any]:
 
 def _get_display_mode(meta: Dict[str, Any]) -> str:
     return str(meta.get("display_mode") or "basic").strip().lower()
+
+def _effective_mode_from_plan(plan: str) -> str:
+    """方針固定: Free=basic / Pro=natural"""
+    return "natural" if str(plan or "").lower() == "pro" else "basic"
+
+def _is_hard_case_lyrics(text: str) -> bool:
+    """
+    内部ブースト判定（V1最小版）。
+    - 長文
+    - 英字と日本語の混在
+    - 括弧の多用
+    """
+    t = str(text or "")
+    if len(t) > 800:
+        return True
+    has_ascii = re.search(r"[A-Za-z]", t) is not None
+    has_jp = re.search(r"[ぁ-んァ-ン一-龯]", t) is not None
+    if has_ascii and has_jp:
+        return True
+    if (t.count("(") + t.count("（")) > 2:
+        return True
+    return False
 
 def _stripe_import():
     try:
@@ -998,6 +1019,9 @@ def _identity_and_plan_bootstrap():
             g.dev_pro_override = True
         else:
             g.dev_pro_override = False
+
+        # モード方針をここで確定（全エンドポイント共通）
+        g.effective_mode = _effective_mode_from_plan(getattr(g, "user_plan", "free"))
     except Exception as e:
         app.logger.exception("Error in _identity_and_plan_bootstrap: %s", e)
         raise
@@ -1788,6 +1812,7 @@ def api_me():
         "ok": True,
         "user_id": getattr(g, "user_id", ""),
         "plan": getattr(g, "user_plan", "free"),
+        "effective_mode": getattr(g, "effective_mode", _effective_mode_from_plan(getattr(g, "user_plan", "free"))),
         "dev_pro_override": getattr(g, "dev_pro_override", False),
         "subscription": sub_info,
         "time": _utc_iso(),
@@ -1833,23 +1858,11 @@ def api_convert():
         return _json_error(400, "lyrics_too_long", f"Lyrics must be under {MAX_LYRICS_CHARS} characters.")
 
     meta = _get_meta(data)
-    display_mode = _get_display_mode(meta)
-
-    # ★統治：planで決める（Freeはbasic/naturalのみ）
-    # 開発者モードで上書きされている場合はPro扱い
+    requested_mode = _get_display_mode(meta)  # 互換受理（実処理では使わない）
     user_plan = getattr(g, "user_plan", "free")
-    if user_plan != "pro" and display_mode not in FREE_ALLOWED_MODES:
-        # 念のため開発者モードを再チェック（二重防御）
-        if not is_pro_override():
-            return _json_error(
-                402,
-                "payment_required",
-                "This mode is available on Pro plan.",
-                requested_mode=display_mode,
-                required_plan="pro",
-                user_plan=user_plan,
-                allowed_free_modes=sorted(list(FREE_ALLOWED_MODES)),
-            )
+    effective_mode = getattr(g, "effective_mode", _effective_mode_from_plan(user_plan))
+    hard_case = (effective_mode == "natural") and _is_hard_case_lyrics(lyrics)
+    processing_mode = "natural_boost" if hard_case else effective_mode
 
     try:
         # 上下比較UI用: standard と singkana の両方を返す
@@ -1879,14 +1892,14 @@ def api_convert():
             "Conversion failed.",
         )
 
-    # Pro専用: GPT AI発音補正（Preciseモード時のみ）
+    # Pro専用: hard_case時のみ内部ブースト（UIには非公開）
     is_pro = (user_plan == "pro") or is_pro_override()
     gpt_applied = False
-    if is_pro and display_mode == "precise" and hasattr(engine, "gpt_refine_kana"):
+    if is_pro and processing_mode == "natural_boost" and hasattr(engine, "gpt_refine_kana"):
         openai_key = _env("OPENAI_API_KEY", "")
         if openai_key:
             # キャッシュ確認
-            lyrics_hash = hashlib.sha256(lyrics.encode("utf-8")).hexdigest()[:32]
+            lyrics_hash = hashlib.sha256(f"{processing_mode}\n{lyrics}".encode("utf-8")).hexdigest()[:32]
             conn = _db()
             _GPT_CACHE_TTL_SEC = 7 * 24 * 3600  # 7日
             cached = conn.execute(
@@ -1920,11 +1933,22 @@ def api_convert():
     # 計測: convert_success（ref cookieがあれば紐付け）
     _track_event("convert_success", ref_code=_ref_cookie_value(), meta={
         "endpoint": "/api/convert",
-        "display_mode": display_mode,
+        "requested_mode": requested_mode,
+        "effective_mode": effective_mode,
+        "processing_mode": processing_mode,
+        "hard_case": hard_case,
         "gpt_applied": gpt_applied,
         "plan": user_plan,
     })
-    return jsonify({"ok": True, "result": result, "gpt_applied": gpt_applied})
+    return jsonify({
+        "ok": True,
+        "result": result,
+        "gpt_applied": gpt_applied,
+        "requested_mode": requested_mode,
+        "effective_mode": effective_mode,
+        "processing_mode": processing_mode,
+        "hard_case": hard_case,
+    })
 
 # --- Romaji (Phase 1 MVP: 歌うためのローマ字) ----------------------------
 from pykakasi import kakasi  # noqa: E402
