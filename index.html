@@ -2635,6 +2635,119 @@
       resultBox.innerHTML = "";
     }
 
+    // MediaRecorderがwebmを返す環境向けに、送信前にWAV(16kHz/mono/PCM16)へ変換する。
+    async function blobToWavBlob(blob, targetSampleRate = 16000) {
+      const inputBuf = await blob.arrayBuffer();
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) throw new Error("AudioContext not supported");
+
+      const ac = new AudioCtx();
+      let decoded = null;
+      try {
+        decoded = await decodeAudioDataCompat(ac, inputBuf.slice(0));
+      } finally {
+        try { await ac.close(); } catch (_) {}
+      }
+      if (!decoded) throw new Error("decode failed");
+
+      const mono = await resampleToMonoFloat32(decoded, targetSampleRate);
+      const wavBuffer = encodeWavPCM16(mono, targetSampleRate);
+      return new Blob([wavBuffer], { type: "audio/wav" });
+    }
+
+    function decodeAudioDataCompat(audioCtx, arrayBuffer) {
+      // Safari互換: callback版decodeAudioDataを吸収する
+      if (audioCtx.decodeAudioData.length >= 2) {
+        return new Promise((resolve, reject) => {
+          audioCtx.decodeAudioData(arrayBuffer, resolve, reject);
+        });
+      }
+      return audioCtx.decodeAudioData(arrayBuffer);
+    }
+
+    async function resampleToMonoFloat32(audioBuffer, targetSampleRate) {
+      const ch0 = audioBuffer.getChannelData(0);
+      const ch1 = audioBuffer.numberOfChannels > 1 ? audioBuffer.getChannelData(1) : null;
+      const mono = new Float32Array(audioBuffer.length);
+      if (ch1) {
+        for (let i = 0; i < mono.length; i += 1) mono[i] = (ch0[i] + ch1[i]) * 0.5;
+      } else {
+        mono.set(ch0);
+      }
+
+      if (audioBuffer.sampleRate === targetSampleRate) return mono;
+
+      const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      if (OfflineCtx) {
+        const durationSec = mono.length / audioBuffer.sampleRate;
+        const targetLength = Math.max(1, Math.round(durationSec * targetSampleRate));
+        const oc = new OfflineCtx(1, targetLength, targetSampleRate);
+        const srcBuf = oc.createBuffer(1, mono.length, audioBuffer.sampleRate);
+        srcBuf.copyToChannel(mono, 0);
+        const src = oc.createBufferSource();
+        src.buffer = srcBuf;
+        src.connect(oc.destination);
+        src.start(0);
+        const rendered = await oc.startRendering();
+        return new Float32Array(rendered.getChannelData(0));
+      }
+
+      return linearResampleFloat32(mono, audioBuffer.sampleRate, targetSampleRate);
+    }
+
+    function linearResampleFloat32(input, srcRate, dstRate) {
+      const ratio = srcRate / dstRate;
+      const outLen = Math.max(1, Math.round(input.length / ratio));
+      const out = new Float32Array(outLen);
+      for (let i = 0; i < outLen; i += 1) {
+        const t = i * ratio;
+        const i0 = Math.floor(t);
+        const i1 = Math.min(i0 + 1, input.length - 1);
+        const a = t - i0;
+        out[i] = input[i0] * (1 - a) + input[i1] * a;
+      }
+      return out;
+    }
+
+    function encodeWavPCM16(samples, sampleRate) {
+      const dataSize = samples.length * 2;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+      const numChannels = 1;
+      const bitsPerSample = 16;
+      const blockAlign = numChannels * (bitsPerSample / 8);
+      const byteRate = sampleRate * blockAlign;
+
+      writeAscii(view, 0, "RIFF");
+      view.setUint32(4, 36 + dataSize, true);
+      writeAscii(view, 8, "WAVE");
+      writeAscii(view, 12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitsPerSample, true);
+      writeAscii(view, 36, "data");
+      view.setUint32(40, dataSize, true);
+
+      let offset = 44;
+      for (let i = 0; i < samples.length; i += 1) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        const v = s < 0 ? Math.round(s * 32768) : Math.round(s * 32767);
+        view.setInt16(offset, v, true);
+        offset += 2;
+      }
+      return buffer;
+    }
+
+    function writeAscii(view, offset, text) {
+      for (let i = 0; i < text.length; i += 1) {
+        view.setUint8(offset + i, text.charCodeAt(i));
+      }
+    }
+
     function clearCoachRecording() {
       if (__coachRecording) {
         try { __coachMediaRecorder && __coachMediaRecorder.stop(); } catch (_) {}
@@ -2741,29 +2854,42 @@
     function renderCoachResult(result) {
       const box = document.getElementById("coach-result");
       if (!box) return;
-      const scores = (result && result.scores) ? result.scores : {};
       const duration = Number(result && result.duration_sec ? result.duration_sec : 0);
       const breaths = Array.isArray(result && result.breath_candidates_sec) ? result.breath_candidates_sec : [];
-      const notes = Array.isArray(result && result.notes) ? result.notes : [];
-      const reco = String(result && result.recommended_mode ? result.recommended_mode : "natural");
+      const silenceSegments = Array.isArray(result && result.silence_segments) ? result.silence_segments : [];
+      const stats = (result && result.stats && typeof result.stats === "object") ? result.stats : {};
 
-      const scoreRows = [
-        ["ピッチ安定", Number(scores.pitch_stability || 0)],
-        ["レガート", Number(scores.legato || 0)],
-        ["リズム安定", Number(scores.rhythm_stability || 0)],
-        ["総合Singability", Number(scores.singability || 0)],
-      ].map(([label, val]) => `<div class="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5">${escapeHtml(String(label))}: <strong>${Number.isFinite(val) ? Math.round(val) : "-"}</strong></div>`).join("");
+      const breathItems = breaths.length
+        ? breaths.map((s) => `<li>${Number.isFinite(Number(s)) ? Number(s).toFixed(2) : "-"}s</li>`).join("")
+        : "<li>候補なし</li>";
+      const segmentItems = silenceSegments.length
+        ? silenceSegments.map((seg) => {
+            const st = Number(seg && seg.start);
+            const ed = Number(seg && seg.end);
+            const stText = Number.isFinite(st) ? st.toFixed(2) : "-";
+            const edText = Number.isFinite(ed) ? ed.toFixed(2) : "-";
+            return `<li>${stText}s - ${edText}s</li>`;
+          }).join("")
+        : "<li>区間なし</li>";
 
-      const breathText = breaths.length ? breaths.map((s) => `${Number(s).toFixed(1)}s`).join(" / ") : "候補なし";
-      const recommendation = reco === "precise" ? "発音強化推奨（内部ブースト）" : "Natural推奨（歌いやすさ優先）";
-      const notesHtml = notes.map((n) => `<li>${escapeHtml(String(n))}</li>`).join("");
+      const statRows = [
+        ["sample_rate", stats.sr_hz],
+        ["channels", stats.channels],
+        ["silence_db", stats.silence_db],
+        ["frame_ms", stats.frame_ms],
+        ["hop_ms", stats.hop_ms],
+        ["min_silence_ms", stats.min_silence_ms],
+      ].map(([k, v]) => `<div class="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5">${escapeHtml(String(k))}: <strong>${escapeHtml(String(v ?? "-"))}</strong></div>`).join("");
 
       box.innerHTML = `
-        <div class="text-[10px] text-slate-400 mb-1">解析結果（V0雛形）</div>
-        <div class="text-[11px] text-slate-200 mb-2">録音長: ${duration > 0 ? duration.toFixed(1) : "-"} 秒 / 推奨モード: <strong>${recommendation}</strong></div>
-        <div class="flex flex-wrap gap-1.5 mb-2">${scoreRows}</div>
-        <div class="text-[11px] text-slate-300 mb-1">ブレス候補: ${escapeHtml(breathText)}</div>
-        <ul class="list-disc pl-4 text-[10px] text-slate-400 space-y-0.5">${notesHtml}</ul>
+        <div class="text-[10px] text-slate-400 mb-1">解析結果（無音検出）</div>
+        <div class="text-[11px] text-slate-200 mb-2">録音長: ${duration > 0 ? duration.toFixed(2) : "-"} 秒</div>
+        <div class="text-[11px] text-slate-300 mb-1">ブレス候補</div>
+        <ul class="list-disc pl-4 text-[11px] text-slate-200 space-y-0.5 mb-2">${breathItems}</ul>
+        <div class="text-[11px] text-slate-300 mb-1">無音区間</div>
+        <ul class="list-disc pl-4 text-[11px] text-slate-200 space-y-0.5 mb-2">${segmentItems}</ul>
+        <div class="text-[11px] text-slate-300 mb-1">解析パラメータ</div>
+        <div class="flex flex-wrap gap-1.5">${statRows}</div>
       `;
       box.classList.remove("hidden");
     }
@@ -2784,9 +2910,13 @@
       setCoachStatus("解析中…", "warn");
       clearCoachResultView();
       try {
-        const ext = (__coachAudioBlob.type || "").includes("wav") ? "wav" : "webm";
+        let uploadBlob = __coachAudioBlob;
+        if (!((uploadBlob.type || "").toLowerCase().includes("wav"))) {
+          setCoachStatus("録音形式をWAVへ変換中…", "warn");
+          uploadBlob = await blobToWavBlob(uploadBlob, 16000);
+        }
         const fd = new FormData();
-        fd.append("audio", __coachAudioBlob, `coach_recording.${ext}`);
+        fd.append("audio", uploadBlob, "coach_recording.wav");
         fd.append("meta", JSON.stringify({
           source: "user_recording",
         }));
@@ -2801,10 +2931,15 @@
           setCoachStatus(msg, "error");
           return;
         }
-        renderCoachResult(j.result || {});
+        renderCoachResult(j.analysis || j.result || {});
         setCoachStatus("解析が完了しました。", "ok");
       } catch (e) {
-        setCoachStatus("通信に失敗しました。時間を置いて再試行してください。", "error");
+        const detail = (e && e.message) ? String(e.message) : "";
+        if (detail) {
+          setCoachStatus(`解析に失敗しました: ${detail}`, "error");
+        } else {
+          setCoachStatus("通信に失敗しました。時間を置いて再試行してください。", "error");
+        }
       } finally {
         __coachAnalyzeInFlight = false;
         setCoachButtonsState();

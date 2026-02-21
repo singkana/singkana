@@ -16,7 +16,9 @@ import hashlib
 import hmac
 import io
 import html
+import math
 import threading
+import struct
 import wave
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -1385,9 +1387,123 @@ def api_events():
     _track_event(name, ref_code=_ref_cookie_value(), meta=meta)
     return jsonify({"ok": True})
 
+def _analyze_breath_candidates_wav_bytes(
+    wav_bytes: bytes,
+    *,
+    silence_db: float = -35.0,
+    frame_ms: int = 20,
+    hop_ms: int = 10,
+    min_silence_ms: int = 250,
+    min_gap_sec: float = 0.40,
+    skip_first_sec: float = 0.20,
+    max_candidates: int = 40,
+) -> Dict[str, Any]:
+    """WAV(PCM16)の無音区間からブレス候補を返す軽量解析。"""
+    with wave.open(io.BytesIO(wav_bytes), "rb") as wf:
+        channels = int(wf.getnchannels() or 0)
+        sample_width = int(wf.getsampwidth() or 0)
+        sample_rate = int(wf.getframerate() or 0)
+        n_frames = int(wf.getnframes() or 0)
+        pcm = wf.readframes(n_frames)
+
+    if sample_width != 2:
+        raise ValueError(f"unsupported sample_width={sample_width} (need 16-bit PCM)")
+    if channels not in (1, 2):
+        raise ValueError(f"unsupported channels={channels} (need mono/stereo)")
+    if sample_rate <= 0:
+        raise ValueError("invalid sample_rate")
+
+    expected_bytes = n_frames * channels * sample_width
+    if len(pcm) < expected_bytes:
+        raise ValueError("truncated wav pcm")
+
+    total_samples = n_frames * channels
+    samples = struct.unpack("<" + ("h" * total_samples), pcm[: expected_bytes])
+
+    # ステレオは単純平均でモノラル化
+    if channels == 2:
+        mono = [int((samples[i] + samples[i + 1]) / 2) for i in range(0, len(samples), 2)]
+    else:
+        mono = list(samples)
+    if not mono:
+        raise ValueError("empty_audio")
+
+    duration_sec = len(mono) / float(sample_rate)
+    frame_len = max(1, int(sample_rate * frame_ms / 1000))
+    hop_len = max(1, int(sample_rate * hop_ms / 1000))
+    full_scale = 32768.0
+    eps = 1e-12
+
+    def _rms_dbfs(seg: list[int]) -> float:
+        s2 = 0.0
+        for v in seg:
+            fv = float(v) / full_scale
+            s2 += fv * fv
+        rms = math.sqrt((s2 / max(1, len(seg))) + eps)
+        return 20.0 * math.log10(rms + eps)
+
+    db_series: list[tuple[float, float]] = []
+    max_start = max(0, len(mono) - frame_len)
+    for start in range(0, max_start + 1, hop_len):
+        seg = mono[start : start + frame_len]
+        t = start / float(sample_rate)
+        db_series.append((t, _rms_dbfs(seg)))
+    if not db_series:
+        db_series = [(0.0, _rms_dbfs(mono))]
+
+    min_silence_sec = max(0.0, min_silence_ms / 1000.0)
+    silence_segments: list[dict[str, float]] = []
+    in_silence = False
+    sil_start = 0.0
+    for t, db in db_series:
+        is_silence = db <= silence_db
+        if is_silence and not in_silence:
+            in_silence = True
+            sil_start = t
+        elif (not is_silence) and in_silence:
+            in_silence = False
+            sil_end = t
+            if (sil_end - sil_start) >= min_silence_sec:
+                silence_segments.append({"start": round(sil_start, 3), "end": round(sil_end, 3)})
+    if in_silence:
+        sil_end = db_series[-1][0] + (frame_len / float(sample_rate))
+        if (sil_end - sil_start) >= min_silence_sec:
+            silence_segments.append({"start": round(sil_start, 3), "end": round(sil_end, 3)})
+
+    candidates: list[float] = []
+    last_t = -1e9
+    for seg in silence_segments:
+        t = float(seg.get("start", 0.0))
+        if t < skip_first_sec:
+            continue
+        if (t - last_t) < min_gap_sec:
+            continue
+        candidates.append(round(t, 2))
+        last_t = t
+        if len(candidates) >= max_candidates:
+            break
+
+    db_min = min((db for _, db in db_series), default=0.0)
+    db_max = max((db for _, db in db_series), default=0.0)
+    return {
+        "duration_sec": round(duration_sec, 3),
+        "breath_candidates_sec": candidates,
+        "silence_segments": silence_segments,
+        "stats": {
+            "sr_hz": sample_rate,
+            "channels": channels,
+            "silence_db": float(silence_db),
+            "frame_ms": int(frame_ms),
+            "hop_ms": int(hop_ms),
+            "min_silence_ms": int(min_silence_ms),
+            "dbfs_min": round(db_min, 1),
+            "dbfs_max": round(db_max, 1),
+        },
+    }
+
 @app.post("/api/coach/analyze")
 def api_coach_analyze():
-    """Coach V0 scaffold: ユーザー録音を受け取り、暫定スコアを返す。"""
+    """Coach P1: WAV(PCM16)録音を無音検出し、ブレス候補を返す。"""
     if not _origin_ok():
         return _json_error(403, "invalid_origin", "このページからのみ送信できます。")
 
@@ -1415,12 +1531,9 @@ def api_coach_analyze():
 
     mimetype = str(audio.mimetype or "").lower().strip()
     allowed_mimes = {
-        "audio/webm",
         "audio/wav",
         "audio/x-wav",
         "audio/wave",
-        "audio/mp4",
-        "audio/mpeg",
         "application/octet-stream",  # 一部ブラウザ互換
     }
     if mimetype and mimetype not in allowed_mimes:
@@ -1437,20 +1550,34 @@ def api_coach_analyze():
             max_bytes=COACH_MAX_AUDIO_BYTES,
         )
 
-    duration_sec: Optional[float] = None
-    if len(raw) >= 12 and raw[:4] == b"RIFF" and raw[8:12] == b"WAVE":
-        try:
-            with wave.open(io.BytesIO(raw), "rb") as wf:
-                fr = int(wf.getframerate() or 0)
-                frames = int(wf.getnframes() or 0)
-                if fr > 0 and frames >= 0:
-                    duration_sec = round(frames / fr, 2)
-        except Exception:
-            duration_sec = None
-    if duration_sec is None:
-        # webm等はヘッダ解析せず、64kbps前提の簡易推定（V0暫定）
-        duration_sec = round((len(raw) * 8) / 64000.0, 2)
+    if not (len(raw) >= 12 and raw[:4] == b"RIFF" and raw[8:12] == b"WAVE"):
+        return _json_error(
+            400,
+            "unsupported_media_type",
+            "現時点のCoach解析はWAV(PCM16)のみ対応です。",
+            mime=mimetype or "unknown",
+        )
 
+    try:
+        silence_db = float(request.form.get("silence_db", -35.0))
+    except Exception:
+        return _json_error(400, "bad_input", "silence_db は数値で指定してください。")
+    try:
+        min_silence_ms = int(request.form.get("min_silence_ms", 250))
+    except Exception:
+        return _json_error(400, "bad_input", "min_silence_ms は整数で指定してください。")
+
+    try:
+        result = _analyze_breath_candidates_wav_bytes(
+            raw,
+            silence_db=silence_db,
+            min_silence_ms=min_silence_ms,
+        )
+    except Exception as e:
+        app.logger.warning("coach_analyze_failed: %s", str(e))
+        return _json_error(400, "analysis_failed", "録音の解析に失敗しました。", detail=str(e))
+
+    duration_sec = float(result.get("duration_sec") or 0.0)
     if duration_sec > (COACH_MAX_SECONDS + 2):
         return _json_error(
             400,
@@ -1460,53 +1587,7 @@ def api_coach_analyze():
             duration_sec=duration_sec,
         )
 
-    meta_raw = str(request.form.get("meta") or "").strip()
-    meta: Dict[str, Any] = {}
-    if meta_raw:
-        try:
-            meta_obj = json.loads(meta_raw)
-            if isinstance(meta_obj, dict):
-                meta = meta_obj
-        except Exception:
-            meta = {}
-
-    digest = int(hashlib.sha256(raw).hexdigest()[:8], 16)
-    swing = (digest % 9) - 4
-    pitch_stability = max(45, min(96, 74 + swing))
-    legato = max(40, min(95, 72 - swing))
-    rhythm = max(45, min(95, 70 + ((digest // 11) % 7) - 3))
-    singability = int(round((pitch_stability + legato + rhythm) / 3))
-
-    breath_candidates: list[float] = []
-    if duration_sec >= 12:
-        breath_candidates = [round(duration_sec * 0.33, 2), round(duration_sec * 0.67, 2)]
-    elif duration_sec >= 6:
-        breath_candidates = [round(duration_sec * 0.5, 2)]
-
-    recommended_mode = "natural" if singability < 78 else "precise"
     analysis_id = f"coach_{secrets.token_hex(8)}"
-
-    result = {
-        "version": "coach_v0_stub",
-        "duration_sec": duration_sec,
-        "breath_candidates_sec": breath_candidates,
-        "scores": {
-            "pitch_stability": pitch_stability,
-            "legato": legato,
-            "rhythm_stability": rhythm,
-            "singability": singability,
-        },
-        "recommended_mode": recommended_mode,
-        "notes": [
-            "提案はユーザー録音の傾向を示すもので、正解を断定するものではありません。",
-            "原曲音源のアップロード解析には対応していません。",
-            "音声データは解析後に保持しません（結果のみ短期表示向け）。",
-        ],
-        "meta_echo": {
-            "display_mode": str(meta.get("display_mode") or ""),
-            "source": str(meta.get("source") or ""),
-        },
-    }
 
     _track_event(
         "coach_analyze",
@@ -1515,10 +1596,10 @@ def api_coach_analyze():
             "mime": mimetype or "unknown",
             "bytes": len(raw),
             "duration_sec": duration_sec,
-            "recommended_mode": recommended_mode,
+            "candidate_count": len(result.get("breath_candidates_sec") or []),
         },
     )
-    return jsonify({"ok": True, "analysis_id": analysis_id, "result": result})
+    return jsonify({"ok": True, "analysis_id": analysis_id, "analysis": result})
 
 @app.post("/api/ugc/generate")
 def api_ugc_generate():
