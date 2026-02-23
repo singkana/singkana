@@ -600,6 +600,19 @@ def _init_db():
             notified INTEGER DEFAULT 0
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS plan_grants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL,
+            grant_plan TEXT NOT NULL,
+            starts_at TEXT NOT NULL,
+            ends_at TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            note TEXT,
+            revoked_at TEXT
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_plan_grants_user_time ON plan_grants(user_id, ends_at, revoked_at)")
 
     # schema migration: add ref_code if existing DB is old
     user_cols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
@@ -930,6 +943,61 @@ def _set_plan(conn, user_id: str, plan: str) -> None:
         return
     conn.execute("UPDATE users SET plan=? WHERE user_id=?", (plan, user_id))
 
+def _is_plan_grant_active(starts_at: str, ends_at: str, revoked_at: Optional[str], now_iso: Optional[str] = None) -> bool:
+    now = now_iso or _utc_iso()
+    s = str(starts_at or "").strip()
+    e = str(ends_at or "").strip()
+    if not s or not e:
+        return False
+    if revoked_at not in (None, ""):
+        return False
+    return s <= now < e
+
+def _active_plan_grant_row(conn, user_id: str, now_iso: Optional[str] = None):
+    now = now_iso or _utc_iso()
+    return conn.execute(
+        """
+        SELECT id, user_id, grant_plan, starts_at, ends_at, reason, note, revoked_at
+        FROM plan_grants
+        WHERE user_id=?
+          AND revoked_at IS NULL
+          AND starts_at<=?
+          AND ends_at>?
+        ORDER BY ends_at DESC, id DESC
+        LIMIT 1
+        """,
+        (user_id, now, now),
+    ).fetchone()
+
+def _has_active_plan_grant(conn, user_id: str, now_iso: Optional[str] = None) -> bool:
+    if not user_id:
+        return False
+    row = _active_plan_grant_row(conn, user_id, now_iso=now_iso)
+    return bool(row and str(row["grant_plan"] or "").lower() == "pro")
+
+def _plan_grant_row_to_dict(row, now_iso: Optional[str] = None) -> Dict[str, Any]:
+    now = now_iso or _utc_iso()
+    starts_at = str(row["starts_at"] or "")
+    ends_at = str(row["ends_at"] or "")
+    revoked_at = row["revoked_at"]
+    return {
+        "id": row["id"],
+        "user_id": row["user_id"],
+        "grant_plan": row["grant_plan"],
+        "starts_at": starts_at,
+        "ends_at": ends_at,
+        "reason": row["reason"],
+        "note": row["note"],
+        "revoked_at": revoked_at,
+        "active": _is_plan_grant_active(starts_at, ends_at, revoked_at, now_iso=now),
+    }
+
+def _admin_or_internal_grants_allowed() -> bool:
+    if _admin_allowed():
+        return True
+    uid = getattr(g, "user_id", "") or (request.cookies.get(COOKIE_NAME_UID) or "")
+    return is_internal_request(uid)
+
 def _plan_from_subscription(status: str | None, current_period_end: int | None) -> str:
     """
     単一ルール（Webhook / before_request 共通）
@@ -1135,11 +1203,13 @@ def _identity_and_plan_bootstrap():
         # 開発者モード + 内部UID: 実行時オーバーライド（DB planは変更しない）
         internal_override = is_internal_request(uid)
         dev_override = is_pro_override()
+        grant_override = _has_active_plan_grant(conn, uid)
         g.dev_pro_override = bool(internal_override or dev_override)
         g.internal_uid_override = bool(internal_override)
+        g.plan_grant_override = bool(grant_override)
         if g.dev_pro_override:
             g.user_plan = "pro"
-        g.effective_plan = "pro" if g.dev_pro_override else getattr(g, "user_plan", "free")
+        g.effective_plan = "pro" if (g.dev_pro_override or g.plan_grant_override) else getattr(g, "user_plan", "free")
 
         # モード方針をここで確定（全エンドポイント共通）
         g.effective_mode = _effective_mode_from_plan(getattr(g, "effective_plan", "free"))
@@ -2052,6 +2122,7 @@ def api_me():
         "effective_plan": getattr(g, "effective_plan", getattr(g, "user_plan", "free")),
         "effective_mode": getattr(g, "effective_mode", _effective_mode_from_plan(getattr(g, "effective_plan", getattr(g, "user_plan", "free")))),
         "dev_pro_override": getattr(g, "dev_pro_override", False),
+        "plan_grant_override": getattr(g, "plan_grant_override", False),
         "subscription": sub_info,
         "time": _utc_iso(),
     }
@@ -2066,6 +2137,143 @@ def api_me():
         }
 
     return jsonify(result)
+
+@app.post("/api/admin/grants/pro14")
+def api_admin_grants_pro14():
+    # internal cookieで叩く場合のみCSRFチェック必須（token authはヘッダー想定）
+    if not _admin_allowed() and not _origin_ok():
+        return _json_error(403, "origin_rejected", "Origin not allowed.")
+    if not _admin_or_internal_grants_allowed():
+        return _json_error(403, "forbidden", "admin only")
+
+    data, err = _require_json()
+    if err:
+        return err
+
+    user_id = str(data.get("user_id") or "").strip()
+    if not user_id or not UID_RE.match(user_id):
+        return _json_error(400, "bad_user_id", "valid user_id is required.")
+    reason = str(data.get("reason") or "feedback_tester").strip() or "feedback_tester"
+    note = str(data.get("note") or "").strip()
+    if len(reason) > 80:
+        reason = reason[:80]
+    if len(note) > 500:
+        note = note[:500]
+
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    starts_at = now_utc.isoformat().replace("+00:00", "Z")
+    ends_at = (now_utc + datetime.timedelta(days=14)).isoformat().replace("+00:00", "Z")
+
+    conn = _db()
+    _ensure_user_exists(conn, user_id)
+    conn.execute(
+        """
+        INSERT INTO plan_grants (user_id, grant_plan, starts_at, ends_at, reason, note, revoked_at)
+        VALUES (?, 'pro', ?, ?, ?, ?, NULL)
+        """,
+        (user_id, starts_at, ends_at, reason, note or None),
+    )
+    grant_id = int(conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"])
+    conn.commit()
+
+    row = conn.execute(
+        """
+        SELECT id, user_id, grant_plan, starts_at, ends_at, reason, note, revoked_at
+        FROM plan_grants
+        WHERE id=?
+        """,
+        (grant_id,),
+    ).fetchone()
+    return jsonify({"ok": True, "grant": _plan_grant_row_to_dict(row), "effective_plan": "pro"})
+
+@app.post("/api/admin/grants/revoke")
+def api_admin_grants_revoke():
+    if not _admin_allowed() and not _origin_ok():
+        return _json_error(403, "origin_rejected", "Origin not allowed.")
+    if not _admin_or_internal_grants_allowed():
+        return _json_error(403, "forbidden", "admin only")
+
+    data, err = _require_json()
+    if err:
+        return err
+
+    grant_id_raw = data.get("grant_id")
+    user_id = str(data.get("user_id") or "").strip()
+    now_iso = _utc_iso()
+    conn = _db()
+
+    revoked = 0
+    if grant_id_raw is not None and str(grant_id_raw).strip() != "":
+        gid = _safe_int(grant_id_raw)
+        if gid is None or gid <= 0:
+            return _json_error(400, "bad_grant_id", "grant_id must be a positive integer.")
+        cur = conn.execute(
+            """
+            UPDATE plan_grants
+            SET revoked_at=?
+            WHERE id=?
+              AND revoked_at IS NULL
+            """,
+            (now_iso, gid),
+        )
+        revoked = int(cur.rowcount or 0)
+    elif user_id:
+        if not UID_RE.match(user_id):
+            return _json_error(400, "bad_user_id", "valid user_id is required.")
+        cur = conn.execute(
+            """
+            UPDATE plan_grants
+            SET revoked_at=?
+            WHERE user_id=?
+              AND revoked_at IS NULL
+              AND ends_at>?
+            """,
+            (now_iso, user_id, now_iso),
+        )
+        revoked = int(cur.rowcount or 0)
+    else:
+        return _json_error(400, "bad_input", "grant_id or user_id is required.")
+
+    conn.commit()
+    return jsonify({"ok": True, "revoked": revoked, "time": now_iso})
+
+@app.get("/api/admin/grants")
+def api_admin_grants_list():
+    if not _admin_or_internal_grants_allowed():
+        return _json_error(403, "forbidden", "admin only")
+
+    user_id = str(request.args.get("user_id") or "").strip()
+    limit = _safe_int(request.args.get("limit"))
+    safe_limit = 100 if limit is None else max(1, min(500, limit))
+    now_iso = _utc_iso()
+
+    conn = _db()
+    if user_id:
+        if not UID_RE.match(user_id):
+            return _json_error(400, "bad_user_id", "valid user_id is required.")
+        rows = conn.execute(
+            """
+            SELECT id, user_id, grant_plan, starts_at, ends_at, reason, note, revoked_at
+            FROM plan_grants
+            WHERE user_id=?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (user_id, safe_limit),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """
+            SELECT id, user_id, grant_plan, starts_at, ends_at, reason, note, revoked_at
+            FROM plan_grants
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (safe_limit,),
+        ).fetchall()
+
+    items = [_plan_grant_row_to_dict(r, now_iso=now_iso) for r in rows]
+    return jsonify({"ok": True, "items": items, "count": len(items), "time": now_iso})
 
 # ======================================================================
 # Static: robots.txt
