@@ -2083,7 +2083,7 @@ def admin_grants_page():
 <html><head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>SingKANA Admin Grants</title>
+<title>SingKANA 管理（Pro付与）</title>
 <style>
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:24px;background:#0b1220;color:#e5e7eb}
   .card{max-width:820px;margin:0 auto;padding:18px;border:1px solid rgba(148,163,184,.25);border-radius:14px;background:rgba(15,23,42,.7)}
@@ -2097,41 +2097,42 @@ def admin_grants_page():
 </head>
 <body>
   <div class="card">
-    <h2 style="margin:0 0 6px 0;">Plan Grants Admin</h2>
-    <div class="muted">internal署名cookie か ?token=ADMIN_TOKEN でアクセス。操作は /api/admin/grants/* を呼びます。</div>
+    <h2 style="margin:0 0 6px 0;">Pro付与（期限付き）管理</h2>
+    <div class="muted">internal署名cookie または ?token=ADMIN_TOKEN でアクセス。操作は /api/admin/grants/* を呼びます。</div>
+    <div class="muted" style="margin-top:6px"><a href="/admin/dashboard" style="color:#c7d2fe;text-decoration:none">← ダッシュボード</a></div>
 
     <div style="margin-top:14px" class="row">
       <div>
-        <label class="muted">user_id (sk_uid)</label>
+        <label class="muted">ユーザーID（sk_uid）</label>
         <input id="uid" placeholder="sk_..."/>
       </div>
       <div>
-        <label class="muted">reason</label>
+        <label class="muted">理由（reason）</label>
         <input id="reason" value="feedback_tester"/>
       </div>
     </div>
 
     <div style="margin-top:10px">
-      <label class="muted">note</label>
-      <textarea id="note" rows="2" placeholder="optional"></textarea>
+      <label class="muted">メモ（note）</label>
+      <textarea id="note" rows="2" placeholder="任意（例：採用フィードバック3件）"></textarea>
     </div>
 
     <div style="margin-top:12px" class="row">
-      <button onclick="grantPro14()">Grant Pro 14 days</button>
-      <button onclick="listGrants()">List grants</button>
+      <button onclick="grantPro14()">Pro 14日を付与</button>
+      <button onclick="listGrants()">付与履歴を表示</button>
     </div>
 
     <div style="margin-top:12px" class="row">
       <div>
-        <label class="muted">revoke by grant_id</label>
-        <input id="grant_id" placeholder="e.g. 12"/>
+        <label class="muted">取り消し（grant_id）</label>
+        <input id="grant_id" placeholder="例: 12"/>
       </div>
       <div style="display:flex;align-items:end;gap:10px">
-        <button style="width:100%" onclick="revokeGrant()">Revoke</button>
+        <button style="width:100%" onclick="revokeGrant()">取り消す</button>
       </div>
     </div>
 
-    <div style="margin-top:14px" class="muted">Response</div>
+    <div style="margin-top:14px" class="muted">結果</div>
     <pre id="out">{}</pre>
   </div>
 
