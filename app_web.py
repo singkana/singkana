@@ -343,6 +343,78 @@ def _internal_allow_uids() -> set[str]:
 def is_internal_uid(uid: str) -> bool:
     return bool(uid) and uid in _internal_allow_uids()
 
+def _internal_allow_ips() -> set[str]:
+    return _parse_csv_set(os.getenv("SINGKANA_INTERNAL_ALLOW_IPS", ""))
+
+def _internal_hmac_secret() -> str:
+    return (os.getenv("SINGKANA_INTERNAL_HMAC_SECRET", "") or "").strip()
+
+def _internal_sig_max_age_days() -> int:
+    try:
+        return int(os.getenv("SINGKANA_INTERNAL_SIG_MAX_AGE_DAYS", "90") or "90")
+    except Exception:
+        return 90
+
+def _ip_allowed_for_internal(ip: str) -> bool:
+    if not ip:
+        return False
+    allow = _internal_allow_ips()
+    if not allow:
+        return False
+    try:
+        import ipaddress
+        ip_obj = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    for token in allow:
+        try:
+            if "/" in token:
+                if ip_obj in ipaddress.ip_network(token, strict=False):
+                    return True
+            else:
+                if ip_obj == ipaddress.ip_address(token):
+                    return True
+        except ValueError:
+            continue
+    return False
+
+def _internal_cookie_sig(uid: str, ts: int) -> str:
+    secret = _internal_hmac_secret()
+    if not secret:
+        return ""
+    msg = f"{uid}:{ts}".encode("utf-8")
+    return hmac.new(secret.encode("utf-8"), msg, hashlib.sha256).hexdigest()
+
+def _valid_internal_cookie(uid: str, cookie_val: str) -> bool:
+    # format: v1.<ts>.<hexsig>
+    if not cookie_val:
+        return False
+    parts = cookie_val.split(".")
+    if len(parts) != 3 or parts[0] != "v1":
+        return False
+    try:
+        ts = int(parts[1])
+    except ValueError:
+        return False
+    if ts <= 0:
+        return False
+    max_days = _internal_sig_max_age_days()
+    if max_days > 0 and (int(time.time()) - ts) > (max_days * 86400):
+        return False
+    expect = _internal_cookie_sig(uid, ts)
+    if not expect:
+        return False
+    return hmac.compare_digest(expect, parts[2])
+
+def is_internal_request(uid: str) -> bool:
+    # internalはUID allowlist必須 + (IP allowlist または 署名cookie) の二段階
+    if not is_internal_uid(uid):
+        return False
+    if _ip_allowed_for_internal(_client_ip()):
+        return True
+    cookie_val = (request.cookies.get(COOKIE_NAME_INTERNAL) or "").strip()
+    return _valid_internal_cookie(uid, cookie_val)
+
 def _log_uid_trace(stage: str, status: int | None = None) -> None:
     if not _uid_trace_enabled():
         return
@@ -437,6 +509,7 @@ def _stripe_required_env() -> Dict[str, str]:
 # ======================================================================
 COOKIE_NAME_UID = "sk_uid"
 COOKIE_NAME_DEV_PRO = "sk_dev_pro"  # 開発者モード用Cookie
+COOKIE_NAME_INTERNAL = "sk_internal"  # 内部権限署名Cookie
 COOKIE_NAME_REF = "sk_ref"          # ref_code cookie（流入計測）
 UID_RE = re.compile(r"^sk_[0-9A-HJKMNP-TV-Z]{26}$")  # ULID base32 26 chars
 COOKIE_SECURE = _env("COOKIE_SECURE", "1") == "1"     # 本番=1 / ローカルhttp検証=0
@@ -1060,7 +1133,7 @@ def _identity_and_plan_bootstrap():
             g._set_ref_cookie = None
         
         # 開発者モード + 内部UID: 実行時オーバーライド（DB planは変更しない）
-        internal_override = is_internal_uid(uid)
+        internal_override = is_internal_request(uid)
         dev_override = is_pro_override()
         g.dev_pro_override = bool(internal_override or dev_override)
         g.internal_uid_override = bool(internal_override)
@@ -1913,6 +1986,37 @@ def dev_logout():
         httponly=True,
         samesite="Lax",
         secure=COOKIE_SECURE,
+    )
+    return resp
+
+@app.get("/api/internal/enable")
+def api_internal_enable():
+    # key不一致は存在秘匿のため404
+    key = (request.args.get("key") or "").strip()
+    expected = (os.getenv("SINGKANA_INTERNAL_ENABLE_KEY", "") or "").strip()
+    if not key or not expected or not hmac.compare_digest(key, expected):
+        return ("not found", 404)
+
+    uid = getattr(g, "user_id", "") or (request.cookies.get(COOKIE_NAME_UID) or "")
+    if not is_internal_uid(uid):
+        return _json_error(403, "forbidden", "internal uid only")
+
+    ts = int(time.time())
+    sig = _internal_cookie_sig(uid, ts)
+    if not sig:
+        return _json_error(500, "misconfigured", "SINGKANA_INTERNAL_HMAC_SECRET is missing.")
+
+    max_days = _internal_sig_max_age_days()
+    val = f"v1.{ts}.{sig}"
+    resp = jsonify({"ok": True, "uid": uid, "max_age_days": max_days})
+    resp.set_cookie(
+        COOKIE_NAME_INTERNAL,
+        val,
+        max_age=(max_days * 86400 if max_days > 0 else None),
+        httponly=True,
+        samesite="Lax",
+        secure=COOKIE_SECURE,
+        path="/",
     )
     return resp
 
