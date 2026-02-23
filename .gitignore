@@ -22,3 +22,7 @@ singkana.db
 .env
 *.env
 node_modules/
+.cache/
+Logs/
+static/ugc/*.png
+app_web.py.pre_restore_*
