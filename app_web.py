@@ -322,6 +322,41 @@ def _dev_pro_host_ok() -> bool:
         return False
     return True
 
+def _parse_csv_set(raw: str) -> set[str]:
+    return {x.strip() for x in (raw or "").split(",") if x.strip()}
+
+def _uid_trace_enabled() -> bool:
+    return os.getenv("SINGKANA_UID_TRACE", "0") == "1"
+
+def _uid_trace_targets() -> set[str]:
+    return _parse_csv_set(os.getenv("SINGKANA_UID_TRACE_TARGET_UIDS", ""))
+
+def _uid_trace_paths() -> set[str]:
+    return _parse_csv_set(os.getenv("SINGKANA_UID_TRACE_PATHS", ""))
+
+def _uid_trace_raw_ua() -> bool:
+    return os.getenv("SINGKANA_UID_TRACE_RAW_UA", "0") == "1"
+
+def _log_uid_trace(stage: str, status: int | None = None) -> None:
+    if not _uid_trace_enabled():
+        return
+    uid = getattr(g, "user_id", "") or ""
+    if not uid:
+        return
+    targets = _uid_trace_targets()
+    if targets and uid not in targets:
+        return
+    p = (request.path or "").strip()
+    paths = _uid_trace_paths()
+    if paths and p not in paths:
+        return
+    ua = request.headers.get("User-Agent", "") or ""
+    ua_out = ua if _uid_trace_raw_ua() else hashlib.sha256(ua.encode("utf-8")).hexdigest()[:16]
+    app.logger.info(
+        "uid_trace stage=%s uid=%s method=%s path=%s status=%s ip=%s ua=%s",
+        stage, uid, request.method, p, status if status is not None else "-", _client_ip(), ua_out
+    )
+
 def is_pro_override() -> bool:
     """開発者モード（3段ロック）: すべて満たした場合のみTrue"""
     if not _dev_pro_host_ok():  # 本番ドメインチェック
@@ -1024,6 +1059,7 @@ def _identity_and_plan_bootstrap():
 
         # モード方針をここで確定（全エンドポイント共通）
         g.effective_mode = _effective_mode_from_plan(getattr(g, "user_plan", "free"))
+        _log_uid_trace("before")
     except Exception as e:
         app.logger.exception("Error in _identity_and_plan_bootstrap: %s", e)
         raise
@@ -1093,7 +1129,8 @@ def _identity_cookie_commit(resp):
     if ct.startswith("application/json") and "charset=" not in ct.lower():
         # FlaskはUTF-8前提だが、明示しておくと運用が楽
         resp.headers["Content-Type"] = f"{ct}; charset=utf-8" if ct else "application/json; charset=utf-8"
-    
+
+    _log_uid_trace("after", resp.status_code)
     return resp
 
 def _app_base_url() -> str:
