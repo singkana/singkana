@@ -613,6 +613,21 @@ def _init_db():
         )
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_plan_grants_user_time ON plan_grants(user_id, ends_at, revoked_at)")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS admin_audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL,
+            actor TEXT NOT NULL,
+            action TEXT NOT NULL,
+            target_user_id TEXT,
+            grant_id INTEGER,
+            ip TEXT,
+            ua TEXT,
+            meta_json TEXT
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_admin_audit_log_time ON admin_audit_log(created_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_admin_audit_log_target ON admin_audit_log(target_user_id, created_at)")
 
     # schema migration: add ref_code if existing DB is old
     user_cols = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
@@ -997,6 +1012,34 @@ def _admin_or_internal_grants_allowed() -> bool:
         return True
     uid = getattr(g, "user_id", "") or (request.cookies.get(COOKIE_NAME_UID) or "")
     return is_internal_request(uid)
+
+def _audit_actor_label() -> str:
+    # token値そのものは絶対に残さない（actorはラベルのみ）
+    if _admin_allowed():
+        return "admin_token"
+    uid = getattr(g, "user_id", "") or (request.cookies.get(COOKIE_NAME_UID) or "")
+    uid = str(uid or "").strip()
+    return f"internal:{uid}" if uid else "internal:unknown"
+
+def _audit_log(
+    conn,
+    *,
+    actor: str,
+    action: str,
+    target_user_id: Optional[str],
+    grant_id: Optional[int],
+    meta: Optional[Dict[str, Any]] = None,
+) -> None:
+    ip = _client_ip()
+    ua = (request.headers.get("User-Agent", "") or "")[:220]
+    meta_json = json.dumps(meta, ensure_ascii=False, separators=(",", ":")) if meta else None
+    conn.execute(
+        """
+        INSERT INTO admin_audit_log(created_at, actor, action, target_user_id, grant_id, ip, ua, meta_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (_utc_iso(), str(actor or ""), str(action or ""), target_user_id, grant_id, ip, ua, meta_json),
+    )
 
 def _plan_from_subscription(status: str | None, current_period_end: int | None) -> str:
     """
@@ -2016,7 +2059,7 @@ def admin_dashboard():
     out.append("<!doctype html><meta charset='utf-8'><title>UGC Dashboard</title>")
     out.append("<style>body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:24px}table{border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;font-size:12px}th{background:#f5f5f5;text-align:left}</style>")
     out.append("<h2>UGCファネル（日次 / 直近14日）</h2>")
-    out.append("<p><a href='/admin/ugc'>ugc posts</a> | <a href='/admin/feedback'>feedback</a></p>")
+    out.append("<p><a href='/admin/ugc'>ugc posts</a> | <a href='/admin/feedback'>feedback</a> | <a href='/admin/grants'>grants</a></p>")
     out.append("<table><thead><tr><th>day</th>")
     for n in names:
         out.append(f"<th>{n}</th>")
@@ -2029,6 +2072,117 @@ def admin_dashboard():
         out.append("</tr>")
     out.append("</tbody></table>")
     return Response("\n".join(out), mimetype="text/html; charset=utf-8")
+
+@app.get("/admin/grants")
+def admin_grants_page():
+    # internal署名cookie or admin token (?token=...) のみ
+    if not _admin_or_internal_grants_allowed():
+        return ("not found", 404)
+
+    html_page = """<!doctype html>
+<html><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SingKANA Admin Grants</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:24px;background:#0b1220;color:#e5e7eb}
+  .card{max-width:820px;margin:0 auto;padding:18px;border:1px solid rgba(148,163,184,.25);border-radius:14px;background:rgba(15,23,42,.7)}
+  input,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(148,163,184,.25);background:#0b1220;color:#e5e7eb}
+  button{padding:10px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.25);background:rgba(99,102,241,.18);color:#e5e7eb;font-weight:600;cursor:pointer}
+  button:hover{background:rgba(99,102,241,.26)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .muted{color:#94a3b8;font-size:12px}
+  pre{white-space:pre-wrap;word-break:break-word;background:#050a14;padding:12px;border-radius:12px;border:1px solid rgba(148,163,184,.15)}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h2 style="margin:0 0 6px 0;">Plan Grants Admin</h2>
+    <div class="muted">internal署名cookie か ?token=ADMIN_TOKEN でアクセス。操作は /api/admin/grants/* を呼びます。</div>
+
+    <div style="margin-top:14px" class="row">
+      <div>
+        <label class="muted">user_id (sk_uid)</label>
+        <input id="uid" placeholder="sk_..."/>
+      </div>
+      <div>
+        <label class="muted">reason</label>
+        <input id="reason" value="feedback_tester"/>
+      </div>
+    </div>
+
+    <div style="margin-top:10px">
+      <label class="muted">note</label>
+      <textarea id="note" rows="2" placeholder="optional"></textarea>
+    </div>
+
+    <div style="margin-top:12px" class="row">
+      <button onclick="grantPro14()">Grant Pro 14 days</button>
+      <button onclick="listGrants()">List grants</button>
+    </div>
+
+    <div style="margin-top:12px" class="row">
+      <div>
+        <label class="muted">revoke by grant_id</label>
+        <input id="grant_id" placeholder="e.g. 12"/>
+      </div>
+      <div style="display:flex;align-items:end;gap:10px">
+        <button style="width:100%" onclick="revokeGrant()">Revoke</button>
+      </div>
+    </div>
+
+    <div style="margin-top:14px" class="muted">Response</div>
+    <pre id="out">{}</pre>
+  </div>
+
+<script>
+function adminToken(){
+  const sp=new URLSearchParams(location.search);
+  return sp.get('token') || '';
+}
+async function callApi(path, method, body){
+  const headers={'Accept':'application/json'};
+  const tok=adminToken();
+  if(tok) headers['X-Admin-Token']=tok;
+  if(body !== undefined){
+    headers['Content-Type']='application/json';
+  }
+  const res=await fetch(path, {method, headers, body: body !== undefined ? JSON.stringify(body) : undefined});
+  const text=await res.text();
+  return {status:res.status, text};
+}
+function setOut(obj){
+  try{
+    const parsed = JSON.parse(obj.text);
+    document.getElementById('out').textContent = JSON.stringify({status: obj.status, json: parsed}, null, 2);
+  }catch(e){
+    document.getElementById('out').textContent = JSON.stringify(obj, null, 2);
+  }
+}
+
+async function grantPro14(){
+  const uid=document.getElementById('uid').value.trim();
+  const reason=document.getElementById('reason').value.trim();
+  const note=document.getElementById('note').value.trim();
+  const r=await callApi('/api/admin/grants/pro14','POST',{user_id:uid,reason:reason,note:note});
+  setOut(r);
+}
+async function listGrants(){
+  const uid=document.getElementById('uid').value.trim();
+  const q = uid ? ('?user_id=' + encodeURIComponent(uid)) : '';
+  const r=await callApi('/api/admin/grants' + q,'GET');
+  setOut(r);
+}
+async function revokeGrant(){
+  const gid=document.getElementById('grant_id').value.trim();
+  const uid=document.getElementById('uid').value.trim();
+  const body = gid ? {grant_id: Number(gid)} : {user_id: uid};
+  const r=await callApi('/api/admin/grants/revoke','POST', body);
+  setOut(r);
+}
+</script>
+</body></html>"""
+    return Response(html_page, mimetype="text/html; charset=utf-8", headers={"Cache-Control": "no-store"})
 
 @app.get("/favicon.ico")
 def favicon_ico():
@@ -2174,6 +2328,17 @@ def api_admin_grants_pro14():
         (user_id, starts_at, ends_at, reason, note or None),
     )
     grant_id = int(conn.execute("SELECT last_insert_rowid() AS id").fetchone()["id"])
+    try:
+        _audit_log(
+            conn,
+            actor=_audit_actor_label(),
+            action="grant_pro14",
+            target_user_id=user_id,
+            grant_id=grant_id,
+            meta={"reason": reason, "note": note},
+        )
+    except Exception:
+        pass
     conn.commit()
 
     row = conn.execute(
@@ -2207,6 +2372,12 @@ def api_admin_grants_revoke():
         gid = _safe_int(grant_id_raw)
         if gid is None or gid <= 0:
             return _json_error(400, "bad_grant_id", "grant_id must be a positive integer.")
+        target_uid = None
+        try:
+            r = conn.execute("SELECT user_id FROM plan_grants WHERE id=?", (gid,)).fetchone()
+            target_uid = (r["user_id"] if r else None)
+        except Exception:
+            target_uid = None
         cur = conn.execute(
             """
             UPDATE plan_grants
@@ -2217,6 +2388,18 @@ def api_admin_grants_revoke():
             (now_iso, gid),
         )
         revoked = int(cur.rowcount or 0)
+        if revoked > 0:
+            try:
+                _audit_log(
+                    conn,
+                    actor=_audit_actor_label(),
+                    action="revoke_grant",
+                    target_user_id=target_uid,
+                    grant_id=gid,
+                    meta={"revoked": revoked},
+                )
+            except Exception:
+                pass
     elif user_id:
         if not UID_RE.match(user_id):
             return _json_error(400, "bad_user_id", "valid user_id is required.")
@@ -2231,6 +2414,18 @@ def api_admin_grants_revoke():
             (now_iso, user_id, now_iso),
         )
         revoked = int(cur.rowcount or 0)
+        if revoked > 0:
+            try:
+                _audit_log(
+                    conn,
+                    actor=_audit_actor_label(),
+                    action="revoke_user",
+                    target_user_id=user_id,
+                    grant_id=None,
+                    meta={"revoked": revoked},
+                )
+            except Exception:
+                pass
     else:
         return _json_error(400, "bad_input", "grant_id or user_id is required.")
 
