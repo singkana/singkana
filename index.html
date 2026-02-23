@@ -14,8 +14,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>SingKANA｜歌詞を“歌いやすく”最適化するAI</title>
-  <meta name="description" content="英語・多言語の歌詞を、日本人が自然に歌える発音・ブレス・リズムに自動変換。ボーカル練習・作曲・カバーに特化した歌唱支援AI。" />
+  <title>SingKANA | 歌詞を歌いやすい読みへ変換（ローマ字・カタカナ）</title>
+  <meta name="description" content="歌詞テキストを、歌いやすい読み（ローマ字/カタカナ）と区切りに整形。ブレスは無音検出による目安を表示。※現段階では音源同期/BPM解析は未対応。" />
   
   <!-- (任意) canonical / OG / twitter は本番で追加推奨 -->
   <!-- <link rel="canonical" href="https://singkana.com/" /> -->
@@ -41,8 +41,8 @@
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="SingKANA" />
-  <meta property="og:title" content="SingKANA｜歌詞を“歌いやすく”最適化するAI" />
-  <meta property="og:description" content="英語・多言語の歌詞を、日本人が自然に歌える発音・ブレス・リズムに自動変換。ボーカル練習・作曲・カバーに特化した歌唱支援AI。" />
+  <meta property="og:title" content="SingKANA | 歌詞を歌いやすい読みへ変換（ローマ字・カタカナ）" />
+  <meta property="og:description" content="歌詞テキストを、歌いやすい読み（ローマ字/カタカナ）と区切りに整形。ブレスは無音検出による目安を表示。※現段階では音源同期/BPM解析は未対応。" />
   <meta property="og:url" content="https://singkana.com/" />
   <meta property="og:image" content="https://singkana.com/ogp.png" />
   <meta property="og:image:width" content="1200" />
@@ -51,8 +51,8 @@
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="SingKANA｜歌詞を“歌いやすく”最適化するAI" />
-  <meta name="twitter:description" content="歌詞を日本人向けに発音・ブレス・リズム最適化。ボーカル特化の歌唱支援AI。" />
+  <meta name="twitter:title" content="SingKANA | 歌詞を歌いやすい読みへ変換（ローマ字・カタカナ）" />
+  <meta name="twitter:description" content="歌詞テキストを、歌いやすい読み（ローマ字/カタカナ）と区切りに整形。ブレスは無音検出による目安を表示。※現段階では音源同期/BPM解析は未対応。" />
   <meta name="twitter:image" content="https://singkana.com/ogp.png" />
   <meta name="twitter:site" content="@SingKANA_ai" />
 
@@ -676,7 +676,9 @@
 </head>
 
 <body data-theme="dark" class="bg-slate-950 text-slate-100 antialiased overflow-x-hidden">
-  <!-- Google Tag Manager (noscript) -->
+  
+  <div class="sk-disclaimer" style="font-size:12px;opacity:.85;margin:10px 0;">※現段階では音源同期/BPM解析は未対応（テキスト入力ベース）。</div>
+<!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WV3GHF7D"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <!-- End Google Tag Manager (noscript) -->
@@ -1091,7 +1093,7 @@
         <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
           <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">01 / Kana Engine</p>
           <h3 class="text-sm font-semibold text-slate-50">歌いやすさ優先のかな変換エンジン</h3>
-          <p class="text-xs text-slate-300 leading-relaxed">文章としての正しさより、歌ったときにリズムが崩れないことを重視。</p>
+          <p class="text-xs text-slate-300 leading-relaxed">文章としての正しさより、歌ったときに読みと区切りが追いやすいことを重視。</p>
         </div>
         <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 space-y-2">
           <p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">02 / Marking</p>
