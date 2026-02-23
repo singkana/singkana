@@ -337,6 +337,12 @@ def _uid_trace_paths() -> set[str]:
 def _uid_trace_raw_ua() -> bool:
     return os.getenv("SINGKANA_UID_TRACE_RAW_UA", "0") == "1"
 
+def _internal_allow_uids() -> set[str]:
+    return _parse_csv_set(os.getenv("SINGKANA_INTERNAL_ALLOW_UIDS", ""))
+
+def is_internal_uid(uid: str) -> bool:
+    return bool(uid) and uid in _internal_allow_uids()
+
 def _log_uid_trace(stage: str, status: int | None = None) -> None:
     if not _uid_trace_enabled():
         return
@@ -846,6 +852,9 @@ def _ensure_user_exists(conn, user_id: str):
 
 def _set_plan(conn, user_id: str, plan: str) -> None:
     """users.plan を更新する。commit は呼び出し側で1回だけ行う（トランザクションの一貫性のため）。"""
+    if is_internal_uid(user_id):
+        app.logger.info("skip_plan_update_for_internal uid=%s requested_plan=%s", user_id, plan)
+        return
     conn.execute("UPDATE users SET plan=? WHERE user_id=?", (plan, user_id))
 
 def _plan_from_subscription(status: str | None, current_period_end: int | None) -> str:
@@ -1050,15 +1059,17 @@ def _identity_and_plan_bootstrap():
         except Exception:
             g._set_ref_cookie = None
         
-        # 開発者モード: Pro上書き（3段ロック通過時のみ）
-        if is_pro_override():
+        # 開発者モード + 内部UID: 実行時オーバーライド（DB planは変更しない）
+        internal_override = is_internal_uid(uid)
+        dev_override = is_pro_override()
+        g.dev_pro_override = bool(internal_override or dev_override)
+        g.internal_uid_override = bool(internal_override)
+        if g.dev_pro_override:
             g.user_plan = "pro"
-            g.dev_pro_override = True
-        else:
-            g.dev_pro_override = False
+        g.effective_plan = "pro" if g.dev_pro_override else getattr(g, "user_plan", "free")
 
         # モード方針をここで確定（全エンドポイント共通）
-        g.effective_mode = _effective_mode_from_plan(getattr(g, "user_plan", "free"))
+        g.effective_mode = _effective_mode_from_plan(getattr(g, "effective_plan", "free"))
         _log_uid_trace("before")
     except Exception as e:
         app.logger.exception("Error in _identity_and_plan_bootstrap: %s", e)
@@ -1107,7 +1118,7 @@ def _identity_cookie_commit(resp):
     ref = getattr(g, "_set_ref_cookie", None)
     if ref:
         _set_ref_cookie_on_response(resp, ref)
-    resp.headers["X-SingKANA-Plan"] = getattr(g, "user_plan", "free")
+    resp.headers["X-SingKANA-Plan"] = getattr(g, "effective_plan", getattr(g, "user_plan", "free"))
     
     # キャッシュ禁止ヘッダー（Pro判定が混ざる事故を防ぐ）
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
@@ -1934,7 +1945,8 @@ def api_me():
         "ok": True,
         "user_id": getattr(g, "user_id", ""),
         "plan": getattr(g, "user_plan", "free"),
-        "effective_mode": getattr(g, "effective_mode", _effective_mode_from_plan(getattr(g, "user_plan", "free"))),
+        "effective_plan": getattr(g, "effective_plan", getattr(g, "user_plan", "free")),
+        "effective_mode": getattr(g, "effective_mode", _effective_mode_from_plan(getattr(g, "effective_plan", getattr(g, "user_plan", "free")))),
         "dev_pro_override": getattr(g, "dev_pro_override", False),
         "subscription": sub_info,
         "time": _utc_iso(),
