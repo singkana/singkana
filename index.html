@@ -44,7 +44,7 @@
   <meta property="og:title" content="SingKANA | 歌詞を歌いやすい読みへ変換（ローマ字・カタカナ）" />
   <meta property="og:description" content="歌詞テキストを、歌いやすい読み（ローマ字/カタカナ）と区切りに整形。ブレスは無音検出による目安を表示。※現段階では音源同期/BPM解析は未対応。" />
   <meta property="og:url" content="https://singkana.com/" />
-  <meta property="og:image" content="https://singkana.com/ogp.png" />
+  <meta property="og:image" content="https://singkana.com/ogp.png?v=jp-c9c8c34" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:locale" content="ja_JP" />
@@ -53,7 +53,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="SingKANA | 歌詞を歌いやすい読みへ変換（ローマ字・カタカナ）" />
   <meta name="twitter:description" content="歌詞テキストを、歌いやすい読み（ローマ字/カタカナ）と区切りに整形。ブレスは無音検出による目安を表示。※現段階では音源同期/BPM解析は未対応。" />
-  <meta name="twitter:image" content="https://singkana.com/ogp.png" />
+  <meta name="twitter:image" content="https://singkana.com/ogp.png?v=jp-c9c8c34" />
   <meta name="twitter:site" content="@SingKANA_ai" />
 
   <!-- 言語（将来 en ページができたら追加） -->
@@ -2200,7 +2200,11 @@
             try {
               const token = await claimSheetToken(sheetSessionId);
               _trackSheet("sheet_claim_ok");
-              const resp = await requestPdfWithToken(token);
+              if (!draft || !Array.isArray(draft.lines) || !draft.lines.length) {
+                setStatus("PDF生成データが見つかりません。戻る前のタブで再度PDFを押してください。");
+                return;
+              }
+              const resp = await requestPdfWithTokenAndPayload(token, draft);
               const ct = (resp.headers.get("content-type") || "").toLowerCase();
               if (resp.ok && ct.includes("application/pdf")) {
                 _trackSheet("sheet_pdf_download_ok", { via: "oneshot" });
@@ -3055,10 +3059,11 @@
       try { localStorage.removeItem(SHEET_CHECKOUT_DRAFT_KEY); } catch (_) {}
     }
     async function requestSheetCheckout(payload) {
+      const p = payload && typeof payload === "object" ? payload : {};
       const res = await fetch("/api/sheet/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(p),
       });
       const j = await res.json().catch(() => ({}));
       if (!res.ok || !j.ok || !j.url) {
@@ -3083,11 +3088,13 @@
         body: JSON.stringify(payload),
       });
     }
-    async function requestPdfWithToken(sheetToken) {
+    async function requestPdfWithTokenAndPayload(sheetToken, payload) {
+      const p = payload && typeof payload === "object" ? payload : {};
       return fetch("/api/sheet/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sheet_token: sheetToken }),
+        // One-shotは token + payload を同時に送る（サーバは保存しない）
+        body: JSON.stringify({ ...(p || {}), sheet_token: sheetToken }),
       });
     }
     async function downloadPdfBlobResponse(resp, fallbackTitle = "") {
@@ -3196,10 +3203,11 @@
       if (!payload) { setStatus("出力がありません"); return; }
       if (__sheetCheckoutInFlight) { setStatus("決済処理中です…"); return; }
 
-      _trackSheet("sheet_try_submit", { title: (payload.title || "").slice(0, 60) });
+      _trackSheet("sheet_try_submit", { has_title: !!(payload.title && String(payload.title).trim()) });
       setStatus("PDFを生成中…");
       try {
-        const resp = await requestPdfWithPayload(payload);
+        // Proは payload を送って即PDF生成。Freeは payload を送らず、決済用の 402 を受け取る。
+        const resp = await requestPdfWithPayload(isPro() ? payload : {});
         const ct = (resp.headers.get("content-type") || "").toLowerCase();
         if (resp.ok && ct.includes("application/pdf")) {
           _trackSheet("sheet_pdf_download_ok", { via: "pro" });
@@ -3267,8 +3275,9 @@
             btn.disabled = true;
             __sheetCheckoutInFlight = true;
             try {
-              const url = (data && data.checkout_url) ? data.checkout_url : await requestSheetCheckout(payload);
-              _trackSheet("sheet_checkout_open", { url: (url || "").slice(0, 80) });
+              // checkout_url が無い場合のみ /api/sheet/checkout で再取得（payloadは送らない）
+              const url = (data && data.checkout_url) ? data.checkout_url : await requestSheetCheckout({});
+              _trackSheet("sheet_checkout_open");
               window.location.href = url;
             } catch (e) {
               btn.textContent = `¥${amountJpy} で購入する`;
@@ -4150,8 +4159,8 @@
 
       if (!text) { status.textContent = "フィードバック内容を入力してください。"; return; }
 
-      const title = document.getElementById("song-title").value || "";
-      const meta = { song: title, client_side: true, engine_version: "js-core-v1.9" };
+      // NOTE: 歌詞/本文が混入しやすいので、曲名などの自由入力は送らない
+      const meta = { client_side: true, engine_version: "js-core-v1.9" };
 
       try {
         const res = await fetch("/api/feedback", {
