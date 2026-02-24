@@ -704,7 +704,6 @@
             <span class="text-lg font-semibold tracking-wide">SingKANA</span>
             <!-- 開発者モードバッジ（条件付き表示） -->
             <span id="dev-pro-badge" class="hidden rounded-full border border-amber-400/50 bg-amber-500/20 px-2 py-0.5 text-[9px] font-medium text-amber-200 uppercase tracking-[0.1em]">
-              DEV PRO ON
             </span>
           </div>
           <p class="text-xs text-slate-400">歌詞かな変換 AI スタジオ</p>
@@ -2120,8 +2119,11 @@
               !host.startsWith("dev.");
 
             if (!isPublicProdHost && PLAN.devProOverride) {
+              // バッジ文言はHTMLに埋め込まず、開発者モード時にだけ付与する（公開HTMLから除外）
+              badge.textContent = "DEV PRO ON";
               badge.classList.remove("hidden");
             } else {
+              badge.textContent = "";
               badge.classList.add("hidden");
             }
           }
