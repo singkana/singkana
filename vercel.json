@@ -1,0 +1,14 @@
+{
+  "redirects": [
+    {
+      "source": "/romaji",
+      "destination": "https://singkana.com/romaji/",
+      "permanent": true
+    },
+    {
+      "source": "/romaji/:path*",
+      "destination": "https://singkana.com/romaji/",
+      "permanent": true
+    }
+  ]
+}
