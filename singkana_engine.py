@@ -5,23 +5,26 @@
 from __future__ import annotations
 
 import datetime as dt
+import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List
 
 # ===== ログ設定 ======================================================
 
-LOG_DIR = Path("Logs")
-LOG_DIR.mkdir(exist_ok=True)
-
+_FILE_LOG_ENABLED = (os.getenv("SINGKANA_FILE_LOG", "0") or "").strip() == "1"
+LOG_DIR = Path(os.getenv("SINGKANA_LOG_DIR", "Logs"))
 CONVERT_LOG = LOG_DIR / "convert.log"
 FEEDBACK_LOG = LOG_DIR / "feedback.log"
 
 
 def _safe_log(path: Path, message: str) -> None:
     """ログ周りで失敗してもサービス自体は落とさない用のユーティリティ。"""
+    if not _FILE_LOG_ENABLED:
+        return
     ts = dt.datetime.now().isoformat(timespec="seconds")
     try:
+        path.parent.mkdir(exist_ok=True)
         with path.open("a", encoding="utf-8") as f:
             f.write(f"[{ts}] {message}\n")
     except Exception:
@@ -693,7 +696,6 @@ def gpt_refine_kana(
             response_format={"type": "json_object"},
         )
         raw = (response.choices[0].message.content or "").strip()
-        _safe_log(CONVERT_LOG, f"gpt_refine_kana raw response: {raw[:500]}")
         parsed = _json.loads(raw)
 
         # レスポンスが配列か、{"lines": [...]} / {"key": [...]} 形式かを吸収

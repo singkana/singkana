@@ -14,12 +14,14 @@ import secrets
 import json
 import hashlib
 import hmac
+import base64
 import io
 import html
 import math
 import threading
 import struct
 import wave
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import urlparse
@@ -34,9 +36,12 @@ from flask import (
     request,
     jsonify,
     send_from_directory,
+    send_file,
+    abort,
     Response,
     g,
 )
+from werkzeug.exceptions import HTTPException
 
 BASE_DIR = Path(__file__).resolve().parent
 APP_NAME = "SingKANA"
@@ -802,6 +807,7 @@ def _ref_cookie_value() -> str:
 
 def _track_event(name: str, ref_code: str = "", meta: Optional[Dict[str, Any]] = None):
     # no PII, keep meta small
+    # NOTE: request body由来（歌詞・本文）が混入するとDBに残るので、ここで強めに落とす。
     try:
         now = _now_ts()
         uid = getattr(g, "user_id", "") or ""
@@ -810,19 +816,31 @@ def _track_event(name: str, ref_code: str = "", meta: Optional[Dict[str, Any]] =
             rc = ""
         mj = ""
         if meta:
-            # cap keys/values lightly
+            # cap keys/values + drop sensitive-ish fields
+            sensitive_keys = {
+                "lyrics", "lyric", "text", "body", "content",
+                "orig", "original", "kana", "romaji",
+                "title", "song", "artist",
+                "prompt", "input", "output",
+            }
             safe = {}
             for k, v in meta.items():
                 if not isinstance(k, str):
                     continue
                 if len(k) > 64:
                     continue
+                if k.strip().lower() in sensitive_keys:
+                    continue
                 if isinstance(v, (str, int, float, bool)) or v is None:
                     sv = v
                 else:
                     sv = str(v)
-                if isinstance(sv, str) and len(sv) > 300:
-                    sv = sv[:300]
+                if isinstance(sv, str):
+                    # 複数行は“本文”混入の確率が高いので捨てる
+                    if "\n" in sv or "\r" in sv:
+                        continue
+                    if len(sv) > 120:
+                        sv = sv[:120]
                 safe[k] = sv
             mj = json.dumps(safe, ensure_ascii=False, separators=(",", ":"))
         conn = _db()
@@ -1069,14 +1087,27 @@ def _safe_int(value) -> Optional[int]:
 def _normalize_sheet_lines(lines: Any) -> list[dict[str, str]]:
     if not isinstance(lines, list):
         return []
+    max_lines = int(_env("SHEET_MAX_LINES", "240") or "240")
+    max_line_chars = int(_env("SHEET_MAX_LINE_CHARS", "240") or "240")
+    max_total_chars = int(_env("SHEET_MAX_TOTAL_CHARS", "40000") or "40000")
     safe_lines: list[dict[str, str]] = []
+    total = 0
     for item in lines:
+        if len(safe_lines) >= max(1, max_lines):
+            break
         if not isinstance(item, dict):
             continue
-        orig = str(item.get("orig") or "").strip()
-        kana = str(item.get("kana") or "").strip()
+        orig = re.sub(r"[\r\n]+", " ", str(item.get("orig") or "")).strip()
+        kana = re.sub(r"[\r\n]+", " ", str(item.get("kana") or "")).strip()
+        if len(orig) > max_line_chars:
+            orig = orig[:max_line_chars]
+        if len(kana) > max_line_chars:
+            kana = kana[:max_line_chars]
         if not orig and not kana:
             continue
+        total += (len(orig) + len(kana))
+        if total > max_total_chars:
+            break
         safe_lines.append({"orig": orig, "kana": kana})
     return safe_lines
 
@@ -1095,7 +1126,21 @@ def _gen_sheet_token() -> str:
     raw_len = max(24, SHEET_TOKEN_LEN)
     return secrets.token_urlsafe(raw_len)
 
-def _create_sheet_checkout_session(conn, user_id: str, title: str, artist: str, safe_lines: list[dict[str, str]]):
+def _sheet_token_for_session(user_id: str, session_id: str) -> str:
+    """
+    One-shot購入の sheet_token を決済セッションから決定的に導出する。
+    - これにより /api/sheet/claim を“再実行可能”にできる（平文トークンをDBに残さない）。
+    - Secret は専用 env が望ましい（未設定時は app.secret_key をフォールバック）。
+    """
+    secret = (_env("SINGKANA_SHEET_TOKEN_SECRET", "") or str(app.secret_key or "")).strip()
+    if not secret:
+        # fallback (should not happen): random token
+        return _gen_sheet_token()
+    msg = f"sheet_pdf_oneshot\n{user_id}\n{session_id}".encode("utf-8")
+    mac = hmac.new(secret.encode("utf-8"), msg, hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(mac).decode("ascii").rstrip("=")
+
+def _create_sheet_checkout_session(user_id: str):
     envs = _stripe_required_env()
     secret = envs["STRIPE_SECRET_KEY"]
     base = (envs["APP_BASE_URL"] or "https://singkana.com").rstrip("/")
@@ -1107,20 +1152,6 @@ def _create_sheet_checkout_session(conn, user_id: str, title: str, artist: str, 
     stripe, import_err = _stripe_import()
     if stripe is None:
         return None, _json_error(501, "stripe_sdk_missing", "stripe package is not installed.", detail=import_err)
-
-    now = _now_ts()
-    expires_at = now + max(300, SHEET_DRAFT_TTL_SEC)
-    draft_id = f"sd_{secrets.token_hex(12)}"
-    payload = json.dumps({"title": title, "artist": artist, "lines": safe_lines}, ensure_ascii=False)
-
-    conn.execute(
-        """
-        INSERT INTO sheet_drafts (draft_id, user_id, title, artist, payload_json, created_at, expires_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        (draft_id, user_id, title, artist, payload, now, expires_at),
-    )
-    conn.commit()
 
     try:
         stripe.api_key = secret
@@ -1140,17 +1171,12 @@ def _create_sheet_checkout_session(conn, user_id: str, title: str, artist: str, 
             client_reference_id=user_id,
             metadata={
                 "purpose": "sheet_pdf_oneshot",
-                "draft_id": draft_id,
                 "user_id": user_id,
             },
         )
-        conn.execute("UPDATE sheet_drafts SET stripe_session_id=? WHERE draft_id=?", (session.id, draft_id))
-        conn.commit()
         return {
-            "draft_id": draft_id,
             "checkout_url": session.url,
             "checkout_id": session.id,
-            "expires_at": expires_at,
             "amount_jpy": max(100, SHEET_ONESHOT_JPY),
         }, None
     except Exception as e:
@@ -1168,6 +1194,8 @@ def _identity_and_plan_bootstrap():
     if p in ("/healthz", "/robots.txt"):
         return None
     if p == "/favicon.ico":
+        return None
+    if p == "/ogp.png":
         return None
     if p in ("/romaji", "/romaji/"):
         return None
@@ -1271,6 +1299,7 @@ def _identity_cookie_commit(resp):
         request.method in ("HEAD", "OPTIONS")
         or p in ("/healthz", "/robots.txt")
         or p == "/favicon.ico"
+        or p == "/ogp.png"
         or p in ("/romaji", "/romaji/")
         or p in ("/en", "/en/")
         or p.startswith("/en/")
@@ -1527,8 +1556,10 @@ def _post_feedback_to_discord(record: dict) -> None:
         app.logger.info("Discord webhook skipped: SINGKANA_FEEDBACK_WEBHOOK is empty")
         return
     import urllib.request
-    song = (record.get("song") or "").strip()
-    note = (record.get("note") or record.get("text") or "").strip()
+    include_text = (_env("SINGKANA_FEEDBACK_WEBHOOK_INCLUDE_TEXT", "0") == "1")
+    # デフォルトは本文を外部へ送らない（歌詞混入リスク回避）
+    song = (record.get("song") or "").strip() if include_text else ""
+    note = (record.get("note") or record.get("text") or "").strip() if include_text else ""
     ts = record.get("created_at") or ""
     engine_ver = (record.get("engine_version") or "").strip()
     desc_lines = []
@@ -1539,7 +1570,18 @@ def _post_feedback_to_discord(record: dict) -> None:
     if song:
         desc_lines.append(f"Song: {song}")
     if note:
-        desc_lines.append(f"Note: {note}")
+        one_line = re.sub(r"[\r\n]+", " ", note).strip()
+        if len(one_line) > 200:
+            one_line = one_line[:200] + "…"
+        desc_lines.append(f"Note: {one_line}")
+    else:
+        # 本文がない場合も、重複排除や調査のための“短い指紋”だけは送る
+        note_len = int(record.get("note_len") or 0)
+        note_hash = str(record.get("note_hash") or "").strip()
+        if note_len:
+            desc_lines.append(f"NoteLen: {note_len}")
+        if note_hash:
+            desc_lines.append(f"NoteHash: {note_hash}")
     embeds = [{"title": "SingKANA Feedback", "description": "\n".join(desc_lines), "color": 0x6366F1}] if desc_lines else []
     payload_json = json.dumps({"content": "", "embeds": embeds or None}, ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(url, data=payload_json, headers={"Content-Type": "application/json"}, method="POST")
@@ -1575,22 +1617,36 @@ def api_feedback():
     if not text:
         return _json_error(400, "empty_feedback", "テキストが空です。")
     meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
-    song = str(meta.get("song") or "").strip()[:200]
+    # 事故を避けるため、サーバは本文を保存しないのがデフォルト。
+    # どうしても必要なら env で明示的に許可する。
+    store_mode = (_env("SINGKANA_FEEDBACK_STORE_MODE", "none") or "none").strip().lower()
+    max_chars = int(_env("SINGKANA_FEEDBACK_MAX_CHARS", "1200") or "1200")
+    if len(text) > max(200, min(8000, max_chars)):
+        return _json_error(400, "feedback_too_long", "フィードバックが長すぎます。短くしてください。")
+
+    song = str(meta.get("song") or "").strip()[:200]  # 参考情報（デフォルトでは外部送信/DB保存しない）
     engine_ver = str(meta.get("engine_version") or "").strip()[:50]
     ts = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    ip = _client_ip()
+    note_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
     record = {
         "created_at": ts,
-        "ip": ip,
-        "song": song,
-        "note": text[:2000],
+        "note_len": len(text),
+        "note_hash": note_hash,
         "engine_version": engine_ver,
         "user_id": getattr(g, "user_id", "") or "",
     }
+    if store_mode == "full":
+        # 1行化 + 厳しめに短縮（歌詞混入の被害を最小化）
+        one_line = re.sub(r"[\r\n]+", " ", text).strip()
+        record["note"] = (one_line[:400] + "…") if len(one_line) > 400 else one_line
+        # song も full のときだけ付与
+        if song:
+            record["song"] = song
     try:
-        FEEDBACK_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with FEEDBACK_PATH.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        if store_mode in ("full", "summary"):
+            FEEDBACK_PATH.parent.mkdir(parents=True, exist_ok=True)
+            with FEEDBACK_PATH.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
     except Exception as e:
         app.logger.exception("feedback write failed: %s", e)
         return _json_error(500, "write_failed", "フィードバックの保存に失敗しました。")
@@ -1598,7 +1654,7 @@ def api_feedback():
         _post_feedback_to_discord(record)
     except Exception:
         pass  # 通知失敗しても本体は成功扱い
-    _track_event("feedback_submit", meta={"song": song[:60]})
+    _track_event("feedback_submit")
     return jsonify({"ok": True})
 
 @app.post("/api/events")
@@ -2016,10 +2072,20 @@ def admin_feedback():
     out.append(f"<h2>フィードバック一覧（{len(entries)}件）</h2>")
     out.append("<p><a href='/admin/dashboard'>dashboard</a></p>")
     out.append("<table><thead><tr><th>#</th><th>日時</th><th>曲名</th><th>内容</th><th>Engine</th><th>User</th></tr></thead><tbody>")
+    show_note = (_env("SINGKANA_FEEDBACK_ADMIN_SHOW_NOTE", "0") == "1")
     for i, e in enumerate(entries, 1):
         ts = _h(str(e.get("created_at") or ""))
         song = _h(str(e.get("song") or ""))
-        note = _h(str(e.get("note") or e.get("text") or e.get("_raw") or ""))
+        note_raw = str(e.get("note") or e.get("text") or e.get("_raw") or "")
+        if show_note:
+            note = _h(note_raw)
+        else:
+            # デフォルトは本文を表示しない（歌詞混入等の事故点になるため）
+            ln = int(e.get("note_len") or (len(note_raw) if note_raw else 0))
+            h = str(e.get("note_hash") or "").strip()
+            if (not h) and note_raw:
+                h = hashlib.sha256(note_raw.encode("utf-8")).hexdigest()[:12]
+            note = _h(f"[redacted] len={ln} hash={h}" if ln else "[redacted]")
         engine = _h(str(e.get("engine_version") or ""))
         uid = _h(str(e.get("user_id") or "")[:12])
         out.append(f"<tr><td>{i}</td><td>{ts}</td><td>{song}</td><td class='note'>{note}</td><td>{engine}</td><td>{uid}</td></tr>")
@@ -2537,38 +2603,19 @@ def api_convert():
     # Pro専用: hard_case時のみ内部ブースト（UIには非公開）
     is_pro = (user_plan == "pro") or is_pro_override()
     gpt_applied = False
+    allow_external_llm = (_env("SINGKANA_ALLOW_EXTERNAL_LLM", "0") == "1")
     if is_pro and processing_mode == "natural_boost" and hasattr(engine, "gpt_refine_kana"):
-        openai_key = _env("OPENAI_API_KEY", "")
-        if openai_key:
-            # キャッシュ確認
-            lyrics_hash = hashlib.sha256(f"{processing_mode}\n{lyrics}".encode("utf-8")).hexdigest()[:32]
-            conn = _db()
-            _GPT_CACHE_TTL_SEC = 7 * 24 * 3600  # 7日
-            cached = conn.execute(
-                "SELECT result_json FROM gpt_kana_cache WHERE lyrics_hash=? AND created_at > ?",
-                (lyrics_hash, _now_ts() - _GPT_CACHE_TTL_SEC),
-            ).fetchone()
-            if cached:
+        if not allow_external_llm:
+            # 外部API保持（第三者事業者側のログ/学習等）の盲点対策: 明示的に許可された場合のみ実行
+            app.logger.info("gpt_refine_kana: disabled by SINGKANA_ALLOW_EXTERNAL_LLM")
+        else:
+            openai_key = _env("OPENAI_API_KEY", "")
+            if openai_key:
                 try:
-                    result = json.loads(cached["result_json"])
-                    gpt_applied = True
-                    app.logger.info("gpt_refine_kana: cache hit hash=%s", lyrics_hash[:8])
-                except Exception:
-                    pass
-            if not gpt_applied:
-                try:
+                    # NOTE: B案ではサーバ側に歌詞/変換結果を保存しないため、DBキャッシュは行わない。
                     result = engine.gpt_refine_kana(result, api_key=openai_key)
                     gpt_applied = True
-                    # キャッシュ保存
-                    try:
-                        conn.execute(
-                            "INSERT OR REPLACE INTO gpt_kana_cache (lyrics_hash, result_json, created_at) VALUES (?, ?, ?)",
-                            (lyrics_hash, json.dumps(result, ensure_ascii=False), _now_ts()),
-                        )
-                        conn.commit()
-                    except Exception:
-                        pass
-                    app.logger.info("gpt_refine_kana: applied hash=%s", lyrics_hash[:8])
+                    app.logger.info("gpt_refine_kana: applied")
                 except Exception as e:
                     app.logger.warning("gpt_refine_kana failed, using rule-based: %s", e)
 
@@ -2582,7 +2629,7 @@ def api_convert():
         "gpt_applied": gpt_applied,
         "plan": user_plan,
     })
-    return jsonify({
+    resp = jsonify({
         "ok": True,
         "result": result,
         "gpt_applied": gpt_applied,
@@ -2591,6 +2638,8 @@ def api_convert():
         "processing_mode": processing_mode,
         "hard_case": hard_case,
     })
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+    return resp
 
 # --- Romaji (Phase 1 MVP: 歌うためのローマ字) ----------------------------
 from pykakasi import kakasi  # noqa: E402
@@ -2759,23 +2808,13 @@ def api_sheet_pdf():
     else:
         sheet_token = str(data.get("sheet_token") or "").strip()
         if not sheet_token:
+            # Free: 決済開始は payload 無しで行う（歌詞を決済APIへ渡さない）
             if not uid:
                 return _json_error(400, "no_user", "User identity missing.")
-            title_tmp, artist_tmp, safe_lines_tmp, payload_err = _extract_sheet_payload(data)
-            if payload_err:
-                return payload_err
-            conn = _db()
-            now = _now_ts()
-            try:
-                conn.execute("DELETE FROM sheet_drafts WHERE expires_at < ?", (now - 60,))
-                conn.execute("DELETE FROM sheet_pdf_tokens WHERE expires_at < ?", (now - 60,))
-                conn.commit()
-            except Exception:
-                pass
-            result, checkout_err = _create_sheet_checkout_session(conn, uid, title_tmp, artist_tmp, safe_lines_tmp)
+            result, checkout_err = _create_sheet_checkout_session(uid)
             if checkout_err:
                 return checkout_err
-            _track_event("sheet_paywall_402", meta={"draft_id": result["draft_id"], "amount_jpy": result["amount_jpy"]})
+            _track_event("sheet_paywall_402", meta={"amount_jpy": result["amount_jpy"]})
             return _json_error(
                 402,
                 "payment_required",
@@ -2783,9 +2822,14 @@ def api_sheet_pdf():
                 required_plan="pro_or_sheet_oneshot",
                 checkout_url=result["checkout_url"],
                 checkout_id=result["checkout_id"],
-                draft_id=result["draft_id"],
                 amount_jpy=result["amount_jpy"],
             )
+
+        # One-shot: token + payload が必要（payloadは保存しない）
+        title, artist, safe_lines, payload_err = _extract_sheet_payload(data)
+        if payload_err:
+            return payload_err
+
         token_hash = _hash_sheet_token(sheet_token)
         conn = _db()
         now = _now_ts()
@@ -2806,24 +2850,6 @@ def api_sheet_pdf():
         if uid and token_row["user_id"] and token_row["user_id"] != uid:
             return _json_error(403, "sheet_token_user_mismatch", "このsheet_tokenは別ユーザー向けです。")
 
-        draft_row = conn.execute(
-            "SELECT title, artist, payload_json, expires_at FROM sheet_drafts WHERE draft_id=?",
-            (token_row["draft_id"],),
-        ).fetchone()
-        if not draft_row:
-            return _json_error(404, "sheet_draft_missing", "購入データが見つかりません。")
-        if int(draft_row["expires_at"] or 0) < now:
-            return _json_error(410, "sheet_draft_expired", "購入データの有効期限が切れました。")
-        try:
-            payload = json.loads(draft_row["payload_json"] or "{}")
-            title = str(payload.get("title") or draft_row["title"] or "").strip()
-            artist = str(payload.get("artist") or draft_row["artist"] or "").strip()
-            safe_lines = _normalize_sheet_lines(payload.get("lines"))
-        except Exception:
-            safe_lines = []
-        if not safe_lines:
-            return _json_error(500, "sheet_draft_invalid", "購入データの形式が不正です。")
-
     try:
         html_str = _render_sheet_html(title, artist, safe_lines)
     except FileNotFoundError:
@@ -2842,13 +2868,21 @@ def api_sheet_pdf():
 
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(args=["--no-sandbox"])
-            page = browser.new_page()
-            page.set_content(html_str, wait_until="load")
-            page.emulate_media(media="print")
-            pdf_bytes = page.pdf(format="A4", print_background=True, prefer_css_page_size=True)
-            page.close()
-            browser.close()
+            # Chromium がプロファイル/キャッシュをディスクへ書くことがあるため、
+            # 明示的に一時ディレクトリへ寄せて、リクエスト終了時に消す。
+            with tempfile.TemporaryDirectory(prefix="singkana_sheet_") as tmpdir:
+                cache_dir = str(Path(tmpdir) / "cache")
+                browser = p.chromium.launch(args=[
+                    "--no-sandbox",
+                    f"--user-data-dir={tmpdir}",
+                    f"--disk-cache-dir={cache_dir}",
+                ])
+                page = browser.new_page()
+                page.set_content(html_str, wait_until="load")
+                page.emulate_media(media="print")
+                pdf_bytes = page.pdf(format="A4", print_background=True, prefer_css_page_size=True)
+                page.close()
+                browser.close()
     except Exception as e:
         app.logger.exception("Sheet PDF generation failed: %s", e)
         return _json_error(500, "pdf_failed", "PDF生成に失敗しました。")
@@ -2873,7 +2907,6 @@ def api_sheet_pdf():
             filename = f"{safe}_singkana.pdf"
 
     _track_event("sheet_pdf_download_ok", meta={
-        "title": (title or "")[:60],
         "via": "token" if token_row is not None else "pro",
         "pdf_size": len(pdf_bytes),
     })
@@ -2897,30 +2930,21 @@ def api_sheet_checkout():
     data, err = _require_json()
     if err:
         return err
-    title, artist, safe_lines, payload_err = _extract_sheet_payload(data)
-    if payload_err:
-        return payload_err
 
-    conn = _db()
-    now = _now_ts()
-    try:
-        conn.execute("DELETE FROM sheet_drafts WHERE expires_at < ?", (now - 60,))
-        conn.execute("DELETE FROM sheet_pdf_tokens WHERE expires_at < ?", (now - 60,))
-        conn.commit()
-    except Exception:
-        pass
-
-    result, checkout_err = _create_sheet_checkout_session(conn, uid, title, artist, safe_lines)
+    # NOTE:
+    # - B案: 歌詞ペイロードは決済開始に送らない（/api/sheet/pdf の生成時のみ送る）
+    # - 互換のため data は受け取るが、サーバ保存はしない
+    result, checkout_err = _create_sheet_checkout_session(uid)
     if checkout_err:
         return checkout_err
-    return jsonify({
+    resp = jsonify({
         "ok": True,
         "url": result["checkout_url"],
         "id": result["checkout_id"],
-        "draft_id": result["draft_id"],
-        "expires_at": result["expires_at"],
         "amount_jpy": result["amount_jpy"],
     })
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+    return resp
 
 @app.get("/api/sheet/claim")
 def api_sheet_claim():
@@ -2967,57 +2991,63 @@ def api_sheet_claim():
         livemode,
     )
     metadata = getattr(session, "metadata", {}) or {}
-    draft_id = str(metadata.get("draft_id") or "")
+    purpose = str(metadata.get("purpose") or "")
     uid_meta = str(metadata.get("user_id") or "")
-    if uid_meta and uid_meta != uid:
+    uid_ref = str(getattr(session, "client_reference_id", "") or "") or uid_meta
+    if uid_ref and uid_ref != uid:
         _track_event("sheet_claim_fail", meta={"reason": "session_user_mismatch", "session_id_head": sid_head})
         return _json_error(403, "session_user_mismatch", "この決済は別ユーザー向けです。")
+    if purpose and purpose != "sheet_pdf_oneshot":
+        _track_event("sheet_claim_fail", meta={"reason": "bad_purpose", "session_id_head": sid_head})
+        return _json_error(400, "bad_purpose", "One-shot決済セッションではありません。")
     if mode != "payment":
         _track_event("sheet_claim_fail", meta={"reason": "bad_session_mode", "session_id_head": sid_head})
         return _json_error(400, "bad_session_mode", "One-shot決済セッションではありません。")
     if payment_status != "paid":
         _track_event("sheet_claim_fail", meta={"reason": "payment_not_completed", "session_id_head": sid_head, "payment_status": payment_status})
         return _json_error(402, "payment_not_completed", "決済完了を確認できませんでした。", payment_status=payment_status)
-    if not draft_id:
-        _track_event("sheet_claim_fail", meta={"reason": "draft_missing", "session_id_head": sid_head})
-        return _json_error(400, "draft_missing", "決済メタデータが不足しています。")
 
     conn = _db()
     now = _now_ts()
-    draft_row = conn.execute(
-        """
-        SELECT draft_id, user_id, expires_at
-        FROM sheet_drafts
-        WHERE draft_id=?
-        """,
-        (draft_id,),
-    ).fetchone()
-    if not draft_row:
-        return _json_error(404, "sheet_draft_missing", "購入データが見つかりません。")
-    if draft_row["user_id"] != uid:
-        return _json_error(403, "draft_user_mismatch", "この購入データは別ユーザー向けです。")
-    if int(draft_row["expires_at"] or 0) < now:
-        return _json_error(410, "sheet_draft_expired", "購入データの有効期限が切れました。")
-
-    token = _gen_sheet_token()
+    token = _sheet_token_for_session(uid, session_id)
     token_hash = _hash_sheet_token(token)
     expires_at = now + max(60, SHEET_TOKEN_TTL_SEC)
+    existing = conn.execute(
+        """
+        SELECT token_hash, expires_at, used_at
+        FROM sheet_pdf_tokens
+        WHERE token_hash=?
+        """,
+        (token_hash,),
+    ).fetchone()
+    if existing:
+        if existing["used_at"]:
+            return _json_error(409, "sheet_token_used", "この決済のsheet_tokenは使用済みです。")
+        exp = int(existing["expires_at"] or 0)
+        if exp >= now:
+            _track_event("sheet_claim_ok", meta={"session_id_head": sid_head})
+            resp = jsonify({"ok": True, "sheet_token": token, "expires_at": exp})
+            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+            return resp
+        # 期限切れの場合は同一トークンで再発行（決済済みのため）
+        expires_at = now + max(60, SHEET_TOKEN_TTL_SEC)
     conn.execute(
         """
         INSERT OR REPLACE INTO sheet_pdf_tokens
         (token_hash, user_id, draft_id, stripe_session_id, created_at, expires_at, used_at, used_by_ip)
         VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)
         """,
-        (token_hash, uid, draft_id, session_id, now, expires_at),
+        (token_hash, uid, "", session_id, now, expires_at),
     )
     conn.commit()
-    _track_event("sheet_claim_ok", meta={"draft_id": draft_id, "session_id_head": sid_head})
-    return jsonify({
+    _track_event("sheet_claim_ok", meta={"session_id_head": sid_head})
+    resp = jsonify({
         "ok": True,
         "sheet_token": token,
         "expires_at": expires_at,
-        "draft_id": draft_id,
     })
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+    return resp
 
 # ======================================================================
 # Billing: config + checkout + webhook
@@ -3501,6 +3531,33 @@ def index() -> Response:
         return send_from_directory(str(BASE_DIR), "index.html")
     except Exception as e:
         app.logger.exception("Error serving index.html: %s", e)
+        raise
+
+@app.get("/ogp.png")
+def ogp_png() -> Response:
+    """OGP image for social previews (Twitter/Discord/etc)."""
+    try:
+        # Keep URL stable for crawlers: https://singkana.com/ogp.png
+        #
+        # Prefer the "real" prod location if it's mounted there, but keep a safe
+        # fallback for local/dev (repo checkout).
+        candidates = (
+            Path("/var/www/singkana/assets/ogp.png"),
+            BASE_DIR / "assets" / "ogp.png",
+        )
+        path = next((p for p in candidates if p.exists()), None)
+        if not path:
+            abort(404)
+
+        res = send_file(str(path), mimetype="image/png", conditional=True)
+        # OGPは頻繁に変わらない前提。差し替える時はファイル名 or クエリでバスト。
+        res.headers["Cache-Control"] = "public, max-age=86400"
+        return res
+    except HTTPException:
+        # e.g. abort(404): do not log as server error
+        raise
+    except Exception as e:
+        app.logger.exception("Error serving assets/ogp.png: %s", e)
         raise
 
 @app.get("/romaji")

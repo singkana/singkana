@@ -302,16 +302,6 @@ except Exception:
     print("")
 PY
 )
-CLAIM_DRAFT_ID=$(python3 - <<PY
-import json
-p = "$CLAIM"
-try:
-    data = json.load(open(p, encoding="utf-8"))
-    print(data.get("draft_id",""))
-except Exception:
-    print("")
-PY
-)
 
 if [ -n "$SHEET_TOKEN" ]; then
   pass "sheet_token issued"
@@ -326,14 +316,6 @@ else
   exit 1
 fi
 
-if [ -n "$EXPECTED_DRAFT_ID" ]; then
-  if [ "$CLAIM_DRAFT_ID" = "$EXPECTED_DRAFT_ID" ]; then
-    pass "draft_id matches expected ($EXPECTED_DRAFT_ID)"
-  else
-    fail "draft_id mismatch: expected=$EXPECTED_DRAFT_ID got=$CLAIM_DRAFT_ID"
-  fi
-fi
-
 echo ""
 echo "[Claim response body]"
 cat "$CLAIM"
@@ -342,7 +324,9 @@ echo ""
 # Step 3: token pdf -> 200 and PDF
 TOKEN_PAYLOAD=$(python3 - <<PY
 import json
-print(json.dumps({"sheet_token":"$SHEET_TOKEN"}))
+payload = json.loads('''$PAYLOAD_JSON''')
+payload["sheet_token"] = "$SHEET_TOKEN"
+print(json.dumps(payload, ensure_ascii=False))
 PY
 )
 

@@ -26,3 +26,7 @@ node_modules/
 Logs/
 static/ugc/*.png
 app_web.py.pre_restore_*
+
+# no-traces audit generated reports
+/docs/no-traces-report.md
+/artifacts/no-traces-report.json
