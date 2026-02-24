@@ -2109,10 +2109,17 @@
           PLAN.effectiveMode = data.effective_mode || (PLAN.tier === "pro" ? "natural" : "basic");
           
           // 開発者モードバッジを表示
+          // A1方針: 本番ホスト（*.singkana.com）では絶対に表示しない
           const badge = document.getElementById("dev-pro-badge");
           
           if (badge) {
-            if (PLAN.devProOverride) {
+            const host = String(window.location.hostname || "").toLowerCase();
+            const isPublicProdHost =
+              (host === "singkana.com" || host.endsWith(".singkana.com")) &&
+              !host.startsWith("staging.") &&
+              !host.startsWith("dev.");
+
+            if (!isPublicProdHost && PLAN.devProOverride) {
               badge.classList.remove("hidden");
             } else {
               badge.classList.add("hidden");
