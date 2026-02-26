@@ -2870,19 +2870,19 @@ def api_sheet_pdf():
         with sync_playwright() as p:
             # Chromium がプロファイル/キャッシュをディスクへ書くことがあるため、
             # 明示的に一時ディレクトリへ寄せて、リクエスト終了時に消す。
+            # NOTE: newer Playwright rejects --user-data-dir in launch(args=...),
+            # so use launch_persistent_context(user_data_dir=...).
             with tempfile.TemporaryDirectory(prefix="singkana_sheet_") as tmpdir:
-                cache_dir = str(Path(tmpdir) / "cache")
-                browser = p.chromium.launch(args=[
-                    "--no-sandbox",
-                    f"--user-data-dir={tmpdir}",
-                    f"--disk-cache-dir={cache_dir}",
-                ])
-                page = browser.new_page()
+                context = p.chromium.launch_persistent_context(
+                    user_data_dir=tmpdir,
+                    args=["--no-sandbox"],
+                )
+                page = context.new_page()
                 page.set_content(html_str, wait_until="load")
                 page.emulate_media(media="print")
                 pdf_bytes = page.pdf(format="A4", print_background=True, prefer_css_page_size=True)
                 page.close()
-                browser.close()
+                context.close()
     except Exception as e:
         app.logger.exception("Sheet PDF generation failed: %s", e)
         return _json_error(500, "pdf_failed", "PDF生成に失敗しました。")
