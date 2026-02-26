@@ -120,8 +120,9 @@ def _render_kana_html(kana_raw: str) -> str:
             else:
                 out.append(")")
             continue
-        if ch == "˘":
-            out.append('<span class="mk mk-breath">˘</span><span class="mk-gap"></span>')
+        # Accept legacy/new breath separators and unify PDF output as "・".
+        if ch in ("˘", "|", "/", "｜"):
+            out.append('<span class="mk mk-breath">・</span><span class="mk-gap"></span>')
             continue
         if ch == "↑":
             out.append('<span class="mk mk-up">↑</span>')
