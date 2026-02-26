@@ -3160,10 +3160,12 @@
       if (!window.currentConvertedLines.length) return null;
       const mode = __getDisplayMode();
       const title = (document.getElementById("song-title")?.value || "").toString().trim();
-      const lines = window.currentConvertedLines.map((line) => {
+      const lines = window.currentConvertedLines.map((line, i) => {
         const orig = (line.en || line.orig || "").toString().trim();
-        const raw = (__modePrimaryKana(line, mode) || "").toString().trim();
-        const kana = normalizeKanaForPdf(renderDisplay(raw, mode));
+        const override = window.__kanaOverrides && window.__kanaOverrides[i];
+        const kana = (override != null)
+          ? normalizeKanaForPdf(override)
+          : normalizeKanaForPdf(renderDisplay((__modePrimaryKana(line, mode) || "").toString().trim(), mode));
         return { orig, kana };
       }).filter((x) => x.orig || x.kana);
       if (!lines.length) return null;
@@ -3617,6 +3619,144 @@
       return out;
     }
 
+    window.__kanaOverrides = {};
+
+    function _applyKanaOverride(lineIndex, newKana) {
+      window.__kanaOverrides[lineIndex] = newKana;
+      const mode = __getDisplayMode();
+      const block = document.querySelector(`[data-singkana-idx="${lineIndex}"]`);
+      if (!block) return;
+      const textDiv = block.querySelector(".result-ka");
+      if (textDiv) {
+        textDiv.innerHTML = renderDisplayWithKanaMarks(newKana, mode, false);
+      }
+      const charSpan = block.querySelector("[data-char-count]");
+      if (charSpan) {
+        charSpan.textContent = `${newKana.replace(/\s/g, "").length}文字`;
+      }
+      if (!block.querySelector("[data-edited-badge]")) {
+        const badge = document.createElement("span");
+        badge.dataset.editedBadge = "1";
+        badge.className = "inline-flex items-center px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-400/25 text-[8px] font-medium text-amber-200/80";
+        badge.textContent = "✎ 編集済み";
+        const labelArea = block.querySelector(".flex.items-center.gap-1\\.5.flex-wrap");
+        if (labelArea) labelArea.appendChild(badge);
+      }
+    }
+
+    function _removeKanaOverride(lineIndex) {
+      delete window.__kanaOverrides[lineIndex];
+      const mode = __getDisplayMode();
+      const line = window.currentConvertedLines[lineIndex];
+      if (!line) return;
+      const origKana = __modePrimaryKana(line, mode);
+      const block = document.querySelector(`[data-singkana-idx="${lineIndex}"]`);
+      if (!block) return;
+      const textDiv = block.querySelector(".result-ka");
+      if (textDiv) {
+        const compareText = (mode === "basic") ? null : (line.standard || "");
+        if (compareText) {
+          const highlighted = highlightDifferences(compareText, origKana);
+          textDiv.innerHTML = renderDisplayWithKanaMarks(highlighted, mode, true);
+        } else {
+          textDiv.innerHTML = renderDisplayWithKanaMarks(origKana, mode, false);
+        }
+      }
+      const charSpan = block.querySelector("[data-char-count]");
+      if (charSpan) {
+        charSpan.textContent = `${(origKana || "").replace(/\s/g, "").length}文字`;
+      }
+      const badge = block.querySelector("[data-edited-badge]");
+      if (badge) badge.remove();
+    }
+
+    function openKanaEditModal(lineIndex, currentText) {
+      const existing = document.getElementById("kana-edit-modal");
+      if (existing) existing.remove();
+
+      const overlay = document.createElement("div");
+      overlay.id = "kana-edit-modal";
+      overlay.style.cssText = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px)";
+
+      const symbols = [
+        { label: "・ ブレス", insert: "・" },
+        { label: "↑ 強調", insert: "↑" },
+        { label: "↓ 強調", insert: "↓" },
+        { label: "～ 連結", insert: "～" },
+        { label: "( ) 脱落", insert: "()" },
+      ];
+      const symHtml = symbols.map(s =>
+        `<button type="button" data-sym="${s.insert}" style="padding:4px 10px;border-radius:6px;background:#334155;color:#e2e8f0;border:1px solid #475569;cursor:pointer;font-size:12px">${s.label}</button>`
+      ).join("");
+
+      overlay.innerHTML = `
+        <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:520px;width:92%;color:#e2e8f0;font-family:system-ui,sans-serif">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 style="font-size:15px;font-weight:700;margin:0;color:#fff">かな編集 (行 ${lineIndex + 1})</h3>
+            <button id="kana-edit-close" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;padding:4px">✕</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${symHtml}</div>
+          <textarea id="kana-edit-ta" rows="3" style="width:100%;box-sizing:border-box;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:10px;font-size:14px;line-height:1.8;resize:vertical;font-family:inherit">${escapeHtml(currentText)}</textarea>
+          <div style="margin-top:8px;padding:8px 10px;background:#0f172a;border-radius:8px;border:1px solid #1e293b">
+            <div style="font-size:10px;color:#64748b;margin-bottom:4px">PDF表示プレビュー（正規化後）</div>
+            <div id="kana-edit-preview" style="font-size:13px;line-height:1.8;white-space:pre-wrap"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
+            <button id="kana-edit-reset" style="padding:6px 14px;border-radius:8px;background:#991b1b;color:#fecaca;border:1px solid #dc2626;cursor:pointer;font-size:12px;display:${window.__kanaOverrides[lineIndex] != null ? "inline-block" : "none"}">リセット</button>
+            <button id="kana-edit-cancel" style="padding:6px 14px;border-radius:8px;background:#334155;color:#e2e8f0;border:1px solid #475569;cursor:pointer;font-size:12px">キャンセル</button>
+            <button id="kana-edit-save" style="padding:6px 14px;border-radius:8px;background:#7c3aed;color:#fff;border:1px solid #8b5cf6;cursor:pointer;font-size:12px;font-weight:600">保存</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+
+      const ta = document.getElementById("kana-edit-ta");
+      const preview = document.getElementById("kana-edit-preview");
+
+      function refreshPreview() {
+        const normalized = normalizeKanaForPdf(ta.value);
+        preview.innerHTML = renderKanaHtml(normalized);
+      }
+      refreshPreview();
+      ta.addEventListener("input", refreshPreview);
+
+      overlay.querySelectorAll("[data-sym]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const sym = btn.dataset.sym;
+          const start = ta.selectionStart ?? ta.value.length;
+          const end = ta.selectionEnd ?? ta.value.length;
+          const before = ta.value.slice(0, start);
+          const after = ta.value.slice(end);
+          if (sym === "()") {
+            ta.value = before + "()" + after;
+            ta.setSelectionRange(start + 1, start + 1);
+          } else {
+            ta.value = before + sym + after;
+            ta.setSelectionRange(start + sym.length, start + sym.length);
+          }
+          ta.focus();
+          refreshPreview();
+        });
+      });
+
+      function close() { overlay.remove(); }
+      document.getElementById("kana-edit-close").onclick = close;
+      document.getElementById("kana-edit-cancel").onclick = close;
+      overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+
+      document.getElementById("kana-edit-save").onclick = () => {
+        _applyKanaOverride(lineIndex, ta.value);
+        close();
+      };
+
+      document.getElementById("kana-edit-reset").onclick = () => {
+        _removeKanaOverride(lineIndex);
+        close();
+      };
+
+      ta.focus();
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    }
+
     function renderKanaHtmlInHtml(html){
       if (!html) return "";
       const tpl = document.createElement("template");
@@ -3814,6 +3954,7 @@
       window.currentConvertedLines = linesWithComparison;
       window.activeIndex = -1;
       window.__lastGptApplied = !!gptApplied;
+      window.__kanaOverrides = {};
 
       // 2段比較表示を構築
       const frag = document.createDocumentFragment();
@@ -4089,6 +4230,7 @@
       // Standard側は「安定させる」（背景・枠・装飾を削る）
       // スマホ最適化: パディング圧縮（p-4 → p-2.5 md:p-4）
       block.className = `rounded-lg md:rounded-xl border ${type === "singkana" ? "border-singkana-400/40 bg-slate-950/90 shadow-glow" : "border-slate-700/30 bg-transparent"} p-2.5 md:p-4`;
+      if (type === "singkana") block.dataset.singkanaIdx = lineIndex;
 
       // ヘッダー（ラベル + コピーボタン + 文字数）
       // スマホ最適化: マージン圧縮（mb-2 → mb-1.5 md:mb-2）
@@ -4143,20 +4285,20 @@
       const actions = document.createElement("div");
       actions.className = "flex items-center gap-1.5 md:gap-2";
       
-      // 文字数（スマホで小さく）
       const charCount = document.createElement("span");
       charCount.className = "text-[9px] md:text-[10px] text-slate-400";
+      charCount.dataset.charCount = "1";
       const textLength = (text || "").replace(/\s/g, "").length;
       charCount.textContent = `${textLength}文字`;
       actions.appendChild(charCount);
 
-      // コピーボタン（スマホで小さく）
       const copyBtn = document.createElement("button");
       copyBtn.className = "inline-flex items-center gap-0.5 md:gap-1 px-1.5 md:px-2 py-0.5 md:py-1 rounded text-[9px] md:text-[10px] font-medium text-slate-300 hover:text-slate-100 bg-slate-800/50 hover:bg-slate-700/50 transition";
       copyBtn.innerHTML = `<span>📋</span><span class="hidden md:inline">Copy</span>`;
       copyBtn.onclick = (e) => {
         e.stopPropagation();
-        navigator.clipboard.writeText(text || "").then(() => {
+        const copyText = (type === "singkana" && window.__kanaOverrides[lineIndex] != null) ? window.__kanaOverrides[lineIndex] : (text || "");
+        navigator.clipboard.writeText(copyText).then(() => {
           copyBtn.innerHTML = "✓";
           setTimeout(() => {
             copyBtn.innerHTML = `<span>📋</span><span class="hidden md:inline">Copy</span>`;
@@ -4164,6 +4306,18 @@
         });
       };
       actions.appendChild(copyBtn);
+
+      if (type === "singkana") {
+        const editBtn = document.createElement("button");
+        editBtn.className = "inline-flex items-center gap-0.5 md:gap-1 px-1.5 md:px-2 py-0.5 md:py-1 rounded text-[9px] md:text-[10px] font-medium text-slate-300 hover:text-slate-100 bg-slate-800/50 hover:bg-slate-700/50 transition";
+        editBtn.innerHTML = `<span>✎</span><span class="hidden md:inline">Edit</span>`;
+        editBtn.onclick = (e) => {
+          e.stopPropagation();
+          const current = (window.__kanaOverrides[lineIndex] != null) ? window.__kanaOverrides[lineIndex] : (text || "");
+          openKanaEditModal(lineIndex, current);
+        };
+        actions.appendChild(editBtn);
+      }
 
       header.appendChild(actions);
       block.appendChild(header);
