@@ -3163,7 +3163,7 @@
       const lines = window.currentConvertedLines.map((line) => {
         const orig = (line.en || line.orig || "").toString().trim();
         const raw = (__modePrimaryKana(line, mode) || "").toString().trim();
-        const kana = renderDisplay(raw, mode);
+        const kana = normalizeKanaForPdf(renderDisplay(raw, mode));
         return { orig, kana };
       }).filter((x) => x.orig || x.kana);
       if (!lines.length) return null;
@@ -3558,6 +3558,16 @@
       return _renderDisplayPlainText(t, mode);
     }
 
+    function normalizeKanaForPdf(kana) {
+      if (!kana) return kana;
+      return kana
+        .replace(/[˘|/｜]/g, "・")
+        .replace(/[~\u301C]/g, "～")
+        .replace(/[⬆⇧⤴]/g, "↑")
+        .replace(/[⬇⇩⤵]/g, "↓")
+        .replace(/（/g, "(").replace(/）/g, ")");
+    }
+
     function renderKanaHtml(kanaRaw){
       if (!kanaRaw) return "";
       const escaped = escapeHtml(String(kanaRaw));
@@ -3565,7 +3575,7 @@
       let inElision = false;
       for (let i = 0; i < escaped.length; i++) {
         const ch = escaped[i];
-        if (ch === "(") {
+        if (ch === "(" || ch === "\uFF08") {
           if (!inElision) {
             inElision = true;
             out += '<span class="mk mk-paren">(</span><span class="mk mk-eli">';
@@ -3574,7 +3584,7 @@
           }
           continue;
         }
-        if (ch === ")") {
+        if (ch === ")" || ch === "\uFF09") {
           if (inElision) {
             inElision = false;
             out += '</span><span class="mk mk-paren">)</span>';
@@ -3583,19 +3593,19 @@
           }
           continue;
         }
-        if (ch === "˘") {
-          out += '<span class="mk mk-breath">˘</span><span class="mk-gap"></span>';
+        if ("˘|/｜".includes(ch)) {
+          out += '<span class="mk mk-breath">・</span><span class="mk-gap"></span>';
           continue;
         }
-        if (ch === "↑") {
+        if ("↑⬆⇧⤴".includes(ch)) {
           out += '<span class="mk mk-up">↑</span>';
           continue;
         }
-        if (ch === "↓") {
+        if ("↓⬇⇩⤵".includes(ch)) {
           out += '<span class="mk mk-down">↓</span>';
           continue;
         }
-        if (ch === "～") {
+        if (ch === "～" || ch === "~" || ch === "\u301C") {
           out += '<span class="mk mk-liaison">～</span>';
           continue;
         }
