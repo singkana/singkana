@@ -1438,61 +1438,65 @@
             </div>
 
             <div class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 space-y-2">
-              <div class="text-[11px] font-semibold text-slate-100">用途プリセット（準備を最短化）</div>
+              <div class="text-[11px] font-semibold text-slate-100">用途を選ぶ（おすすめ設定）</div>
+              <p class="mini-hint">用途に合わせた練習用入力セットを適用します。</p>
               <div class="flex flex-col md:flex-row gap-2">
                 <button type="button"
                   class="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-slate-900/80 px-4 py-1.5 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
                   onclick="applyUseCasePreset('utawaku')">
-                  🎤 歌枠
+                  🎤 歌枠向け
                 </button>
                 <button type="button"
                   class="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-slate-900/80 px-4 py-1.5 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
                   onclick="applyUseCasePreset('cover')">
-                  🎧 カバー制作
+                  🎧 カバー制作向け
                 </button>
               </div>
+              <p id="preset-applied-note" class="mini-hint">適用中：未選択</p>
             </div>
 
-            <div class="flex flex-col md:flex-row md:flex-wrap md:items-center gap-2">
-              <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
-                <button type="button" class="mini-btn w-full md:w-auto" onclick="saveStudioState()">💾 保存</button>
-                <button type="button" class="mini-btn w-full md:w-auto" onclick="restoreStudioState()">↩ 復元</button>
-                <button type="button" class="mini-btn w-full md:w-auto" onclick="clearStudioState()">🧹 クリア</button>
+            <div class="space-y-2">
+              <div class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 space-y-2">
+                <div class="text-[11px] font-semibold text-slate-100">下書き（操作）</div>
+                <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
+                  <button type="button" class="mini-btn w-full md:w-auto" onclick="saveStudioState()">💾 下書き保存（この端末）</button>
+                  <button type="button" class="mini-btn w-full md:w-auto" onclick="restoreStudioState()">↩ 下書きを戻す</button>
+                  <button type="button" class="mini-btn w-full md:w-auto" onclick="clearStudioState()">🧹 全消去</button>
+                </div>
+                <p class="mini-hint">入力内容をこの端末のブラウザに保存・復元します。</p>
               </div>
 
-              <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
-
-              <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
-                <details class="advanced-examples w-full md:w-auto">
-                  <summary class="advanced-examples__summary mini-btn w-full md:w-auto cursor-pointer select-none">🧪 上級例文（英語のつまずき）</summary>
-                  <div class="mt-2 flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
-                    <label class="mini-hint hidden md:inline">例文：</label>
-                    <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('fast')" title="弱形・リダクション（gonna/wanna系）">⚡ 弱形</button>
-                    <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('consonant')" title="子音クラスタ（子音が連続するところ）">🔤 子音クラスタ</button>
-                    <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('vowel')" title="母音を伸ばす（ロングトーン）">🎵 母音伸ばし</button>
-                  </div>
-                  <p class="mini-hint mt-2">
-                    ※ これは「設定」ではなく、つまずきやすい例文を挿入するショートカットです。
-                  </p>
-                </details>
+              <div class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 space-y-2">
+                <div class="text-[11px] font-semibold text-slate-100">練習（入力上書き）</div>
+                <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
+                  <details class="advanced-examples w-full md:w-auto">
+                    <summary class="advanced-examples__summary mini-btn w-full md:w-auto cursor-pointer select-none">🧪 上級例文（英語のつまずき）</summary>
+                    <div class="mt-2 flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
+                      <label class="mini-hint hidden md:inline">例文：</label>
+                      <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('fast')" title="弱形・リダクション（gonna/wanna系）">⚡ 弱形</button>
+                      <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('consonant')" title="子音クラスタ（子音が連続するところ）">🔤 子音クラスタ</button>
+                      <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('vowel')" title="母音を伸ばす（ロングトーン）">🎵 母音伸ばし</button>
+                    </div>
+                  </details>
+                </div>
+                <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
+                  <label class="mini-hint hidden md:inline">練習テンプレ：</label>
+                  <button type="button" class="mini-btn w-full md:w-auto" onclick="applyTemplate('chorus')" title="まずはこれ。サビ練習用の汎用テンプレを挿入します。">📌 サビ練習（汎用）</button>
+                  <select id="template-select" class="mini-select w-full md:w-auto" onchange="applyTemplateFromSelect(true)">
+                    <option value="">選択…</option>
+                    <option value="warmup">ウォームアップ（短文）</option>
+                    <option value="chorus">サビ練習（汎用）</option>
+                    <option value="speech">語尾・子音の練習</option>
+                  </select>
+                </div>
+                <p class="mini-hint">※ 例文・テンプレは入力欄（曲名/歌詞）を上書きします。</p>
               </div>
 
-              <span class="hidden md:inline mx-1 h-4 w-px bg-white/15"></span>
-
-              <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
-                <label class="mini-hint hidden md:inline">テンプレ：</label>
-                <button type="button" class="mini-btn w-full md:w-auto" onclick="applyTemplate('chorus')" title="まずはこれ。サビ練習用の汎用テンプレを挿入します。">📌 サビ練習（汎用）</button>
-                <select id="template-select" class="mini-select w-full md:w-auto" onchange="applyTemplateFromSelect(true)">
-                  <option value="">選択…</option>
-                  <option value="warmup">ウォームアップ（短文）</option>
-                  <option value="chorus">サビ練習（汎用）</option>
-                  <option value="speech">語尾・子音の練習</option>
-                </select>
+              <div class="flex flex-col md:flex-row md:items-center gap-2">
+                <!-- 右寄せは親が制御（ml-auto爆弾を避ける） -->
+                <span class="hidden md:block flex-1"></span>
+                <span id="studio-status" class="text-[11px] text-slate-400 md:text-right"></span>
               </div>
-
-              <!-- 右寄せは親が制御（ml-auto爆弾を避ける） -->
-              <span class="hidden md:block flex-1"></span>
-              <span id="studio-status" class="text-[11px] text-slate-400 md:text-right"></span>
             </div>
 
             <button
@@ -2451,6 +2455,7 @@
     // Studio Save/Restore/Templates
     // =========================
     const LS_KEY = "singkana.studio.v1";
+    const OVERWRITE_CONFIRM_SKIP_KEY = "singkana.studio.confirm_overwrite_skip.v1";
     const TEMPLATES = {
       warmup: { label: "ウォームアップ（短文）", title: "warmup", lyrics: ["Take it easy, keep it steady","Breathe in slow, breathe out ready","Hold the note and let it glow"].join("\n") },
       chorus: { label: "サビ練習（汎用）", title: "chorus-practice", lyrics: ["We are rising, we are shining","In the night, we keep on flying","Let it go, and sing it loud"].join("\n") },
@@ -2465,6 +2470,7 @@
           "We will rise and never hide",
           "Sing it out and keep the light",
         ].join("\n"),
+        summary: "配信中に使いやすい短めフレーズを挿入",
       },
       cover: {
         label: "カバー制作",
@@ -2474,6 +2480,7 @@
           "Keep my heart steady and bright",
           "Take this line and make it yours",
         ].join("\n"),
+        summary: "録音練習向けに丁寧なフレーズを挿入",
       },
     };
 
@@ -2492,6 +2499,95 @@
       if (!el) return;
       el.textContent = msg || "";
       if (msg) setTimeout(() => { el.textContent = ""; }, 2200);
+    }
+
+    function setPresetAppliedNote(msg) {
+      const el = document.getElementById("preset-applied-note");
+      if (!el) return;
+      el.textContent = msg || "適用中：未選択";
+    }
+
+    function _getOverwriteConfirmSkip() {
+      try { return localStorage.getItem(OVERWRITE_CONFIRM_SKIP_KEY) === "1"; } catch (_) { return false; }
+    }
+
+    function _setOverwriteConfirmSkip(v) {
+      try {
+        if (v) localStorage.setItem(OVERWRITE_CONFIRM_SKIP_KEY, "1");
+        else localStorage.removeItem(OVERWRITE_CONFIRM_SKIP_KEY);
+      } catch (_) {}
+    }
+
+    async function confirmStudioOverwrite(options = {}) {
+      if (_getOverwriteConfirmSkip()) return true;
+
+      const actionLabel = String(options.actionLabel || "この操作");
+      const detail = String(options.detail || "入力内容が上書きされます。");
+      const targets = [];
+      if (options.overwriteSong) targets.push("曲名");
+      if (options.overwriteLyrics) targets.push("歌詞");
+      if (options.overwriteSettings) targets.push("設定");
+      const targetText = targets.length ? targets.join(" / ") : "歌詞";
+
+      return await new Promise((resolve) => {
+        const existing = document.getElementById("studio-overwrite-confirm");
+        if (existing) existing.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "studio-overwrite-confirm";
+        overlay.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(2,6,23,0.72);display:flex;align-items:center;justify-content:center;padding:16px";
+        overlay.innerHTML = `
+          <div style="width:min(560px,95vw);background:#0b1220;border:1px solid rgba(148,163,184,.35);border-radius:14px;padding:16px 16px 14px;color:#e2e8f0;box-shadow:0 20px 60px rgba(0,0,0,.45)">
+            <div style="font-size:14px;font-weight:700;color:#f8fafc;margin-bottom:8px">入力を上書きします</div>
+            <p id="soc-action" style="font-size:12px;color:#cbd5e1;margin:0 0 8px"></p>
+            <p style="font-size:11px;color:#94a3b8;margin:0 0 6px">上書き対象: <strong id="soc-targets" style="color:#e2e8f0"></strong></p>
+            <p id="soc-detail" style="font-size:11px;color:#94a3b8;margin:0 0 10px"></p>
+            <label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#cbd5e1;margin-bottom:12px">
+              <input id="soc-skip" type="checkbox" style="accent-color:#8b5cf6" />
+              次回から確認しない（この端末）
+            </label>
+            <div style="display:flex;justify-content:flex-end;gap:8px">
+              <button id="soc-cancel" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(148,163,184,.5);background:rgba(15,23,42,.6);color:#e2e8f0;font-size:12px;font-weight:700">キャンセル</button>
+              <button id="soc-ok" type="button" style="padding:8px 12px;border-radius:10px;border:1px solid rgba(165,180,252,.7);background:linear-gradient(90deg,#7c3aed,#9333ea);color:white;font-size:12px;font-weight:700">上書きして続行</button>
+            </div>
+          </div>
+        `;
+
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        document.body.appendChild(overlay);
+
+        const actionEl = overlay.querySelector("#soc-action");
+        const targetsEl = overlay.querySelector("#soc-targets");
+        const detailEl = overlay.querySelector("#soc-detail");
+        const skipEl = overlay.querySelector("#soc-skip");
+        const cancelBtn = overlay.querySelector("#soc-cancel");
+        const okBtn = overlay.querySelector("#soc-ok");
+
+        if (actionEl) actionEl.textContent = `操作: ${actionLabel}`;
+        if (targetsEl) targetsEl.textContent = targetText;
+        if (detailEl) detailEl.textContent = detail;
+
+        const cleanup = () => {
+          document.body.style.overflow = prevOverflow;
+          overlay.remove();
+          document.removeEventListener("keydown", onKeyDown);
+        };
+        const finish = (ok) => {
+          const skip = !!(skipEl && skipEl.checked);
+          if (ok && skip) _setOverwriteConfirmSkip(true);
+          cleanup();
+          resolve(!!ok);
+        };
+        const onKeyDown = (ev) => {
+          if (ev.key === "Escape") finish(false);
+        };
+        document.addEventListener("keydown", onKeyDown);
+
+        if (cancelBtn) cancelBtn.addEventListener("click", () => finish(false));
+        if (okBtn) okBtn.addEventListener("click", () => finish(true));
+        overlay.addEventListener("click", (ev) => { if (ev.target === overlay) finish(false); });
+      });
     }
 
     function readStudioStateFromUI() {
@@ -2555,19 +2651,23 @@
       setStudioStatus(`テンプレ適用：${t.label || key}`);
     }
 
-    function applyTemplateFromSelect(fromSelect=false) {
+    async function applyTemplateFromSelect(fromSelect=false) {
       const sel = document.getElementById("template-select");
       const key = sel ? sel.value : "";
       if (!key) return;
-      // select経由だけ confirm（事故防止）
+      // 入力がある場合は上書き確認
       const songEl = document.getElementById("song-title");
       const lyrEl = document.getElementById("lyrics-input");
       const hasSong = ((songEl && songEl.value) || "").trim().length > 0;
       const hasLyrics = ((lyrEl && lyrEl.value) || "").trim().length > 0;
-      if (fromSelect && (hasSong || hasLyrics)) {
-        const ok = confirm("現在の入力はテンプレで置き換わります。続行しますか？");
+      if (hasSong || hasLyrics) {
+        const ok = await confirmStudioOverwrite({
+          actionLabel: fromSelect ? "テンプレを選択" : "テンプレを適用",
+          overwriteSong: true,
+          overwriteLyrics: true,
+          detail: "選択したテンプレで曲名と歌詞を上書きします。",
+        });
         if (!ok) {
-          // 選択を戻して“押し間違い”を確定で無かったことにする
           if (sel) sel.value = "";
           return;
         }
@@ -2577,31 +2677,49 @@
       if (sel) sel.value = "";
     }
 
-    function applyTemplate(key) {
+    async function applyTemplate(key) {
       const sel = document.getElementById("template-select");
       if (sel) sel.value = "";
+      const songEl = document.getElementById("song-title");
+      const lyrEl = document.getElementById("lyrics-input");
+      const hasSong = ((songEl && songEl.value) || "").trim().length > 0;
+      const hasLyrics = ((lyrEl && lyrEl.value) || "").trim().length > 0;
+      if (hasSong || hasLyrics) {
+        const ok = await confirmStudioOverwrite({
+          actionLabel: "テンプレを適用",
+          overwriteSong: true,
+          overwriteLyrics: true,
+          detail: "テンプレを適用すると曲名と歌詞が置き換わります。",
+        });
+        if (!ok) return;
+      }
       applyTemplateByKey(key);
     }
 
-    function applyUseCasePreset(kind) {
+    async function applyUseCasePreset(kind) {
       const p = USECASE_PRESETS[kind];
       if (!p) return;
       const songEl = document.getElementById("song-title");
       const lyrEl = document.getElementById("lyrics-input");
       if (!lyrEl) return;
 
-      const hasInput = ((lyrEl.value || "").trim().length > 0);
-      if (hasInput) {
-        const ok = confirm("現在の歌詞をプリセットで置き換えますか？");
+      const hasSong = ((songEl && songEl.value) || "").trim().length > 0;
+      const hasLyrics = ((lyrEl.value || "").trim().length > 0);
+      if (hasSong || hasLyrics) {
+        const ok = await confirmStudioOverwrite({
+          actionLabel: `用途プリセット（${p.label}）`,
+          overwriteSong: true,
+          overwriteLyrics: true,
+          detail: `${p.label}向けの入力セットで曲名と歌詞を上書きします。`,
+        });
         if (!ok) return;
       }
 
-      if (songEl && !(songEl.value || "").trim()) {
-        songEl.value = p.title;
-      }
+      if (songEl) songEl.value = p.title;
       lyrEl.value = p.lyrics;
       saveStudioState(true);
-      setStudioStatus(`プリセット適用：${p.label}`);
+      setPresetAppliedNote(`適用中：${p.label}（${p.summary || "入力セット適用"}）`);
+      setStudioStatus(`用途適用：${p.label}`);
       _trackUiEvent("preset_selected", { value: kind, source: "studio" });
     }
 
@@ -4132,7 +4250,7 @@
     // =========================
     // 例文挿入（1クリックで価値を踏ませる）
     // =========================
-    function insertExample(type) {
+    async function insertExample(type) {
       const lyricsInput = document.getElementById("lyrics-input");
       if (!lyricsInput) return;
       
@@ -4146,13 +4264,20 @@
       
       // 既にテキストがある場合は確認
       if (lyricsInput.value.trim()) {
-        if (!confirm("現在の入力内容を置き換えますか？")) {
+        const ok = await confirmStudioOverwrite({
+          actionLabel: "上級例文を挿入",
+          overwriteSong: false,
+          overwriteLyrics: true,
+          detail: "現在の歌詞を例文で上書きします。",
+        });
+        if (!ok) {
           return;
         }
       }
       
       lyricsInput.value = example;
       lyricsInput.focus();
+      setStudioStatus("上級例文を挿入しました");
       
       // 自動変換（オプション）
       // convertLyrics();
