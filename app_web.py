@@ -101,37 +101,43 @@ def _escape_html(text: str) -> str:
     return html.escape(text or "", quote=True)
 
 def _render_kana_html(kana_raw: str) -> str:
-    """Escape then wrap marks as spans (safe HTML only)."""
+    """Escape then wrap marks as spans (safe HTML only).
+
+    Normalises variant glyphs so the PDF uses one canonical symbol per
+    annotation type (matching the Studio display).
+    """
     s = _escape_html(kana_raw or "")
     out: list[str] = []
     in_elision = False
     for ch in s:
-        if ch == "(":
+        # Elision parens: fullwidth （） → ASCII ()
+        if ch in ("(", "\uFF08"):
             if not in_elision:
                 in_elision = True
                 out.append('<span class="mk mk-paren">(</span><span class="mk mk-eli">')
             else:
                 out.append("(")
             continue
-        if ch == ")":
+        if ch in (")", "\uFF09"):
             if in_elision:
                 in_elision = False
                 out.append('</span><span class="mk mk-paren">)</span>')
             else:
                 out.append(")")
             continue
-        # Accept legacy/new breath separators and unify PDF output as "・".
-        if ch in ("˘", "|", "/", "｜"):
-            out.append('<span class="mk mk-breath">・</span><span class="mk-gap"></span>')
+        if ch in ("\u02D8", "|", "/", "\uFF5C"):
+            out.append('<span class="mk mk-breath">\u30FB</span><span class="mk-gap"></span>')
             continue
-        if ch == "↑":
-            out.append('<span class="mk mk-up">↑</span>')
+        # Emphasis arrows: common variants → ↑ / ↓
+        if ch in ("\u2191", "\u2B06", "\u21E7", "\u2934"):
+            out.append('<span class="mk mk-up">\u2191</span>')
             continue
-        if ch == "↓":
-            out.append('<span class="mk mk-down">↓</span>')
+        if ch in ("\u2193", "\u2B07", "\u21E9", "\u2935"):
+            out.append('<span class="mk mk-down">\u2193</span>')
             continue
-        if ch == "～":
-            out.append('<span class="mk mk-liaison">～</span>')
+        # Liaison: ASCII tilde / wave dash / fullwidth tilde → ～
+        if ch in ("\uFF5E", "~", "\u301C"):
+            out.append('<span class="mk mk-liaison">\uFF5E</span>')
             continue
         out.append(ch)
     if in_elision:
