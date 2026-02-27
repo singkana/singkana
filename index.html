@@ -3162,7 +3162,8 @@
       const title = (document.getElementById("song-title")?.value || "").toString().trim();
       const lines = window.currentConvertedLines.map((line, i) => {
         const orig = (line.en || line.orig || "").toString().trim();
-        const override = window.__kanaOverrides && window.__kanaOverrides[i];
+        const key = line.__overrideKey || String(i);
+        const override = window.__kanaOverrides && window.__kanaOverrides[key];
         const kana = (override != null)
           ? normalizeKanaForPdf(override)
           : normalizeKanaForPdf(renderDisplay((__modePrimaryKana(line, mode) || "").toString().trim(), mode));
@@ -3621,8 +3622,14 @@
 
     window.__kanaOverrides = {};
 
+    function _overrideKey(i) {
+      const line = window.currentConvertedLines[i];
+      if (line && line.__overrideKey) return line.__overrideKey;
+      return String(i);
+    }
+
     function _applyKanaOverride(lineIndex, newKana) {
-      window.__kanaOverrides[lineIndex] = newKana;
+      window.__kanaOverrides[_overrideKey(lineIndex)] = newKana;
       const mode = __getDisplayMode();
       const block = document.querySelector(`[data-singkana-idx="${lineIndex}"]`);
       if (!block) return;
@@ -3645,7 +3652,7 @@
     }
 
     function _removeKanaOverride(lineIndex) {
-      delete window.__kanaOverrides[lineIndex];
+      delete window.__kanaOverrides[_overrideKey(lineIndex)];
       const mode = __getDisplayMode();
       const line = window.currentConvertedLines[lineIndex];
       if (!line) return;
@@ -3702,7 +3709,7 @@
             <div id="kana-edit-preview" style="font-size:13px;line-height:1.8;white-space:pre-wrap"></div>
           </div>
           <div style="display:flex;gap:8px;margin-top:14px;justify-content:flex-end">
-            <button id="kana-edit-reset" style="padding:6px 14px;border-radius:8px;background:#991b1b;color:#fecaca;border:1px solid #dc2626;cursor:pointer;font-size:12px;display:${window.__kanaOverrides[lineIndex] != null ? "inline-block" : "none"}">リセット</button>
+            <button id="kana-edit-reset" style="padding:6px 14px;border-radius:8px;background:#991b1b;color:#fecaca;border:1px solid #dc2626;cursor:pointer;font-size:12px;display:${window.__kanaOverrides[_overrideKey(lineIndex)] != null ? "inline-block" : "none"}">リセット</button>
             <button id="kana-edit-cancel" style="padding:6px 14px;border-radius:8px;background:#334155;color:#e2e8f0;border:1px solid #475569;cursor:pointer;font-size:12px">キャンセル</button>
             <button id="kana-edit-save" style="padding:6px 14px;border-radius:8px;background:#7c3aed;color:#fff;border:1px solid #8b5cf6;cursor:pointer;font-size:12px;font-weight:600">保存</button>
           </div>
@@ -3959,6 +3966,10 @@
       // 2段比較表示を構築
       const frag = document.createDocumentFragment();
       
+      linesWithComparison.forEach((line, i) => {
+        line.__overrideKey = (line.lineNo != null) ? String(line.lineNo) : `idx:${i}`;
+      });
+
       // デフォルト表示: Pro結果のみ（比較は折りたたみ）
       linesWithComparison.forEach((line, i) => {
         const lineContainer = document.createElement("div");
@@ -4297,7 +4308,7 @@
       copyBtn.innerHTML = `<span>📋</span><span class="hidden md:inline">Copy</span>`;
       copyBtn.onclick = (e) => {
         e.stopPropagation();
-        const copyText = (type === "singkana" && window.__kanaOverrides[lineIndex] != null) ? window.__kanaOverrides[lineIndex] : (text || "");
+        const copyText = (type === "singkana" && window.__kanaOverrides[_overrideKey(lineIndex)] != null) ? window.__kanaOverrides[_overrideKey(lineIndex)] : (text || "");
         navigator.clipboard.writeText(copyText).then(() => {
           copyBtn.innerHTML = "✓";
           setTimeout(() => {
@@ -4313,7 +4324,7 @@
         editBtn.innerHTML = `<span>✎</span><span class="hidden md:inline">Edit</span>`;
         editBtn.onclick = (e) => {
           e.stopPropagation();
-          const current = (window.__kanaOverrides[lineIndex] != null) ? window.__kanaOverrides[lineIndex] : (text || "");
+          const current = (window.__kanaOverrides[_overrideKey(lineIndex)] != null) ? window.__kanaOverrides[_overrideKey(lineIndex)] : (text || "");
           openKanaEditModal(lineIndex, current);
         };
         actions.appendChild(editBtn);
