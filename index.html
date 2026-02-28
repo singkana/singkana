@@ -1412,6 +1412,8 @@
         </p>
 
         <div id="error-banner" class="error-banner"></div>
+        <div id="mode-banner" class="mt-2 p-2 rounded bg-amber-50 text-sm" style="display:none"></div>
+        <div id="fallback-banner" class="mt-2 p-2 rounded bg-slate-100 text-sm" style="display:none">現在「簡易変換」で表示しています（API応答なし/失敗時のフォールバック）。結果が通常時と異なる可能性があります。</div>
 
         <div class="grid gap-4 md:grid-cols-2">
           <!-- 左：入力 -->
@@ -3161,7 +3163,7 @@
       const mode = __getDisplayMode();
       const title = (document.getElementById("song-title")?.value || "").toString().trim();
       const lines = window.currentConvertedLines.map((line, i) => {
-        const orig = (line.en || line.orig || "").toString().trim();
+        const orig = (line.orig || line.en || "").toString().trim();
         const key = line.__overrideKey || String(i);
         const override = window.__kanaOverrides && window.__kanaOverrides[key];
         const kana = (override != null)
@@ -3495,6 +3497,49 @@
       const serverMode = (PLAN.effectiveMode || "").toLowerCase();
       if (serverMode === "natural" || serverMode === "basic") return serverMode;
       return isPro() ? "natural" : "basic";
+    }
+
+    function applyModeFromResponse(resp) {
+      if (!resp) return;
+      const eff = (resp.effective_mode || "").toString();
+      if (eff === "natural" || eff === "basic") PLAN.effectiveMode = eff;
+      window.__lastRequestedMode = (resp.requested_mode || "").toString();
+      window.__lastEffectiveMode = eff;
+      window.__lastModeApplied = !!resp.mode_applied;
+      window.__lastModeReason = (resp.mode_reason || "").toString();
+    }
+
+    function renderModeBanner() {
+      const el = document.getElementById("mode-banner");
+      if (!el) return;
+      const applied = !!window.__lastModeApplied;
+      const reason = window.__lastModeReason || "";
+      const req = window.__lastRequestedMode || "";
+      const eff = window.__lastEffectiveMode || "";
+      el.style.display = "none";
+      el.innerHTML = "";
+      if (applied) return;
+      if (!req) return;
+      if (reason === "plan_locked") {
+        el.style.display = "";
+        el.innerHTML = `選択したモード「${req}」は現在のプランでは利用できません。適用中: 「${eff}」。Proで利用可能です。`;
+        return;
+      }
+      if (reason === "invalid") {
+        el.style.display = "";
+        el.innerHTML = `モード指定「${req}」は無効です。適用中: 「${eff}」。`;
+      }
+    }
+
+    function setFallbackBanner(on) {
+      const el = document.getElementById("fallback-banner");
+      if (!el) return;
+      el.style.display = on ? "" : "none";
+    }
+
+    function markFallbackUsed() {
+      window.__fallbackUsed = true;
+      setFallbackBanner(true);
     }
 
     // モードに応じて、実際に表示/出力するかな列を選ぶ
@@ -3846,7 +3891,7 @@
         const en = String(line?.en || "");
         return {
           en,
-          standard: String(line?.standard || convertToStandardKana(en) || ""),
+          standard: String(line?.standard || ""),
           singkana: String(line?.singkana || line?.kana || line?.standard || ""),
           lineNo: Number(line?.lineNo || (i + 1)),
         };
@@ -3896,7 +3941,10 @@
         const resp = await fetch("/api/convert", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: lyrics }),
+          body: JSON.stringify({
+            text: lyrics,
+            requested_mode: __getDisplayMode(),
+          }),
         });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok || !data.ok || !Array.isArray(data.result)) {
@@ -3915,25 +3963,31 @@
           return;
         }
 
+        applyModeFromResponse(data);
         window.__lastConvertMeta = {
           effective_mode: String(data.effective_mode || __getDisplayMode()),
           processing_mode: String(data.processing_mode || data.effective_mode || __getDisplayMode()),
           hard_case: !!data.hard_case,
           gpt_applied: !!data.gpt_applied,
         };
+        setFallbackBanner(false);
+        if (errorBanner) { errorBanner.textContent = ""; errorBanner.style.display = "none"; }
         _renderConvertResult(linesWithComparison, !!data.gpt_applied);
+        renderModeBanner();
       } catch (error) {
         // サーバー失敗時のみローカル変換へフォールバック
         if (window.SingKanaCore && window.SingKanaCore.convertLyrics) {
           try {
             const localLines = _normalizeLocalConvertLines(window.SingKanaCore.convertLyrics(lyrics));
             if (localLines.length) {
+              PLAN.effectiveMode = "basic";
               window.__lastConvertMeta = {
                 effective_mode: "basic",
                 processing_mode: "fallback_local",
                 hard_case: false,
                 gpt_applied: false,
               };
+              markFallbackUsed();
               _renderConvertResult(localLines, false);
               if (errorBanner) {
                 errorBanner.textContent = "サーバー最適化に失敗したためローカル結果を表示しています。";

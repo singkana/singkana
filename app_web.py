@@ -477,6 +477,36 @@ def _get_meta(data: Dict[str, Any]) -> Dict[str, Any]:
 def _get_display_mode(meta: Dict[str, Any]) -> str:
     return str(meta.get("display_mode") or "basic").strip().lower()
 
+# --- Mode resolution (server is source of truth) ---
+def _sanitize_mode(m: str) -> str:
+    m = (m or "").strip().lower()
+    alias = {"standard": "basic", "default": "basic", "simple": "basic"}
+    return alias.get(m, m)
+
+def _allowed_modes_for_plan(plan: str, default_mode: str) -> set:
+    p = (plan or "").strip().lower()
+    if p == "pro":
+        return {"basic", "natural"}
+    if p == "free":
+        return {"basic"}
+    return {default_mode} if default_mode else {"basic"}
+
+def _resolve_effective_mode(requested_mode: str, plan: str, default_mode: str):
+    """
+    Returns: (requested, effective, applied, reason)
+    reason: ok | default | invalid | plan_locked
+    """
+    req = _sanitize_mode(requested_mode)
+    eff_default = _sanitize_mode(default_mode) or "basic"
+    allowed = _allowed_modes_for_plan(plan, eff_default)
+    if not req:
+        return ("", eff_default, False, "default")
+    if req not in {"basic", "natural"}:
+        return (req, eff_default, False, "invalid")
+    if req not in allowed:
+        return (req, eff_default, False, "plan_locked")
+    return (req, req, True, "ok")
+
 def _effective_mode_from_plan(plan: str) -> str:
     """方針固定: Free=basic / Pro=natural"""
     return "natural" if str(plan or "").lower() == "pro" else "basic"
@@ -1104,7 +1134,7 @@ def _normalize_sheet_lines(lines: Any) -> list[dict[str, str]]:
             break
         if not isinstance(item, dict):
             continue
-        orig = re.sub(r"[\r\n]+", " ", str(item.get("orig") or "")).strip()
+        orig = re.sub(r"[\r\n]+", " ", str(item.get("orig") or item.get("en") or "")).strip()
         kana = re.sub(r"[\r\n]+", " ", str(item.get("kana") or "")).strip()
         if len(orig) > max_line_chars:
             orig = orig[:max_line_chars]
@@ -2573,11 +2603,19 @@ def api_convert():
         return _json_error(400, "lyrics_too_long", f"Lyrics must be under {MAX_LYRICS_CHARS} characters.")
 
     meta = _get_meta(data)
-    requested_mode = _get_display_mode(meta)  # 互換受理（実処理では使わない）
+    req_in = (
+        str(data.get("requested_mode") or data.get("mode") or data.get("requestedMode") or "").strip()
+        or _get_display_mode(meta)
+    )
     user_plan = getattr(g, "user_plan", "free")
-    effective_mode = getattr(g, "effective_mode", _effective_mode_from_plan(user_plan))
+    effective_default = getattr(g, "effective_mode", _effective_mode_from_plan(user_plan))
+    req_sanitized, effective_mode, mode_applied, mode_reason = _resolve_effective_mode(
+        requested_mode=req_in,
+        plan=user_plan,
+        default_mode=effective_default,
+    )
     hard_case = (effective_mode == "natural") and _is_hard_case_lyrics(lyrics)
-    processing_mode = "natural_boost" if hard_case else effective_mode
+    processing_mode_internal = "natural_boost" if hard_case else effective_mode
 
     try:
         # 上下比較UI用: standard と singkana の両方を返す
@@ -2611,7 +2649,7 @@ def api_convert():
     is_pro = (user_plan == "pro") or is_pro_override()
     gpt_applied = False
     allow_external_llm = (_env("SINGKANA_ALLOW_EXTERNAL_LLM", "0") == "1")
-    if is_pro and processing_mode == "natural_boost" and hasattr(engine, "gpt_refine_kana"):
+    if is_pro and processing_mode_internal == "natural_boost" and hasattr(engine, "gpt_refine_kana"):
         if not allow_external_llm:
             # 外部API保持（第三者事業者側のログ/学習等）の盲点対策: 明示的に許可された場合のみ実行
             app.logger.info("gpt_refine_kana: disabled by SINGKANA_ALLOW_EXTERNAL_LLM")
@@ -2626,23 +2664,35 @@ def api_convert():
                 except Exception as e:
                     app.logger.warning("gpt_refine_kana failed, using rule-based: %s", e)
 
+    # P2保証: standard を常に返す（クライアント補完を封じた前提）
+    for line in result:
+        if not line.get("standard"):
+            en = line.get("en", "")
+            if hasattr(engine, "_english_to_kana_line_standard"):
+                line["standard"] = engine._english_to_kana_line_standard(en)
+            else:
+                line["standard"] = en
+
     # 計測: convert_success（ref cookieがあれば紐付け）
     _track_event("convert_success", ref_code=_ref_cookie_value(), meta={
         "endpoint": "/api/convert",
-        "requested_mode": requested_mode,
+        "requested_mode": req_sanitized,
         "effective_mode": effective_mode,
-        "processing_mode": processing_mode,
+        "processing_mode": processing_mode_internal,
         "hard_case": hard_case,
         "gpt_applied": gpt_applied,
         "plan": user_plan,
     })
+    # P0: requested_mode=入力, effective_mode=裁定, mode_applied/mode_reason 必須
     resp = jsonify({
         "ok": True,
         "result": result,
         "gpt_applied": gpt_applied,
-        "requested_mode": requested_mode,
+        "requested_mode": req_sanitized if req_sanitized else None,
         "effective_mode": effective_mode,
-        "processing_mode": processing_mode,
+        "mode_applied": bool(mode_applied),
+        "mode_reason": mode_reason,
+        "processing_mode": effective_mode,
         "hard_case": hard_case,
     })
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
