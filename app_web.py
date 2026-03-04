@@ -1457,7 +1457,8 @@ def _ugc_render_image_1080x1920(
 ) -> bytes:
     Image, ImageDraw, ImageFont, err = _pillow_import()
     if Image is None:
-        raise RuntimeError(f"Pillow not available: {err}")
+        app.logger.error("Pillow import failed: %s", err)
+        raise RuntimeError("pillow_unavailable")
 
     W, H = 1080, 1920
     img = Image.new("RGB", (W, H), (11, 18, 32))
@@ -1973,8 +1974,14 @@ def api_ugc_generate():
         pass
     try:
         png = _ugc_render_image_1080x1920(hook, before_text, after_text, share_url)
-    except Exception as e:
+    except RuntimeError as e:
+        if str(e) == "pillow_unavailable":
+            return _json_error(500, "ugc_pillow_missing", "サーバ側の画像生成機能が未設定です（運用ログを確認してください）。")
+        app.logger.exception("UGC runtime error: %s", e)
         return _json_error(500, "ugc_generate_failed", "UGC生成に失敗しました。")
+    except Exception:
+        app.logger.exception("UGC render failed")
+        return _json_error(500, "ugc_render_failed", "UGC画像の描画に失敗しました。")
 
     # filename
     short = uid.replace("sk_", "")[:6]
@@ -1983,9 +1990,11 @@ def api_ugc_generate():
     try:
         fpath.write_bytes(png)
     except Exception as e:
+        app.logger.exception("UGC file write failed: path=%s err=%s", fpath, e)
         return _json_error(500, "ugc_write_failed", "UGC画像の保存に失敗しました。")
 
     # persist assets
+    db_recorded = True
     try:
         conn.execute(
             "INSERT INTO ugc_assets (user_id, asset_type, content_hash, file_path, text, created_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -2006,13 +2015,14 @@ def api_ugc_generate():
         )
         conn.commit()
     except Exception:
-        pass
+        db_recorded = False
+        app.logger.exception("UGC DB insert failed for user=%s hash=%s", uid, h[:10])
 
     _track_event("ugc_asset_generate", ref_code=_ref_cookie_value(), meta={"asset_type": "image_1080x1920"})
 
     image_url = _ugc_static_url(fname)
     scripts = _ugc_make_scripts("Before", "After (SingKANA)", share_url)
-    return jsonify({"ok": True, "image_url": image_url, "scripts": scripts, "ref_code": ref_code, "share_url": share_url})
+    return jsonify({"ok": True, "image_url": image_url, "scripts": scripts, "ref_code": ref_code, "share_url": share_url, "db_recorded": db_recorded})
 
 @app.post("/api/ugc/submit")
 def api_ugc_submit():

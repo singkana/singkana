@@ -1682,7 +1682,12 @@
                 <div class="grid gap-2 md:grid-cols-2">
                   <div class="rounded-xl border border-white/10 bg-slate-950/40 p-2">
                     <div class="text-[10px] text-slate-400 mb-1">生成画像プレビュー</div>
-                    <a id="ugc-image-link" href="#" target="_blank" rel="noopener" class="hidden underline text-[11px] text-singkana-200">画像を開く</a>
+                    <div class="flex items-center gap-2">
+                      <button id="ugc-save-btn" type="button"
+                        class="hidden inline-flex items-center justify-center gap-1 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-3 py-1 text-[10px] font-semibold text-white shadow-glow hover:brightness-110 transition"
+                        onclick="saveUGCImage()">💾 保存 / 共有</button>
+                      <a id="ugc-image-link" href="#" target="_blank" rel="noopener" class="hidden underline text-[11px] text-singkana-200">画像を開く</a>
+                    </div>
                     <img id="ugc-image-preview" class="hidden mt-2 w-full rounded-lg border border-white/10" alt="UGC image preview" />
                   </div>
                   <div class="rounded-xl border border-white/10 bg-slate-950/40 p-2 space-y-2">
@@ -2377,14 +2382,17 @@
 
         const link = document.getElementById("ugc-image-link");
         const img = document.getElementById("ugc-image-preview");
+        const saveBtn = document.getElementById("ugc-save-btn");
         if (UGC.image_url && link && img) {
           link.href = UGC.image_url;
           link.classList.remove("hidden");
           img.src = UGC.image_url;
           img.classList.remove("hidden");
+          if (saveBtn) saveBtn.classList.remove("hidden");
         }
 
-        setUgcStatus("生成しました。保存/コピーして投稿できます。");
+        const dbNote = (j.db_recorded === false) ? "（⚠ サーバ記録に失敗。画像は生成済み）" : "";
+        setUgcStatus("生成しました。保存/コピーして投稿できます。" + dbNote);
       } catch (e) {
         setUgcStatus("通信に失敗しました。");
       }
@@ -2424,6 +2432,41 @@
       try {
         fetch("/api/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "ugc_link_copy" }) }).catch(() => {});
       } catch (e) {}
+    }
+
+    async function saveUGCImage() {
+      const url = (UGC.image_url || "").trim();
+      if (!url) {
+        setUgcStatus("先にUGCを生成してください。");
+        return;
+      }
+      try {
+        setUgcStatus("画像を取得中…");
+        const res = await fetch(url, { credentials: "same-origin" });
+        if (!res.ok) throw new Error(`fetch_failed:${res.status}`);
+        const blob = await res.blob();
+        const file = new File([blob], "singkana-ugc.png", { type: "image/png" });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: "SingKANA UGC" });
+          setUgcStatus("共有しました。");
+          try { fetch("/api/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "ugc_image_share" }) }).catch(() => {}); } catch (_) {}
+          return;
+        }
+
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = objUrl;
+        a.download = "singkana-ugc.png";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(objUrl), 60000);
+        setUgcStatus("画像をダウンロードしました。");
+        try { fetch("/api/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "ugc_image_download" }) }).catch(() => {}); } catch (_) {}
+      } catch (e) {
+        setUgcStatus("画像の保存に失敗しました。「画像を開く」から長押し保存をお試しください。");
+      }
     }
 
     async function ugcSubmitPost() {
