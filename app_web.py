@@ -1521,60 +1521,92 @@ def _ugc_render_image_1080x1920(
 
     pad = SAFE_LR
     card_x0, card_x1 = pad, W - pad
-    card_content_w = card_x1 - card_x0 - 56  # inner padding both sides
+    card_content_w = card_x1 - card_x0 - 56
     card_inner_pad = 28
     title_gap = 52
-    card_min_h = 180
+    card_min_h = 160
     card_bottom_pad = 28
+    card_gap = 32
+
+    # Before: smaller font / After: larger font for visual hierarchy
+    before_font = _font(24)
+    after_font = _font(28)
+    before_title_font = _font(30)
+    after_title_font = _font(36)
 
     hook = px_wrap(hook or "この歌詞、歌えない", font_title, W - pad * 2, max_lines=3)
-    before_text = px_wrap(before_text, font_body, card_content_w)
-    after_text = px_wrap(after_text, font_body, card_content_w)
+    before_text = px_wrap(before_text, before_font, card_content_w)
+    after_text = px_wrap(after_text, after_font, card_content_w)
 
-    # Auto-shrink body font if cards would overflow available space
-    footer_reserve = 100
-    header_h = SAFE_T + 40 + multiline_height(hook, font_title) + 60
-    available_h = H - header_h - footer_reserve - SAFE_B
-    card_gap = 36
+    # Auto-shrink if cards would overflow
+    footer_reserve = 90
+    header_block_h = multiline_height("SingKANA", font_h) + 40 + multiline_height(hook, font_title, LINE_SPACING) + 48
+    available_h = H - SAFE_T - header_block_h - footer_reserve - SAFE_B
 
-    def estimate_cards_h(bf: str, af: str, fnt) -> int:
-        def one(body: str) -> int:
-            bh = multiline_height(body or "—", fnt, LINE_SPACING)
-            return max(card_min_h, card_inner_pad + title_gap + bh + card_bottom_pad)
-        return one(bf) + card_gap + one(af)
+    def calc_card_h(body: str, body_fnt, t_fnt) -> int:
+        bh = multiline_height(body or "—", body_fnt, LINE_SPACING)
+        th = multiline_height("X", t_fnt)
+        return max(card_min_h, card_inner_pad + th + 20 + bh + card_bottom_pad)
 
-    body_font_size = 26
-    while body_font_size > 16 and estimate_cards_h(before_text, after_text, font_body) > available_h:
-        body_font_size -= 2
-        font_body = _font(body_font_size)
-        before_text = px_wrap(before_text, font_body, card_content_w)
-        after_text = px_wrap(after_text, font_body, card_content_w)
+    bf_size, af_size = 24, 28
+    while (bf_size > 16 or af_size > 18):
+        total = (calc_card_h(before_text, before_font, before_title_font)
+                 + card_gap
+                 + calc_card_h(after_text, after_font, after_title_font))
+        if total <= available_h:
+            break
+        bf_size = max(16, bf_size - 2)
+        af_size = max(18, af_size - 2)
+        before_font = _font(bf_size)
+        after_font = _font(af_size)
+        before_text = px_wrap(before_text, before_font, card_content_w)
+        after_text = px_wrap(after_text, after_font, card_content_w)
 
-    def card(y0: int, title: str, body: str, accent: tuple[int, int, int]) -> int:
+    def card(y0: int, title: str, body: str, accent: tuple[int, int, int],
+             body_fnt, t_fnt, outline_color=(255, 255, 255), outline_w=2) -> int:
         body = body or "—"
-        body_h = multiline_height(body, font_body, LINE_SPACING)
-        card_h = max(card_min_h, card_inner_pad + title_gap + body_h + card_bottom_pad)
+        body_h = multiline_height(body, body_fnt, LINE_SPACING)
+        th = multiline_height(title, t_fnt)
+        card_h = max(card_min_h, card_inner_pad + th + 20 + body_h + card_bottom_pad)
         y1 = y0 + card_h
-        draw.rounded_rectangle([card_x0, y0, card_x1, y1], radius=28, fill=(2, 6, 23), outline=(255, 255, 255), width=2)
+        draw.rounded_rectangle([card_x0, y0, card_x1, y1], radius=28,
+                               fill=(2, 6, 23), outline=outline_color, width=outline_w)
         draw.rounded_rectangle([card_x0, y0, card_x1, y0 + 12], radius=10, fill=accent)
-        draw.text((card_x0 + card_inner_pad, y0 + card_inner_pad), title, font=font_b, fill=(226, 232, 240))
+        draw.text((card_x0 + card_inner_pad, y0 + card_inner_pad), title, font=t_fnt, fill=(226, 232, 240))
         draw.multiline_text(
-            (card_x0 + card_inner_pad, y0 + card_inner_pad + title_gap),
-            body, font=font_body, fill=(226, 232, 240), spacing=LINE_SPACING,
+            (card_x0 + card_inner_pad, y0 + card_inner_pad + th + 20),
+            body, font=body_fnt, fill=(226, 232, 240), spacing=LINE_SPACING,
         )
         return y1
 
-    # header (respect safe zone)
-    draw.text((pad, SAFE_T), "SingKANA", font=font_h, fill=(255, 255, 255))
-    hook_y = SAFE_T + 40 + multiline_height("SingKANA", font_h)
+    # Measure total content height for vertical centering
+    before_card_h = calc_card_h(before_text, before_font, before_title_font)
+    after_card_h = calc_card_h(after_text, after_font, after_title_font)
+    cards_total_h = before_card_h + card_gap + after_card_h
+    content_total_h = header_block_h + cards_total_h + footer_reserve
+
+    # Center the entire content block vertically within safe zone
+    safe_height = H - SAFE_T - SAFE_B
+    top_offset = SAFE_T + max(0, (safe_height - content_total_h) // 3)
+
+    # header
+    draw.text((pad, top_offset), "SingKANA", font=font_h, fill=(255, 255, 255))
+    hook_y = top_offset + multiline_height("SingKANA", font_h) + 40
     draw.multiline_text((pad, hook_y), hook, font=font_title, fill=(255, 255, 255), spacing=LINE_SPACING)
 
-    first_card_y = hook_y + multiline_height(hook, font_title, LINE_SPACING) + 60
+    first_card_y = hook_y + multiline_height(hook, font_title, LINE_SPACING) + 48
 
-    y_after_before = card(first_card_y, "Before", before_text, (148, 163, 184))
-    card(y_after_before + card_gap, "After (SingKANA)", after_text, (167, 139, 250))
+    # Before card: subtle outline
+    y_after_before = card(first_card_y, "Before", before_text, (100, 116, 139),
+                          before_font, before_title_font,
+                          outline_color=(100, 116, 139), outline_w=1)
 
-    # footer (inside bottom safe zone)
+    # After card: bold purple outline for emphasis
+    card(y_after_before + card_gap, "After (SingKANA)", after_text, (167, 139, 250),
+         after_font, after_title_font,
+         outline_color=(167, 139, 250), outline_w=3)
+
+    # footer
     footer_y = H - SAFE_B + 20
     footer = (share_url or "").strip()[:80]
     draw.text((pad, footer_y), footer, font=font_xs, fill=(203, 213, 225))
