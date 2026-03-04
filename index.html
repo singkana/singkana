@@ -2332,13 +2332,11 @@
     }
 
     function ugcGetBeforeAfter() {
-      // サーバに歌詞を送らないため、変換結果（Before/After）だけ送る
-      // currentConvertedLines は { en, standard, singkana, ... } を想定
       if (!window.currentConvertedLines || !window.currentConvertedLines.length) {
         return { before_text: "", after_text: "" };
       }
       const mode = __getDisplayMode();
-      const before_text = window.currentConvertedLines.map(x => (x.standard || x.kana || "").trim()).filter(Boolean).join("\n");
+      const before_text = window.currentConvertedLines.map(x => (x.en || x.orig || "").trim()).filter(Boolean).join("\n");
       const after_text = window.currentConvertedLines.map(x => (__modePrimaryKana(x, mode) || "").trim()).filter(Boolean).join("\n");
       return { before_text, after_text };
     }
