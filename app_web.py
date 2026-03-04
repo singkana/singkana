@@ -1461,6 +1461,10 @@ def _ugc_render_image_1080x1920(
         raise RuntimeError("pillow_unavailable")
 
     W, H = 1080, 1920
+    # TikTok safe zone: top/bottom 150px, left/right 100px
+    SAFE_T, SAFE_B, SAFE_LR = 150, 150, 100
+    LINE_SPACING = 8
+
     img = Image.new("RGB", (W, H), (11, 18, 32))
     draw = ImageDraw.Draw(img)
 
@@ -1470,85 +1474,111 @@ def _ugc_render_image_1080x1920(
     draw.ellipse([W - 520, 120, W + 260, 900], fill=(236, 72, 153))
 
     font_path = _find_font_path()
-    if font_path:
-        font_title = ImageFont.truetype(str(font_path), 56)
-        font_h = ImageFont.truetype(str(font_path), 42)
-        font_b = ImageFont.truetype(str(font_path), 34)
-        font_s = ImageFont.truetype(str(font_path), 26)
-        font_xs = ImageFont.truetype(str(font_path), 22)
-    else:
-        font_title = ImageFont.load_default()
-        font_h = ImageFont.load_default()
-        font_b = ImageFont.load_default()
-        font_s = ImageFont.load_default()
-        font_xs = ImageFont.load_default()
+    def _font(size: int):
+        if font_path:
+            return ImageFont.truetype(str(font_path), size)
+        return ImageFont.load_default()
 
-    # helper: word-aware wrap (respects word boundaries for Latin text)
-    def wrap(text: str, max_chars: int, max_lines: int = 8) -> str:
+    font_title = _font(56)
+    font_h = _font(42)
+    font_b = _font(34)
+    font_body = _font(26)
+    font_xs = _font(22)
+
+    def text_width(s: str, font) -> int:
+        if not s:
+            return 0
+        bbox = draw.textbbox((0, 0), s, font=font)
+        return bbox[2] - bbox[0]
+
+    def multiline_height(s: str, font, spacing: int = LINE_SPACING) -> int:
+        if not s:
+            return 0
+        bbox = draw.multiline_textbbox((0, 0), s, font=font, spacing=spacing)
+        return bbox[3] - bbox[1]
+
+    # Pixel-width-aware word wrap
+    def px_wrap(text: str, font, max_px: int, max_lines: int = 8) -> str:
         t = (text or "").strip()
         if not t:
             return ""
-        out = []
+        out: list[str] = []
         for raw in t.splitlines():
-            s = raw.strip()
-            if not s:
+            words = raw.split()
+            if not words:
                 continue
-            while len(s) > max_chars:
-                # find last space within max_chars for word-boundary break
-                brk = s.rfind(" ", 0, max_chars)
-                if brk <= 0:
-                    brk = max_chars
-                out.append(s[:brk].rstrip())
-                s = s[brk:].lstrip()
-            if s:
-                out.append(s)
+            cur = words[0]
+            for w in words[1:]:
+                test = cur + " " + w
+                if text_width(test, font) <= max_px:
+                    cur = test
+                else:
+                    out.append(cur)
+                    cur = w
+            if cur:
+                out.append(cur)
         return "\n".join(out[:max_lines])
 
-    hook = wrap(hook or "この歌詞、歌えない", 18)
-    before_text = wrap(before_text, 30)
-    after_text = wrap(after_text, 24)
-
-    pad = 72
+    pad = SAFE_LR
     card_x0, card_x1 = pad, W - pad
+    card_content_w = card_x1 - card_x0 - 56  # inner padding both sides
     card_inner_pad = 28
-    title_gap = 56
-    card_min_h = 200
-    card_bottom_pad = 32
+    title_gap = 52
+    card_min_h = 180
+    card_bottom_pad = 28
 
-    def measure_text_height(text: str, font) -> int:
-        if not text:
-            return 0
-        bbox = draw.textbbox((0, 0), text, font=font)
-        return bbox[3] - bbox[1]
+    hook = px_wrap(hook or "この歌詞、歌えない", font_title, W - pad * 2, max_lines=3)
+    before_text = px_wrap(before_text, font_body, card_content_w)
+    after_text = px_wrap(after_text, font_body, card_content_w)
+
+    # Auto-shrink body font if cards would overflow available space
+    footer_reserve = 100
+    header_h = SAFE_T + 40 + multiline_height(hook, font_title) + 60
+    available_h = H - header_h - footer_reserve - SAFE_B
+    card_gap = 36
+
+    def estimate_cards_h(bf: str, af: str, fnt) -> int:
+        def one(body: str) -> int:
+            bh = multiline_height(body or "—", fnt, LINE_SPACING)
+            return max(card_min_h, card_inner_pad + title_gap + bh + card_bottom_pad)
+        return one(bf) + card_gap + one(af)
+
+    body_font_size = 26
+    while body_font_size > 16 and estimate_cards_h(before_text, after_text, font_body) > available_h:
+        body_font_size -= 2
+        font_body = _font(body_font_size)
+        before_text = px_wrap(before_text, font_body, card_content_w)
+        after_text = px_wrap(after_text, font_body, card_content_w)
 
     def card(y0: int, title: str, body: str, accent: tuple[int, int, int]) -> int:
         body = body or "—"
-        title_h = measure_text_height(title, font_b)
-        body_h = measure_text_height(body, font_s)
-        inner_h = title_gap + title_h + body_h
-        card_h = max(card_min_h, inner_h + card_bottom_pad + card_inner_pad)
+        body_h = multiline_height(body, font_body, LINE_SPACING)
+        card_h = max(card_min_h, card_inner_pad + title_gap + body_h + card_bottom_pad)
         y1 = y0 + card_h
         draw.rounded_rectangle([card_x0, y0, card_x1, y1], radius=28, fill=(2, 6, 23), outline=(255, 255, 255), width=2)
         draw.rounded_rectangle([card_x0, y0, card_x1, y0 + 12], radius=10, fill=accent)
         draw.text((card_x0 + card_inner_pad, y0 + card_inner_pad), title, font=font_b, fill=(226, 232, 240))
-        draw.text((card_x0 + card_inner_pad, y0 + card_inner_pad + title_gap), body, font=font_s, fill=(226, 232, 240))
+        draw.multiline_text(
+            (card_x0 + card_inner_pad, y0 + card_inner_pad + title_gap),
+            body, font=font_body, fill=(226, 232, 240), spacing=LINE_SPACING,
+        )
         return y1
 
-    # header
-    draw.text((pad, 80), "SingKANA", font=font_h, fill=(255, 255, 255))
-    draw.text((pad, 150), hook, font=font_title, fill=(255, 255, 255))
+    # header (respect safe zone)
+    draw.text((pad, SAFE_T), "SingKANA", font=font_h, fill=(255, 255, 255))
+    hook_y = SAFE_T + 40 + multiline_height("SingKANA", font_h)
+    draw.multiline_text((pad, hook_y), hook, font=font_title, fill=(255, 255, 255), spacing=LINE_SPACING)
 
-    hook_h = measure_text_height(hook, font_title)
-    first_card_y = max(350, 150 + hook_h + 80)
+    first_card_y = hook_y + multiline_height(hook, font_title, LINE_SPACING) + 60
 
-    card_gap = 40
     y_after_before = card(first_card_y, "Before", before_text, (148, 163, 184))
     card(y_after_before + card_gap, "After (SingKANA)", after_text, (167, 139, 250))
 
-    # footer
+    # footer (inside bottom safe zone)
+    footer_y = H - SAFE_B + 20
     footer = (share_url or "").strip()[:80]
-    draw.text((pad, H - 90), footer, font=font_xs, fill=(203, 213, 225))
-    draw.text((W - pad - 240, H - 90), "singkana.com", font=font_xs, fill=(203, 213, 225))
+    draw.text((pad, footer_y), footer, font=font_xs, fill=(203, 213, 225))
+    draw.text((W - pad - 240, footer_y), "singkana.com", font=font_xs, fill=(203, 213, 225))
 
     from io import BytesIO
     buf = BytesIO()
