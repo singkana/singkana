@@ -1617,15 +1617,16 @@ def _ugc_render_image_1080x1920(
     img.save(buf, format="PNG", optimize=True)
     return buf.getvalue()
 
-def _ugc_make_scripts(before_label: str, after_label: str, share_url: str) -> Dict[str, str]:
+def _ugc_make_scripts(before_label: str, after_label: str, share_url: str, hook: str = "") -> Dict[str, str]:
     before_label = (before_label or "Before").strip()
     after_label = (after_label or "After").strip()
     share_url = (share_url or "").strip()
+    hook = (hook or "このローマ字、歌えない").strip()
     cta = f"👉 使ってみて：{share_url}" if share_url else "👉 singkana.com"
     return {
-        "6s": f"（2秒）「この歌詞、歌えない」\n（2秒）{before_label}\n（2秒）{after_label}\n{cta}",
-        "8s": f"（2秒）「英語の歌、発音が詰む」\n（2秒）{before_label}\n（2秒）{after_label}\n（2秒）{cta}",
-        "15s": f"（2秒）フック：「この歌詞、歌えない」\n（4秒）Before：{before_label}\n（5秒）After：{after_label}\n（4秒）CTA：{cta}",
+        "6s": f"（2秒）「{hook}」\n（2秒）{before_label}\n（2秒）{after_label}\n{cta}",
+        "8s": f"（2秒）「{hook}」\n（2秒）{before_label}\n（2秒）{after_label}\n（2秒）{cta}",
+        "15s": f"（2秒）フック：「{hook}」\n（4秒）Before：{before_label}\n（5秒）After：{after_label}\n（4秒）CTA：{cta}",
     }
 
 def _content_hash_for_ugc(user_id: str, before_text: str, after_text: str, hook: str) -> str:
@@ -2050,7 +2051,7 @@ def api_ugc_generate():
     ).fetchone()
     if row and row["file_path"]:
         image_url = _ugc_static_url(Path(row["file_path"]).name)
-        scripts = _ugc_make_scripts("Before", "After (SingKANA)", share_url)
+        scripts = _ugc_make_scripts("Before", "After (SingKANA)", share_url, hook=hook)
         return jsonify({"ok": True, "image_url": image_url, "scripts": scripts, "ref_code": ref_code, "share_url": share_url})
 
     # render image
@@ -2086,7 +2087,7 @@ def api_ugc_generate():
             "INSERT INTO ugc_assets (user_id, asset_type, content_hash, file_path, text, created_at) VALUES (?, ?, ?, ?, ?, ?)",
             (uid, "image_1080x1920", h, str(fpath), None, now),
         )
-        scripts = _ugc_make_scripts("Before", "After (SingKANA)", share_url)
+        scripts = _ugc_make_scripts("Before", "After (SingKANA)", share_url, hook=hook)
         conn.execute(
             "INSERT INTO ugc_assets (user_id, asset_type, content_hash, file_path, text, created_at) VALUES (?, ?, ?, ?, ?, ?)",
             (uid, "script_6s", h, None, scripts["6s"], now),
@@ -2104,10 +2105,10 @@ def api_ugc_generate():
         db_recorded = False
         app.logger.exception("UGC DB insert failed for user=%s hash=%s", uid, h[:10])
 
-    _track_event("ugc_asset_generate", ref_code=_ref_cookie_value(), meta={"asset_type": "image_1080x1920"})
+    _track_event("ugc_asset_generate", ref_code=_ref_cookie_value(), meta={"asset_type": "image_1080x1920", "hook": hook[:40]})
 
     image_url = _ugc_static_url(fname)
-    scripts = _ugc_make_scripts("Before", "After (SingKANA)", share_url)
+    scripts = _ugc_make_scripts("Before", "After (SingKANA)", share_url, hook=hook)
     return jsonify({"ok": True, "image_url": image_url, "scripts": scripts, "ref_code": ref_code, "share_url": share_url, "db_recorded": db_recorded})
 
 @app.post("/api/ugc/submit")

@@ -2342,8 +2342,12 @@
     }
 
     function ugcPickHook() {
-      // v1: 固定フック（後でテンプレA/B/Cへ拡張）
-      return "このローマ字、歌えない";
+      const hooks = [
+        "このローマ字、歌えない",
+        "このローマ字、歌える？",
+        "このローマ字、歌えたらすごい",
+      ];
+      return hooks[Math.floor(Math.random() * hooks.length)];
     }
 
     async function ugcGenerate() {
