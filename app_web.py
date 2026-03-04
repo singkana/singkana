@@ -1587,7 +1587,7 @@ def _ugc_render_image_1080x1920(
 
     # Center the entire content block vertically within safe zone
     safe_height = H - SAFE_T - SAFE_B
-    top_offset = SAFE_T + max(0, (safe_height - content_total_h) // 3)
+    top_offset = SAFE_T + max(0, (safe_height - content_total_h) // 2)
 
     # header
     draw.text((pad, top_offset), "SingKANA", font=font_h, fill=(255, 255, 255))
