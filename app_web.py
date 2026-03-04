@@ -1483,46 +1483,70 @@ def _ugc_render_image_1080x1920(
         font_s = ImageFont.load_default()
         font_xs = ImageFont.load_default()
 
-    # helper: wrap
-    def wrap(text: str, max_chars: int) -> str:
+    # helper: word-aware wrap (respects word boundaries for Latin text)
+    def wrap(text: str, max_chars: int, max_lines: int = 8) -> str:
         t = (text or "").strip()
         if not t:
             return ""
-        lines = []
+        out = []
         for raw in t.splitlines():
             s = raw.strip()
+            if not s:
+                continue
             while len(s) > max_chars:
-                lines.append(s[:max_chars])
-                s = s[max_chars:]
+                # find last space within max_chars for word-boundary break
+                brk = s.rfind(" ", 0, max_chars)
+                if brk <= 0:
+                    brk = max_chars
+                out.append(s[:brk].rstrip())
+                s = s[brk:].lstrip()
             if s:
-                lines.append(s)
-        return "\n".join(lines[:8])
+                out.append(s)
+        return "\n".join(out[:max_lines])
 
     hook = wrap(hook or "この歌詞、歌えない", 18)
-    before_text = wrap(before_text, 24)
+    before_text = wrap(before_text, 30)
     after_text = wrap(after_text, 24)
 
-    # header
     pad = 72
+    card_x0, card_x1 = pad, W - pad
+    card_inner_pad = 28
+    title_gap = 56
+    card_min_h = 200
+    card_bottom_pad = 32
+
+    def measure_text_height(text: str, font) -> int:
+        if not text:
+            return 0
+        bbox = draw.textbbox((0, 0), text, font=font)
+        return bbox[3] - bbox[1]
+
+    def card(y0: int, title: str, body: str, accent: tuple[int, int, int]) -> int:
+        body = body or "—"
+        title_h = measure_text_height(title, font_b)
+        body_h = measure_text_height(body, font_s)
+        inner_h = title_gap + title_h + body_h
+        card_h = max(card_min_h, inner_h + card_bottom_pad + card_inner_pad)
+        y1 = y0 + card_h
+        draw.rounded_rectangle([card_x0, y0, card_x1, y1], radius=28, fill=(2, 6, 23), outline=(255, 255, 255), width=2)
+        draw.rounded_rectangle([card_x0, y0, card_x1, y0 + 12], radius=10, fill=accent)
+        draw.text((card_x0 + card_inner_pad, y0 + card_inner_pad), title, font=font_b, fill=(226, 232, 240))
+        draw.text((card_x0 + card_inner_pad, y0 + card_inner_pad + title_gap), body, font=font_s, fill=(226, 232, 240))
+        return y1
+
+    # header
     draw.text((pad, 80), "SingKANA", font=font_h, fill=(255, 255, 255))
     draw.text((pad, 150), hook, font=font_title, fill=(255, 255, 255))
 
-    # cards
-    def card(y0: int, title: str, body: str, accent: tuple[int, int, int]):
-        x0, x1 = pad, W - pad
-        y1 = y0 + 520
-        draw.rounded_rectangle([x0, y0, x1, y1], radius=28, fill=(2, 6, 23), outline=(255, 255, 255), width=2)
-        draw.rounded_rectangle([x0, y0, x1, y0 + 12], radius=10, fill=accent)
-        draw.text((x0 + 28, y0 + 28), title, font=font_b, fill=(226, 232, 240))
-        draw.text((x0 + 28, y0 + 84), body or "—", font=font_s, fill=(226, 232, 240))
+    hook_h = measure_text_height(hook, font_title)
+    first_card_y = max(350, 150 + hook_h + 80)
 
-    card(520, "Before", before_text, (148, 163, 184))
-    card(1120, "After (SingKANA)", after_text, (167, 139, 250))
+    card_gap = 40
+    y_after_before = card(first_card_y, "Before", before_text, (148, 163, 184))
+    card(y_after_before + card_gap, "After (SingKANA)", after_text, (167, 139, 250))
 
     # footer
-    footer = (share_url or "").strip()
-    if footer:
-        footer = footer[:80]
+    footer = (share_url or "").strip()[:80]
     draw.text((pad, H - 90), footer, font=font_xs, fill=(203, 213, 225))
     draw.text((W - pad - 240, H - 90), "singkana.com", font=font_xs, fill=(203, 213, 225))
 
