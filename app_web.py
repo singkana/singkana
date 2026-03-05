@@ -40,6 +40,7 @@ from flask import (
     abort,
     Response,
     g,
+    has_request_context,
 )
 from werkzeug.exceptions import HTTPException
 
@@ -2798,51 +2799,151 @@ def api_convert():
 # --- Romaji (Phase 1 MVP: 歌うためのローマ字) ----------------------------
 from pykakasi import kakasi  # noqa: E402
 
-# pykakasi v3 API (setMode/getConverter deprecated)
+# pykakasi の convert() API を利用（v2系 pin でも動作）
 _kks = kakasi()
 
-def _optimize_romaji_for_singing(romaji: str) -> str:
+_PARTICLE_ROMAJI_MAP = {
+    "は": "wa",
+    "ハ": "wa",
+    "へ": "e",
+    "ヘ": "e",
+    "を": "o",
+    "ヲ": "o",
+}
+
+_N_APOSTROPHE_RE = re.compile(r"n(?=[aiueoy])", re.IGNORECASE)
+_WORDLIKE_CHAR_RE = re.compile(r"[A-Za-z0-9]")
+_JP_WORDLIKE_RE = re.compile(r"[A-Za-z0-9ぁ-んァ-ン一-龯]")
+_KIMI_NEXT_PARTICLE_HINTS = {
+    "は", "ハ",
+    "が", "ガ",
+    "を", "ヲ",
+    "に", "ニ",
+    "の", "ノ",
+    "も", "モ",
+    "へ", "ヘ",
+    "と", "ト",
+    "や", "ヤ",
+}
+
+def _is_wordlike_char(ch: str) -> bool:
+    return bool(ch) and bool(_WORDLIKE_CHAR_RE.fullmatch(ch))
+
+def _is_space_token(token_orig: str) -> bool:
+    return not str(token_orig or "").strip()
+
+def _is_punctuation_token(token_orig: str) -> bool:
+    t = str(token_orig or "")
+    if not t:
+        return False
+    return _JP_WORDLIKE_RE.search(t) is None
+
+def _count_n_apostrophe_targets(hira: str) -> int:
+    if not hira:
+        return 0
+    targets = 0
+    for i in range(len(hira) - 1):
+        if hira[i] == "ん" and hira[i + 1] in "あいうえおやゆよ":
+            targets += 1
+    return targets
+
+def _apply_n_apostrophe(romaji: str, hira: str) -> str:
     """
-    歌唱向けにローマ字を最適化する。
-    - 音節の区切りを明確に（適切な位置にスペース）
-    - 長音（ー）を明確に（oo, uu など）
-    - 促音（っ）を適切に処理
-    - 歌いやすさを優先
+    ん + 母音/ya行 の曖昧連結を n' で明示する。
+    誤爆を避けるため、hira 側に対象パターンがある token だけ処理する。
     """
     if not romaji:
         return romaji
-    
-    # 1. 長音記号（ー）の処理：前の母音に応じて適切に展開
-    # 例：おー → oo, あー → aa, えー → ee, いー → ii, うー → uu
-    # ただし、既に連続母音になっている場合はそのまま
-    
-    # 2. 促音（っ）の処理：pykakasiが既に適切に処理しているが、念のため確認
-    # 例：いっしょ → issho（既に処理済み）
-    
-    # 3. 音節区切りの最適化：子音+母音のペアを基本単位として、適切にスペースを入れる
-    # ただし、過度にスペースを入れすぎると読みにくくなるので、バランスを取る
-    # 基本的にはpykakasiの出力を尊重しつつ、明らかに区切った方が歌いやすい箇所のみ調整
-    
-    # 4. 大文字小文字の統一：歌詞として見やすく（文頭のみ大文字、他は小文字）
-    lines = romaji.splitlines()
-    optimized_lines = []
-    
-    for line in lines:
-        if not line.strip():
-            optimized_lines.append("")
+    target_count = _count_n_apostrophe_targets(hira)
+    if target_count <= 0:
+        return romaji
+
+    applied = 0
+
+    def _repl(m: re.Match[str]) -> str:
+        nonlocal applied
+        if applied >= target_count:
+            return m.group(0)
+        applied += 1
+        ch = m.group(0)
+        return "N'" if ch == "N" else "n'"
+
+    return _N_APOSTROPHE_RE.sub(_repl, romaji)
+
+def _token_to_singable_romaji(token: Dict[str, str]) -> str:
+    orig = str(token.get("orig") or "")
+    hepburn = str(token.get("hepburn") or "")
+    hira = str(token.get("hira") or "")
+
+    # 助詞は単独 token のときだけ発音寄りへ寄せる（誤爆抑制）
+    if len(orig) == 1 and orig in _PARTICLE_ROMAJI_MAP:
+        base = _PARTICLE_ROMAJI_MAP[orig]
+    else:
+        base = hepburn or orig
+
+    return _apply_n_apostrophe(base, hira)
+
+def _needs_word_boundary_space(prev_piece: str, next_piece: str) -> bool:
+    if not prev_piece or not next_piece:
+        return False
+    prev_last = prev_piece[-1]
+    next_first = next_piece[0]
+    if prev_last.isspace() or next_first.isspace():
+        return False
+    return _is_wordlike_char(prev_last) and _is_wordlike_char(next_first)
+
+def _should_override_kun_to_kimi(tokens: list[Dict[str, str]], idx: int) -> bool:
+    """
+    事故率の高い「君=kun」を、限定条件下で「kimi」に補正する。
+    条件:
+    - orig が「君」かつ hepburn が「kun」
+    - 文頭、または直前が句読点
+    - 直後（空白スキップ後）が助詞
+    """
+    if idx < 0 or idx >= len(tokens):
+        return False
+
+    token = tokens[idx]
+    orig = str(token.get("orig") or "")
+    hepburn = str(token.get("hepburn") or "")
+    if orig != "君" or hepburn != "kun":
+        return False
+
+    prev_idx = idx - 1
+    while prev_idx >= 0:
+        prev_orig = str(tokens[prev_idx].get("orig") or "")
+        if _is_space_token(prev_orig):
+            prev_idx -= 1
             continue
-        
-        # 基本的にはpykakasiの出力をそのまま使用
-        # 将来的にリズム・伸ばし・息継ぎを最適化する余地を残す
-        optimized = line.strip()
-        
-        # 簡易的な最適化：連続する子音の前にスペースを入れる（歌いやすさ向上）
-        # 例：shinjite → shin jite（ただし、これは過度に分割しすぎる可能性があるので慎重に）
-        # 現時点では、pykakasiの出力を尊重
-        
-        optimized_lines.append(optimized)
-    
-    return "\n".join(optimized_lines)
+        if not _is_punctuation_token(prev_orig):
+            return False
+        break
+
+    next_idx = idx + 1
+    while next_idx < len(tokens):
+        next_orig = str(tokens[next_idx].get("orig") or "")
+        if _is_space_token(next_orig):
+            next_idx += 1
+            continue
+        return next_orig in _KIMI_NEXT_PARTICLE_HINTS
+
+    return False
+
+def _optimize_romaji_for_singing(romaji: str) -> str:
+    """
+    最小限の整形のみ実施（可読性維持）。
+    - 連続空白の圧縮
+    - 句読点直前の不要空白を除去
+    - 句読点直後の語境界を1スペースに正規化
+    """
+    if not romaji:
+        return romaji
+
+    t = re.sub(r"[ \t]+", " ", romaji)
+    t = re.sub(r"\s+([,.;:!?])", r"\1", t)
+    t = re.sub(r"([,.;:!?])(?=[A-Za-z0-9])", r"\1 ", t)
+    t = re.sub(r"\s{2,}", " ", t)
+    return t.strip()
 
 def to_romaji(text: str, for_singing: bool = True) -> str:
     """
@@ -2857,20 +2958,38 @@ def to_romaji(text: str, for_singing: bool = True) -> str:
     """
     lines = text.splitlines()
     out = []
+    kimi_override_hits_total = 0
     for line in lines:
         if not line.strip():
             out.append("")
             continue
-        # v3 API: convert() returns List[Dict[str, str]]
-        # Each dict contains 'orig', 'hira', 'kana', 'hepburn', etc.
+        # convert() は List[Dict[str, str]] を返す（orig/hira/kana/hepburn 等）
         result = _kks.convert(line)
-        # Join hepburn values, preserving spaces from original text
-        romaji = ''.join(r.get('hepburn', r.get('orig', '')) for r in result)
-        
+
+        if for_singing:
+            parts: list[str] = []
+            prev_piece = ""
+            for idx, token in enumerate(result):
+                piece = _token_to_singable_romaji(token)
+                if _should_override_kun_to_kimi(result, idx):
+                    piece = "kimi"
+                    kimi_override_hits_total += 1
+                if not piece:
+                    continue
+                if parts and _needs_word_boundary_space(prev_piece, piece):
+                    parts.append(" ")
+                parts.append(piece)
+                prev_piece = piece
+            romaji = "".join(parts)
+        else:
+            romaji = ''.join(str(r.get("hepburn") or r.get("orig") or "") for r in result)
+
         if for_singing:
             romaji = _optimize_romaji_for_singing(romaji)
-        
+
         out.append(romaji.strip())
+    if for_singing and kimi_override_hits_total and has_request_context():
+        g.romaji_kimi_override_hits = int(getattr(g, "romaji_kimi_override_hits", 0) or 0) + int(kimi_override_hits_total)
     return "\n".join(out)
 
 @app.route("/api/romaji", methods=["GET", "HEAD"])
@@ -2915,6 +3034,14 @@ def api_romaji():
     
     try:
         romaji_result = to_romaji(text, for_singing=True)
+        hits = int(getattr(g, "romaji_kimi_override_hits", 0) or 0)
+        if hits:
+            ua = request.headers.get("User-Agent", "") or ""
+            ua_hash8 = hashlib.sha256(ua.encode("utf-8", "ignore")).hexdigest()[:8] if ua else "-"
+            app.logger.info(
+                "event=romaji_override_kun_to_kimi hits=%d text_len=%d is_pro=%s ua_hash8=%s",
+                hits, text_length, bool(is_pro), ua_hash8
+            )
         
         return jsonify({
             "ok": True,

@@ -147,6 +147,13 @@
             >
               Copy
             </button>
+            <button
+              id="romaji_share"
+              type="button"
+              class="inline-flex items-center justify-center gap-2 rounded-full border border-singkana-400/40 bg-singkana-500/10 px-5 py-2 text-sm font-semibold text-singkana-100 hover:bg-singkana-500/20 transition"
+            >
+              Share Card
+            </button>
             <a
               href="/#pricing"
               class="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 px-5 py-2 text-sm font-semibold text-slate-100 border border-white/10 hover:bg-white/15 transition"
@@ -154,6 +161,15 @@
               Tester perk: Pro 14 days (accepted feedback)
             </a>
           </div>
+
+          <label for="share_include_input" class="inline-flex items-center gap-2 text-[11px] text-slate-400">
+            <input
+              id="share_include_input"
+              type="checkbox"
+              class="h-3.5 w-3.5 rounded border-white/20 bg-slate-900 text-singkana-400 focus:ring-singkana-400/70"
+            />
+            Include original JP line in card (optional)
+          </label>
 
           <div class="rounded-2xl border border-white/10 bg-slate-950/30 p-3 text-[11px] text-slate-300 leading-relaxed">
             <p class="font-semibold text-slate-100 mb-1">Notes</p>
@@ -197,6 +213,8 @@
       out: document.getElementById("romaji_out"),
       go: document.getElementById("romaji_go"),
       copy: document.getElementById("romaji_copy"),
+      share: document.getElementById("romaji_share"),
+      shareInclude: document.getElementById("share_include_input"),
       clear: document.getElementById("romaji_clear"),
       status: document.getElementById("romaji_status"),
       count: document.getElementById("char-count"),
@@ -204,6 +222,7 @@
     };
 
     const FREE_LIMIT_DEFAULT = 500;
+    const SHARE_TEXT_MAX_CHARS = 110;
     els.freeLimit.textContent = String(FREE_LIMIT_DEFAULT);
 
     function setStatus(msg, tone) {
@@ -291,6 +310,231 @@
       }
     }
 
+    function splitNonEmptyLines(text) {
+      return (text || "")
+        .split(/\r?\n/g)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    }
+
+    function truncateForCard(text, maxChars = SHARE_TEXT_MAX_CHARS) {
+      const normalized = String(text || "").replace(/\s+/g, " ").trim();
+      if (!normalized) return "";
+      if (normalized.length <= maxChars) return normalized;
+      return normalized.slice(0, maxChars - 1).trimEnd() + "…";
+    }
+
+    function wrapByWidth(ctx, text, maxWidth) {
+      const lines = [];
+      let current = "";
+      for (const ch of String(text || "")) {
+        const next = current + ch;
+        if (current && ctx.measureText(next).width > maxWidth) {
+          lines.push(current.trimEnd());
+          current = ch;
+        } else {
+          current = next;
+        }
+      }
+      if (current) {
+        lines.push(current.trimEnd());
+      }
+      return lines.length ? lines : [""];
+    }
+
+    function buildShareCardCanvas(includeInput = false) {
+      const width = 1200;
+      const height = 630;
+      const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        throw new Error("canvas_not_supported");
+      }
+      ctx.scale(dpr, dpr);
+
+      const grad = ctx.createLinearGradient(0, 0, width, height);
+      grad.addColorStop(0, "#0b1220");
+      grad.addColorStop(0.55, "#1f1740");
+      grad.addColorStop(1, "#10243f");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = "#8a5dff";
+      ctx.beginPath();
+      ctx.arc(1050, -20, 260, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#22d3ee";
+      ctx.beginPath();
+      ctx.arc(1120, 630, 200, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      ctx.fillStyle = "#ede7ff";
+      ctx.font = "700 52px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText("Singable Romaji", 64, 95);
+
+      ctx.fillStyle = "#cbd5e1";
+      ctx.font = "400 26px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText("Romaji for singing Japanese lyrics", 64, 132);
+
+      const boxX = 56;
+      const boxY = 156;
+      const boxW = width - 112;
+      const boxH = 374;
+      ctx.fillStyle = "rgba(2, 6, 23, 0.68)";
+      ctx.strokeStyle = "rgba(138, 93, 255, 0.45)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(boxX, boxY, boxW, boxH, 20);
+      ctx.fill();
+      ctx.stroke();
+
+      const roLines = splitNonEmptyLines(els.out.value);
+      const rows = [];
+      if (includeInput) {
+        const jpLine = truncateForCard(splitNonEmptyLines(els.in.value)[0] || "", 90);
+        const roLine = truncateForCard(roLines[0] || "", 110);
+        if (jpLine) rows.push(`JP: ${jpLine}`);
+        if (roLine) rows.push(`RO: ${roLine}`);
+      } else {
+        for (const line of roLines.slice(0, 5)) {
+          const trimmed = truncateForCard(line);
+          if (trimmed) rows.push(trimmed);
+        }
+      }
+      if (!rows.length) rows.push("No romaji output");
+
+      ctx.font = "600 28px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillStyle = "#f8fafc";
+      let y = boxY + 56;
+      let drawn = 0;
+      const maxLines = 9;
+      for (const row of rows) {
+        const wrapped = wrapByWidth(ctx, row, boxW - 72);
+        for (const line of wrapped) {
+          if (drawn >= maxLines) break;
+          ctx.fillText(line, boxX + 36, y);
+          y += 36;
+          drawn += 1;
+        }
+        if (drawn >= maxLines) break;
+      }
+      if (drawn >= maxLines && rows.length) {
+        ctx.fillText("...", boxX + 36, y);
+      }
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "500 18px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText(includeInput ? "Includes user-provided source text." : "Romaji output only.", 64, 546);
+
+      ctx.fillStyle = "#a5b4fc";
+      ctx.font = "700 26px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText("singkana.com/romaji", 64, 580);
+
+      ctx.fillStyle = "#94a3b8";
+      ctx.textAlign = "right";
+      ctx.font = "500 20px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.fillText("Generated with SingKANA", width - 64, 580);
+      ctx.textAlign = "left";
+
+      return canvas;
+    }
+
+    function canvasToPngBlob(canvas) {
+      return new Promise((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("blob_failed"));
+        }, "image/png");
+      });
+    }
+
+    function downloadBlob(blob, fileName) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1200);
+    }
+
+    async function shareCard() {
+      const romaji = (els.out.value || "").trim();
+      if (!romaji) {
+        setStatus("Convert lyrics first to create a card.", "warn");
+        return;
+      }
+
+      setStatus("Creating share card…", "");
+      els.share.disabled = true;
+      els.share.classList.add("opacity-60", "cursor-not-allowed");
+
+      try {
+        const includeInput = Boolean(els.shareInclude && els.shareInclude.checked);
+        const canvas = buildShareCardCanvas(includeInput);
+        const blob = await canvasToPngBlob(canvas);
+        const dateTag = new Date().toISOString().slice(0, 10);
+        const fileName = `singkana-romaji-${dateTag}.png`;
+        const shareData = {
+          title: "Singable Romaji by SingKANA",
+          text: "I converted Japanese lyrics into singable romaji with SingKANA.",
+          url: "https://singkana.com/romaji/",
+        };
+        const canUseShareApi = typeof navigator.share === "function";
+        const supportsFileShare = canUseShareApi
+          && typeof navigator.canShare === "function"
+          && typeof File !== "undefined"
+          && navigator.canShare({ files: [new File([blob], fileName, { type: "image/png" })] });
+
+        if (supportsFileShare) {
+          const file = new File([blob], fileName, { type: "image/png" });
+          try {
+            await navigator.share({ ...shareData, files: [file] });
+            setStatus("Shared.", "ok");
+            return;
+          } catch (err) {
+            if (err && err.name === "AbortError") {
+              setStatus("Share cancelled.", "warn");
+              return;
+            }
+          }
+        }
+
+        if (canUseShareApi) {
+          try {
+            await navigator.share(shareData);
+            setStatus("Link shared.", "ok");
+            return;
+          } catch (err) {
+            if (err && err.name === "AbortError") {
+              setStatus("Share cancelled.", "warn");
+              return;
+            }
+          }
+        }
+
+        if (!window.confirm("Direct sharing is unavailable. Download PNG card instead?")) {
+          setStatus("Share cancelled.", "warn");
+          return;
+        }
+        downloadBlob(blob, fileName);
+        setStatus("Card downloaded.", "ok");
+      } catch (err) {
+        setStatus("Failed to create share card.", "err");
+      } finally {
+        els.share.disabled = false;
+        els.share.classList.remove("opacity-60", "cursor-not-allowed");
+      }
+    }
+
     function clearAll() {
       els.in.value = "";
       els.out.value = "";
@@ -302,6 +546,7 @@
     els.in.addEventListener("input", updateCount);
     els.go.addEventListener("click", convert);
     els.copy.addEventListener("click", copyOut);
+    els.share.addEventListener("click", shareCard);
     els.clear.addEventListener("click", clearAll);
 
     updateCount();

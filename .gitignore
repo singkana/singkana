@@ -30,3 +30,8 @@ app_web.py.pre_restore_*
 # no-traces audit generated reports
 /docs/no-traces-report.md
 /artifacts/no-traces-report.json
+
+# local artifacts
+singkana_snapshot_*.tar.gz
+*.tar.gz
+singkana-smoke-sheet.sh
