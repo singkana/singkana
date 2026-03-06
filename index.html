@@ -1252,7 +1252,7 @@
             type="button"
             onclick="startCheckout('pro_month')"
             class="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-singkana-500/90 px-4 py-2 text-xs font-semibold text-white border border-singkana-300/30 hover:bg-singkana-500 transition">
-            今すぐProで歌える
+            <span data-checkout-label>今すぐProで歌える</span>
           </button>
           
           <p class="text-[10px] text-slate-400 mt-2 text-center">
@@ -1444,67 +1444,70 @@
               ></textarea>
             </div>
 
-            <div class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 space-y-2">
-              <div class="text-[11px] font-semibold text-slate-100">用途を選ぶ（おすすめ設定）</div>
-              <p class="mini-hint">用途に合わせた練習用入力セットを適用します。</p>
-              <div class="flex flex-col md:flex-row gap-2">
-                <button type="button"
-                  class="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-slate-900/80 px-4 py-1.5 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
-                  onclick="applyUseCasePreset('utawaku')">
-                  🎤 歌枠向け
-                </button>
-                <button type="button"
-                  class="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-slate-900/80 px-4 py-1.5 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
-                  onclick="applyUseCasePreset('cover')">
-                  🎧 カバー制作向け
-                </button>
-              </div>
-              <p id="preset-applied-note" class="mini-hint">適用中：未選択</p>
-            </div>
-
-            <div class="space-y-2">
-              <div class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 space-y-2">
-                <div class="text-[11px] font-semibold text-slate-100">下書き（操作）</div>
-                <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
-                  <button type="button" class="mini-btn w-full md:w-auto" onclick="saveStudioState()">💾 下書き保存（この端末）</button>
-                  <button type="button" class="mini-btn w-full md:w-auto" onclick="restoreStudioState()">↩ 下書きを戻す</button>
-                  <button type="button" class="mini-btn w-full md:w-auto" onclick="clearStudioState()">🧹 全消去</button>
+            <details class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2">
+              <summary class="cursor-pointer text-[11px] font-semibold text-slate-100">入力補助・下書き</summary>
+              <p class="mini-hint mt-2">用途設定、下書き、練習テンプレを必要なときだけ開けます。</p>
+              <div class="mt-3 space-y-3">
+                <div class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 space-y-2">
+                  <div class="text-[11px] font-semibold text-slate-100">用途を選ぶ（おすすめ設定）</div>
+                  <p class="mini-hint">用途に合わせた練習用入力セットを適用します。</p>
+                  <div class="flex flex-col md:flex-row gap-2">
+                    <button type="button"
+                      class="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-slate-900/80 px-4 py-1.5 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
+                      onclick="applyUseCasePreset('utawaku')">
+                      🎤 歌枠向け
+                    </button>
+                    <button type="button"
+                      class="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-slate-900/80 px-4 py-1.5 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
+                      onclick="applyUseCasePreset('cover')">
+                      🎧 カバー制作向け
+                    </button>
+                  </div>
+                  <p id="preset-applied-note" class="mini-hint">適用中：未選択</p>
                 </div>
-                <p class="mini-hint">入力内容をこの端末のブラウザに保存・復元します。</p>
-              </div>
 
-              <div class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 space-y-2">
-                <div class="text-[11px] font-semibold text-slate-100">練習（入力上書き）</div>
-                <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
-                  <details class="advanced-examples w-full md:w-auto">
-                    <summary class="advanced-examples__summary mini-btn w-full md:w-auto cursor-pointer select-none">🧪 上級例文（英語のつまずき）</summary>
-                    <div class="mt-2 flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
-                      <label class="mini-hint hidden md:inline">例文：</label>
-                      <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('fast')" title="弱形・リダクション（gonna/wanna系）">⚡ 弱形</button>
-                      <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('consonant')" title="子音クラスタ（子音が連続するところ）">🔤 子音クラスタ</button>
-                      <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('vowel')" title="母音を伸ばす（ロングトーン）">🎵 母音伸ばし</button>
-                    </div>
-                  </details>
+                <div class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 space-y-2">
+                  <div class="text-[11px] font-semibold text-slate-100">下書き（操作）</div>
+                  <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
+                    <button type="button" class="mini-btn w-full md:w-auto" onclick="saveStudioState()">💾 下書き保存（この端末）</button>
+                    <button type="button" class="mini-btn w-full md:w-auto" onclick="restoreStudioState()">↩ 下書きを戻す</button>
+                    <button type="button" class="mini-btn w-full md:w-auto" onclick="clearStudioState()">🧹 全消去</button>
+                  </div>
+                  <p class="mini-hint">入力内容をこの端末のブラウザに保存・復元します。</p>
                 </div>
-                <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
-                  <label class="mini-hint hidden md:inline">練習テンプレ：</label>
-                  <button type="button" class="mini-btn w-full md:w-auto" onclick="applyTemplate('chorus')" title="まずはこれ。サビ練習用の汎用テンプレを挿入します。">📌 サビ練習（汎用）</button>
-                  <select id="template-select" class="mini-select w-full md:w-auto" onchange="applyTemplateFromSelect(true)">
-                    <option value="">選択…</option>
-                    <option value="warmup">ウォームアップ（短文）</option>
-                    <option value="chorus">サビ練習（汎用）</option>
-                    <option value="speech">語尾・子音の練習</option>
-                  </select>
-                </div>
-                <p class="mini-hint">※ 例文・テンプレは入力欄（曲名/歌詞）を上書きします。</p>
-              </div>
 
-              <div class="flex flex-col md:flex-row md:items-center gap-2">
-                <!-- 右寄せは親が制御（ml-auto爆弾を避ける） -->
-                <span class="hidden md:block flex-1"></span>
-                <span id="studio-status" class="text-[11px] text-slate-400 md:text-right"></span>
+                <div class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 space-y-2">
+                  <div class="text-[11px] font-semibold text-slate-100">練習（入力上書き）</div>
+                  <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
+                    <details class="advanced-examples w-full md:w-auto">
+                      <summary class="advanced-examples__summary mini-btn w-full md:w-auto cursor-pointer select-none">🧪 上級例文（英語のつまずき）</summary>
+                      <div class="mt-2 flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
+                        <label class="mini-hint hidden md:inline">例文：</label>
+                        <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('fast')" title="弱形・リダクション（gonna/wanna系）">⚡ 弱形</button>
+                        <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('consonant')" title="子音クラスタ（子音が連続するところ）">🔤 子音クラスタ</button>
+                        <button type="button" class="mini-btn w-full md:w-auto" onclick="insertExample('vowel')" title="母音を伸ばす（ロングトーン）">🎵 母音伸ばし</button>
+                      </div>
+                    </details>
+                  </div>
+                  <div class="flex flex-col md:flex-row md:items-center gap-2 md:gap-2">
+                    <label class="mini-hint hidden md:inline">練習テンプレ：</label>
+                    <button type="button" class="mini-btn w-full md:w-auto" onclick="applyTemplate('chorus')" title="まずはこれ。サビ練習用の汎用テンプレを挿入します。">📌 サビ練習（汎用）</button>
+                    <select id="template-select" class="mini-select w-full md:w-auto" onchange="applyTemplateFromSelect(true)">
+                      <option value="">選択…</option>
+                      <option value="warmup">ウォームアップ（短文）</option>
+                      <option value="chorus">サビ練習（汎用）</option>
+                      <option value="speech">語尾・子音の練習</option>
+                    </select>
+                  </div>
+                  <p class="mini-hint">※ 例文・テンプレは入力欄（曲名/歌詞）を上書きします。</p>
+                </div>
+
+                <div class="flex flex-col md:flex-row md:items-center gap-2">
+                  <span class="hidden md:block flex-1"></span>
+                  <span id="studio-status" class="text-[11px] text-slate-400 md:text-right"></span>
+                </div>
               </div>
-            </div>
+            </details>
 
             <button
               class="primary-btn inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-5 py-2 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition"
@@ -1515,14 +1518,10 @@
               <span>この歌詞で変換する</span>
             </button>
 
-            <p class="text-[11px] text-slate-400 mt-3 leading-relaxed">
-              基本変換は端末内のみで処理されます。Pro AI発音補正利用時のみサーバーへ送信されます。<br />
-              商用楽曲の歌詞は著作権で保護されています。本サービスは<strong>個人の練習用途</strong>を想定しています。
-            </p>
           </div>
 
           <!-- 右：結果 -->
-          <div class="rounded-2xl border border-white/10 bg-slate-900/80 p-4 space-y-3">
+          <div id="studio-result-card" class="rounded-2xl border border-white/10 bg-slate-900/80 p-4 space-y-3">
             <div class="flex gap-2 mb-1">
               <button class="tab-btn active" data-tab="result">変換結果</button>
               <button class="tab-btn" data-tab="feedback">フィードバック</button>
@@ -1530,28 +1529,10 @@
 
             <div id="tab-result" class="tab-panel active space-y-2">
               <p class="text-[11px] text-slate-400">
-                各行をタップすると、その行だけハイライトされ、音声読み上げでかなを再生します（対応ブラウザのみ）。
+                変換後はここに結果が出ます。各行をタップするとハイライトと読み上げが使えます。
               </p>
 
               <div class="flex flex-col md:flex-row md:flex-wrap md:items-center gap-2">
-                <div class="flex flex-col md:flex-row md:items-center gap-2">
-                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950/50 px-3 py-1 text-[10px] font-medium text-slate-300 border border-slate-700/70 hover:bg-slate-900/70 transition w-full md:w-auto"
-                    onclick="copyKanaOnly()">📋 かなだけコピー</button>
-
-                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950/50 px-3 py-1 text-[10px] font-medium text-slate-300 border border-slate-700/70 hover:bg-slate-900/70 transition w-full md:w-auto"
-                    onclick="copyEnKana()">📋 EN+かなコピー</button>
-
-                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950/50 px-3 py-1 text-[10px] font-medium text-slate-300 border border-slate-700/70 hover:bg-slate-900/70 transition w-full md:w-auto"
-                    onclick="downloadTxt()">⬇ TXT</button>
-
-                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950/50 px-3 py-1 text-[10px] font-medium text-slate-300 border border-slate-700/70 hover:bg-slate-900/70 transition w-full md:w-auto"
-                    onclick="downloadSrt()">⬇ SRT(簡易)</button>
-
-                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950/50 px-3 py-1 text-[10px] font-medium text-slate-300 border border-slate-700/70 hover:bg-slate-900/70 transition w-full md:w-auto"
-                    onclick="downloadPdfSheet()">⬇ PDF</button>
-                  <span class="text-[10px] text-slate-500 md:ml-1">補助出力（コピー/TXT/SRT/PDF）</span>
-                </div>
-
                 <div class="w-full md:w-auto rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2 text-[10px] text-slate-300 leading-relaxed">
                   <div class="font-semibold text-slate-100">変換モードは自動最適化</div>
                   <div class="mt-1">Free: Basic（直訳寄り） / Pro: Natural（歌いやすさ優先）</div>
@@ -1586,144 +1567,166 @@
 
               <div id="next-action-bar" class="rounded-2xl border border-singkana-400/35 bg-gradient-to-r from-singkana-500/10 to-fuchsia-500/10 p-3">
                 <div class="text-[12px] font-semibold text-singkana-100">次のアクション</div>
-                <div class="text-[11px] text-slate-300 mt-0.5">歌枠の準備を一気に終わらせる</div>
-                <div class="mt-2 flex flex-col md:flex-row gap-2">
+                <div class="text-[11px] text-slate-300 mt-0.5">まずはここだけ使えば十分です。</div>
+                <div class="mt-2 grid gap-2 md:flex">
+                  <button type="button"
+                    class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-4 py-2 text-[12px] font-semibold text-white shadow-glow hover:brightness-110 transition w-full md:w-auto"
+                    onclick="copyKanaOnly()">
+                    📋 Copy
+                  </button>
                   <button type="button"
                     class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-4 py-2 text-[12px] font-semibold text-white shadow-glow hover:brightness-110 transition w-full md:w-auto"
                     onclick="primaryCtaPdf()">
                     📄 PDF練習シートを作る
                   </button>
                   <button type="button"
-                    class="inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-slate-900/80 px-4 py-2 text-[12px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
-                    onclick="primaryCtaSheet()">
-                    🗂 Sheetを開く / 共有する
-                  </button>
-                </div>
-              </div>
-
-              <!-- Coach V0 panel (Pro) -->
-              <div id="coach-panel" class="mt-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3 space-y-3">
-                <div class="flex items-center justify-between gap-2">
-                  <div class="text-xs font-semibold text-slate-100">Coach V0（録音チェック）</div>
-                  <div class="text-[10px] text-slate-400">Pro機能 / 30-60秒推奨</div>
-                </div>
-                <p class="text-[10px] text-slate-400 leading-relaxed">
-                  ユーザー自身の録音のみ解析します。原曲音源のアップロード解析は対象外です。<br />
-                  返すのは傾向と候補（提案）であり、正解の断定ではありません。
-                </p>
-
-                <div id="coach-locked" class="rounded-xl border border-amber-300/30 bg-amber-500/10 p-2 text-[11px] text-amber-100">
-                  Coach V0はProで利用できます。
-                  <button type="button"
-                    class="ml-2 inline-flex items-center justify-center gap-1 rounded-full bg-amber-300/15 border border-amber-200/40 px-3 py-1 text-[10px] font-semibold hover:bg-amber-300/25 transition"
+                    id="result-pro-btn"
+                    class="inline-flex items-center justify-center gap-2 rounded-xl border border-singkana-400/40 bg-slate-900/80 px-4 py-2 text-[12px] font-semibold text-singkana-100 hover:border-singkana-300/70 hover:bg-singkana-500/15 transition w-full md:w-auto"
                     onclick="startCheckout('pro_month')">
-                    Proで使う
+                    ⚡ <span data-checkout-label>Pro</span>
                   </button>
-                </div>
-
-                <div id="coach-controls" class="hidden space-y-2">
-                  <div class="flex flex-col md:flex-row md:flex-wrap gap-2">
-                    <button id="coach-record-btn" type="button"
-                      class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-[11px] font-semibold text-white shadow-glow hover:brightness-110 transition w-full md:w-auto"
-                      onclick="toggleCoachRecording()">
-                      ● 録音開始
-                    </button>
-                    <button id="coach-analyze-btn" type="button"
-                      class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-900/80 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-indigo-300/70 hover:text-indigo-100 transition w-full md:w-auto disabled:opacity-40 disabled:cursor-not-allowed"
-                      onclick="analyzeCoachRecording()" disabled>
-                      解析する
-                    </button>
-                    <button id="coach-clear-btn" type="button"
-                      class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-900/80 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-slate-300/70 transition w-full md:w-auto disabled:opacity-40 disabled:cursor-not-allowed"
-                      onclick="clearCoachRecording()" disabled>
-                      クリア
-                    </button>
-                  </div>
-                  <audio id="coach-audio-preview" controls class="hidden w-full"></audio>
-                  <div id="coach-status" class="text-[11px] text-slate-400"></div>
-                  <div id="coach-result" class="hidden rounded-xl border border-white/10 bg-slate-950/50 p-2 text-[11px] text-slate-200"></div>
                 </div>
               </div>
 
-              <!-- UGC Panel (always visible; freeでも出す) -->
-              <div id="ugc-panel" class="mt-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3 space-y-3">
-                <div class="flex items-center justify-between gap-2">
-                  <div class="text-xs font-semibold text-slate-100">UGC素材（投稿用）</div>
-                  <div class="text-[10px] text-slate-400">保存/コピーして使える素材を自動生成</div>
+              <details class="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2">
+                <summary class="cursor-pointer text-[11px] font-semibold text-slate-100">その他の出力</summary>
+                <div class="mt-3 flex flex-col md:flex-row md:flex-wrap md:items-center gap-2">
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950/50 px-3 py-1 text-[10px] font-medium text-slate-300 border border-slate-700/70 hover:bg-slate-900/70 transition w-full md:w-auto"
+                    onclick="copyEnKana()">📋 EN+かなコピー</button>
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950/50 px-3 py-1 text-[10px] font-medium text-slate-300 border border-slate-700/70 hover:bg-slate-900/70 transition w-full md:w-auto"
+                    onclick="downloadTxt()">⬇ TXT</button>
+                  <button type="button" class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950/50 px-3 py-1 text-[10px] font-medium text-slate-300 border border-slate-700/70 hover:bg-slate-900/70 transition w-full md:w-auto"
+                    onclick="downloadSrt()">⬇ SRT(簡易)</button>
                 </div>
+              </details>
 
-                <div class="flex flex-col md:flex-row md:flex-wrap gap-2">
-                  <button type="button"
-                    class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-4 py-2 text-[11px] font-semibold text-white shadow-glow hover:brightness-110 transition w-full md:w-auto"
-                    onclick="ugcGenerate()">
-                    🖼 UGC用画像を生成（1080×1920）
-                  </button>
-
-                  <button type="button"
-                    class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-950/60 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
-                    onclick="ugcCopyScript('6s')">
-                    📋 台本コピー（6秒）
-                  </button>
-                  <button type="button"
-                    class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-950/60 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
-                    onclick="ugcCopyScript('8s')">
-                    📋 台本コピー（8秒）
-                  </button>
-                  <button type="button"
-                    class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-950/60 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
-                    onclick="ugcCopyScript('15s')">
-                    📋 台本コピー（15秒）
-                  </button>
-
-                  <button type="button"
-                    class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-950/60 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
-                    onclick="ugcCopyLink()">
-                    🔗 拡散リンクをコピー
-                  </button>
-                </div>
-
-                <div id="ugc-status" class="text-[11px] text-slate-400"></div>
-
-                <div class="grid gap-2 md:grid-cols-2">
-                  <div class="rounded-xl border border-white/10 bg-slate-950/40 p-2">
-                    <div class="text-[10px] text-slate-400 mb-1">生成画像プレビュー</div>
-                    <div class="flex items-center gap-2">
-                      <button id="ugc-save-btn" type="button"
-                        class="hidden inline-flex items-center justify-center gap-1 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-3 py-1 text-[10px] font-semibold text-white shadow-glow hover:brightness-110 transition"
-                        onclick="saveUGCImage()">💾 保存 / 共有</button>
-                      <a id="ugc-image-link" href="#" target="_blank" rel="noopener" class="hidden underline text-[11px] text-singkana-200">画像を開く</a>
+              <details class="mt-3 rounded-2xl border border-white/10 bg-slate-950/40 p-3">
+                <summary class="cursor-pointer text-xs font-semibold text-slate-100">追加機能</summary>
+                <div class="mt-3 space-y-3">
+                  <!-- Coach V0 panel (Pro) -->
+                  <div id="coach-panel" class="rounded-2xl border border-white/10 bg-slate-950/40 p-3 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="text-xs font-semibold text-slate-100">Coach V0（録音チェック）</div>
+                      <div class="text-[10px] text-slate-400">Pro機能 / 30-60秒推奨</div>
                     </div>
-                    <img id="ugc-image-preview" class="hidden mt-2 w-full rounded-lg border border-white/10" alt="UGC image preview" />
-                  </div>
-                  <div class="rounded-xl border border-white/10 bg-slate-950/40 p-2 space-y-2">
-                    <div class="text-[10px] text-slate-400">台本（自動生成）</div>
-                    <textarea id="ugc-script-box" rows="6"
-                      class="w-full rounded-lg border border-white/10 bg-slate-950/30 p-2 text-[11px] text-slate-100 placeholder:text-slate-600 font-mono"
-                      readonly placeholder="ここに台本が表示されます（生成後）"></textarea>
-                  </div>
-                </div>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">
+                      ユーザー自身の録音のみ解析します。原曲音源のアップロード解析は対象外です。<br />
+                      返すのは傾向と候補（提案）であり、正解の断定ではありません。
+                    </p>
 
-                <div class="rounded-xl border border-white/10 bg-slate-950/40 p-2">
-                  <div class="text-[10px] text-slate-400 mb-2">投稿URLを提出（任意）</div>
-                  <div class="flex flex-col md:flex-row gap-2">
-                    <select id="ugc-platform"
-                      class="rounded-full bg-slate-950/60 border border-slate-600 px-3 py-2 text-[11px] text-slate-100 w-full md:w-auto">
-                      <option value="tiktok">TikTok</option>
-                      <option value="ig">Instagram</option>
-                      <option value="yt">YouTube</option>
-                      <option value="other">Other</option>
-                    </select>
-                    <input id="ugc-post-url" type="url" placeholder="https://..."
-                      class="flex-1 rounded-full border border-white/15 bg-slate-950/60 px-4 py-2 text-[11px] text-slate-100 placeholder:text-slate-500" />
-                    <button type="button"
-                      class="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 px-4 py-2 text-[11px] font-semibold text-slate-100 border border-white/10 hover:bg-white/15 transition w-full md:w-auto"
-                      onclick="ugcSubmitPost()">
-                      📮 提出
-                    </button>
+                    <div id="coach-locked" class="rounded-xl border border-amber-300/30 bg-amber-500/10 p-2 text-[11px] text-amber-100">
+                      Coach V0はProで利用できます。
+                      <button type="button"
+                        class="ml-2 inline-flex items-center justify-center gap-1 rounded-full bg-amber-300/15 border border-amber-200/40 px-3 py-1 text-[10px] font-semibold hover:bg-amber-300/25 transition"
+                        onclick="startCheckout('pro_month')">
+                        Proで使う
+                      </button>
+                    </div>
+
+                    <div id="coach-controls" class="hidden space-y-2">
+                      <div class="flex flex-col md:flex-row md:flex-wrap gap-2">
+                        <button id="coach-record-btn" type="button"
+                          class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-2 text-[11px] font-semibold text-white shadow-glow hover:brightness-110 transition w-full md:w-auto"
+                          onclick="toggleCoachRecording()">
+                          ● 録音開始
+                        </button>
+                        <button id="coach-analyze-btn" type="button"
+                          class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-900/80 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-indigo-300/70 hover:text-indigo-100 transition w-full md:w-auto disabled:opacity-40 disabled:cursor-not-allowed"
+                          onclick="analyzeCoachRecording()" disabled>
+                          解析する
+                        </button>
+                        <button id="coach-clear-btn" type="button"
+                          class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-900/80 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-slate-300/70 transition w-full md:w-auto disabled:opacity-40 disabled:cursor-not-allowed"
+                          onclick="clearCoachRecording()" disabled>
+                          クリア
+                        </button>
+                      </div>
+                      <audio id="coach-audio-preview" controls class="hidden w-full"></audio>
+                      <div id="coach-status" class="text-[11px] text-slate-400"></div>
+                      <div id="coach-result" class="hidden rounded-xl border border-white/10 bg-slate-950/50 p-2 text-[11px] text-slate-200"></div>
+                    </div>
                   </div>
-                  <div id="ugc-submit-status" class="text-[11px] text-slate-400 mt-1"></div>
+
+                  <div id="ugc-panel" class="rounded-2xl border border-white/10 bg-slate-950/40 p-3 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="text-xs font-semibold text-slate-100">UGC素材（投稿用）</div>
+                      <div class="text-[10px] text-slate-400">保存/コピーして使える素材を自動生成</div>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row md:flex-wrap gap-2">
+                      <button type="button"
+                        class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-4 py-2 text-[11px] font-semibold text-white shadow-glow hover:brightness-110 transition w-full md:w-auto"
+                        onclick="ugcGenerate()">
+                        🖼 UGC用画像を生成（1080×1920）
+                      </button>
+
+                      <button type="button"
+                        class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-950/60 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
+                        onclick="ugcCopyScript('6s')">
+                        📋 台本コピー（6秒）
+                      </button>
+                      <button type="button"
+                        class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-950/60 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
+                        onclick="ugcCopyScript('8s')">
+                        📋 台本コピー（8秒）
+                      </button>
+                      <button type="button"
+                        class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-950/60 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
+                        onclick="ugcCopyScript('15s')">
+                        📋 台本コピー（15秒）
+                      </button>
+
+                      <button type="button"
+                        class="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-slate-950/60 px-4 py-2 text-[11px] font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition w-full md:w-auto"
+                        onclick="ugcCopyLink()">
+                        🔗 拡散リンクをコピー
+                      </button>
+                    </div>
+
+                    <div id="ugc-status" class="text-[11px] text-slate-400"></div>
+
+                    <div class="grid gap-2 md:grid-cols-2">
+                      <div class="rounded-xl border border-white/10 bg-slate-950/40 p-2">
+                        <div class="text-[10px] text-slate-400 mb-1">生成画像プレビュー</div>
+                        <div class="flex items-center gap-2">
+                          <button id="ugc-save-btn" type="button"
+                            class="hidden inline-flex items-center justify-center gap-1 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-3 py-1 text-[10px] font-semibold text-white shadow-glow hover:brightness-110 transition"
+                            onclick="saveUGCImage()">💾 保存 / 共有</button>
+                          <a id="ugc-image-link" href="#" target="_blank" rel="noopener" class="hidden underline text-[11px] text-singkana-200">画像を開く</a>
+                        </div>
+                        <img id="ugc-image-preview" class="hidden mt-2 w-full rounded-lg border border-white/10" alt="UGC image preview" />
+                      </div>
+                      <div class="rounded-xl border border-white/10 bg-slate-950/40 p-2 space-y-2">
+                        <div class="text-[10px] text-slate-400">台本（自動生成）</div>
+                        <textarea id="ugc-script-box" rows="6"
+                          class="w-full rounded-lg border border-white/10 bg-slate-950/30 p-2 text-[11px] text-slate-100 placeholder:text-slate-600 font-mono"
+                          readonly placeholder="ここに台本が表示されます（生成後）"></textarea>
+                      </div>
+                    </div>
+
+                    <div class="rounded-xl border border-white/10 bg-slate-950/40 p-2">
+                      <div class="text-[10px] text-slate-400 mb-2">投稿URLを提出（任意）</div>
+                      <div class="flex flex-col md:flex-row gap-2">
+                        <select id="ugc-platform"
+                          class="rounded-full bg-slate-950/60 border border-slate-600 px-3 py-2 text-[11px] text-slate-100 w-full md:w-auto">
+                          <option value="tiktok">TikTok</option>
+                          <option value="ig">Instagram</option>
+                          <option value="yt">YouTube</option>
+                          <option value="other">Other</option>
+                        </select>
+                        <input id="ugc-post-url" type="url" placeholder="https://..."
+                          class="flex-1 rounded-full border border-white/15 bg-slate-950/60 px-4 py-2 text-[11px] text-slate-100 placeholder:text-slate-500" />
+                        <button type="button"
+                          class="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 px-4 py-2 text-[11px] font-semibold text-slate-100 border border-white/10 hover:bg-white/15 transition w-full md:w-auto"
+                          onclick="ugcSubmitPost()">
+                          📮 提出
+                        </button>
+                      </div>
+                      <div id="ugc-submit-status" class="text-[11px] text-slate-400 mt-1"></div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </details>
             </div>
 
             <div id="tab-feedback" class="tab-panel hidden">
@@ -1755,6 +1758,14 @@
 
           </div>
         </div>
+
+        <details class="mt-4 rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2 text-[11px] text-slate-400">
+          <summary class="cursor-pointer font-semibold text-slate-200">補足</summary>
+          <div class="mt-2 leading-relaxed">
+            基本変換は端末内のみで処理されます。Pro AI発音補正利用時のみサーバーへ送信されます。<br />
+            商用楽曲の歌詞は著作権で保護されています。本サービスは<strong>個人の練習用途</strong>を想定しています。
+          </div>
+        </details>
       </div>
     </section>
 
@@ -1803,10 +1814,10 @@
             <span class="text-base">📄</span>
             <span class="text-[10px] font-semibold">PDF</span>
           </button>
-          <button type="button" onclick="startCheckout('pro_month')"
+          <button type="button" id="mobile-sticky-pro-btn" onclick="startCheckout('pro_month')"
             class="flex flex-col items-center justify-center gap-1 rounded-xl bg-slate-800/80 border border-singkana-400/40 py-2.5 text-singkana-100 hover:bg-singkana-500/15 transition active:scale-95">
             <span class="text-base">⚡</span>
-            <span class="text-[10px] font-semibold">Pro</span>
+            <span class="text-[10px] font-semibold" data-checkout-label>Pro</span>
           </button>
         </div>
       </div>
@@ -1911,7 +1922,7 @@
       const proBadge = document.getElementById("pro-active-badge");
       const portalBtn = document.getElementById("billing-portal-btn");
       const portalStatus = document.getElementById("billing-portal-status");
-      const proStartBtn = document.getElementById("pro-start-btn");
+      const resultProBtn = document.getElementById("result-pro-btn");
       const preorderSection = document.getElementById("pro-preorder-section");
       const transferIssueBox = document.getElementById("transfer-issue-box");
 
@@ -1919,7 +1930,7 @@
         if (buyBtn) buyBtn.classList.add("hidden");
         if (proBadge) proBadge.classList.remove("hidden");
         if (portalBtn) portalBtn.classList.remove("hidden");
-        if (proStartBtn) proStartBtn.classList.add("hidden");
+        if (resultProBtn) resultProBtn.classList.add("hidden");
         // Pro時に「準備中/先行登録」系CTAが残ると矛盾するので必ず隠す
         if (preorderSection) preorderSection.classList.add("hidden");
         if (transferIssueBox) transferIssueBox.classList.remove("hidden");
@@ -1928,7 +1939,7 @@
         if (buyBtn) buyBtn.classList.remove("hidden");
         if (proBadge) proBadge.classList.add("hidden");
         if (portalBtn) portalBtn.classList.add("hidden");
-        if (proStartBtn) proStartBtn.classList.remove("hidden");
+        if (resultProBtn) resultProBtn.classList.remove("hidden");
         if (preorderSection) preorderSection.classList.remove("hidden");
         if (transferIssueBox) transferIssueBox.classList.add("hidden");
         if (portalStatus) portalStatus.textContent = "";
@@ -2081,6 +2092,52 @@
       }
     }
 
+    function getCheckoutButtons() {
+      return [
+        document.getElementById("pro-checkout-btn"),
+        document.getElementById("mobile-sticky-pro-btn"),
+        document.getElementById("result-pro-btn"),
+      ].filter(Boolean);
+    }
+
+    function setCheckoutButtonsLoading(isLoading) {
+      const buttons = getCheckoutButtons();
+      buttons.forEach((btn) => {
+        if (!btn.dataset.defaultLabel) {
+          const labelEl = btn.querySelector("[data-checkout-label]");
+          const defaultLabel = labelEl ? labelEl.textContent : btn.textContent;
+          btn.dataset.defaultLabel = (defaultLabel || "").trim();
+        }
+
+        const labelEl = btn.querySelector("[data-checkout-label]");
+        const defaultLabel = btn.dataset.defaultLabel || "Pro";
+        const loadingLabel = btn.id === "mobile-sticky-pro-btn"
+          ? "開いています…"
+          : "決済画面を開いています…";
+
+        btn.disabled = isLoading;
+        btn.classList.toggle("opacity-60", isLoading);
+        btn.classList.toggle("cursor-not-allowed", isLoading);
+        btn.classList.toggle("pointer-events-none", isLoading);
+
+        if (labelEl) {
+          labelEl.textContent = isLoading ? loadingLabel : defaultLabel;
+        } else {
+          btn.textContent = isLoading ? loadingLabel : defaultLabel;
+        }
+      });
+    }
+
+    function scrollStudioResultIntoView() {
+      const resultCard = document.getElementById("studio-result-card");
+      if (!resultCard) return;
+      try {
+        if (window.matchMedia("(max-width: 767px)").matches) {
+          resultCard.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      } catch (_) {}
+    }
+
     async function startCheckout(plan = "pro_month") {
       if (isPro()) {
         alert("すでに Pro です。");
@@ -2091,16 +2148,10 @@
         setProCheckoutStatus("処理中です…");
         return;
       }
-
-      const btn = document.getElementById("pro-checkout-btn");
-      const prevText = btn ? btn.textContent : "";
       __checkoutInFlight = true;
       let didNavigate = false;
       try {
-        if (btn) {
-          btn.disabled = true;
-          btn.textContent = "決済画面を開いています…";
-        }
+        setCheckoutButtonsLoading(true);
         setProCheckoutStatus("決済画面を準備中…");
 
         // 計測: checkout_click
@@ -2124,17 +2175,14 @@
           return;
         }
         didNavigate = true;
-        window.location.href = j.url;
+        window.location.assign(j.url);
       } catch (e) {
         setProCheckoutStatus("");
         alert("決済を開始できませんでした。通信環境を確認して再度お試しください。");
       } finally {
         if (!didNavigate) {
           __checkoutInFlight = false;
-          if (btn) {
-            btn.disabled = false;
-            btn.textContent = prevText || "今すぐProで歌える";
-          }
+          setCheckoutButtonsLoading(false);
         }
       }
     }
@@ -4022,6 +4070,7 @@
           resultPanel.innerHTML = "<p style='font-size:12px;color:#cbd5f5;'>変換中です...</p>";
           setResultPlaceholderState();
         }
+        scrollStudioResultIntoView();
 
         const resp = await fetch("/api/convert", {
           method: "POST",
@@ -4058,6 +4107,7 @@
         setFallbackBanner(false);
         if (errorBanner) { errorBanner.textContent = ""; errorBanner.style.display = "none"; }
         _renderConvertResult(linesWithComparison, !!data.gpt_applied);
+        scrollStudioResultIntoView();
         renderModeBanner();
       } catch (error) {
         // サーバー失敗時のみローカル変換へフォールバック
@@ -4074,6 +4124,7 @@
               };
               markFallbackUsed();
               _renderConvertResult(localLines, false);
+              scrollStudioResultIntoView();
               if (errorBanner) {
                 errorBanner.textContent = "サーバー最適化に失敗したためローカル結果を表示しています。";
                 errorBanner.style.display = "block";
@@ -4184,25 +4235,6 @@
         } else {
           frag.appendChild(gptBadge);
         }
-      }
-
-      // Pro誘導ボタン（比較UIの直下に配置）
-      if (!isPro()) {
-        const proCta = document.createElement("div");
-        proCta.className = "mt-4 p-4 rounded-xl bg-gradient-to-r from-singkana-500/20 to-fuchsia-500/20 border border-singkana-400/40";
-        proCta.innerHTML = `
-          <div class="flex flex-col md:flex-row items-center justify-between gap-3">
-            <div>
-              <p class="text-sm font-semibold text-singkana-100 mb-1">もっと歌いやすくする</p>
-              <p class="text-xs text-slate-300">Proなら発音を自然に最適化。比較UI・PDF練習シートも使い放題</p>
-            </div>
-            <button type="button" id="pro-start-btn" onclick="startCheckout('pro_month')" class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition whitespace-nowrap">
-              <span>今すぐProで歌える</span>
-              <span class="text-xs">▶</span>
-            </button>
-          </div>
-        `;
-        frag.appendChild(proCta);
       }
 
       resultPanel.innerHTML = "";
