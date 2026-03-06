@@ -35,3 +35,5 @@ app_web.py.pre_restore_*
 singkana_snapshot_*.tar.gz
 *.tar.gz
 singkana-smoke-sheet.sh
+ops/part1.txt
+singkana-en-lp/
