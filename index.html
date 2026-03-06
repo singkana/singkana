@@ -144,6 +144,11 @@
         margin-bottom: 0.5rem;
       }
     }
+
+    /* Mobile Sticky Bar: バー表示時のみ下余白を確保 */
+    body.has-sticky-bar {
+      padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    }
     
     .error-banner {
       display: none;
@@ -721,7 +726,7 @@
           English Version
         </a>
         <a href="#studio" class="rounded-full border border-singkana-400/70 bg-slate-950/80 px-4 py-1.5 text-xs font-semibold text-singkana-100 shadow-soft hover:bg-singkana-500/10 hover:shadow-glow transition">
-          かな変換を試す
+          歌詞を貼る ▶
         </a>
       </nav>
     </div>
@@ -748,7 +753,7 @@
           <div class="flex flex-col gap-2">
             <a href="#studio"
               class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-3 text-base font-semibold text-white shadow-glow hover:brightness-110 transition">
-              無料でかな変換を試す
+              歌詞を貼るだけで歌える
               <span class="text-sm">▶</span>
             </a>
           </div>
@@ -822,7 +827,7 @@
             <span class="font-semibold text-singkana-100">“歌えるかな表記”</span>
           <a href="#studio"
             class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition">
-            無料でかな変換を試す
+            歌詞を貼るだけで歌える
             <span class="text-xs">▶</span>
           </a>
         </div>
@@ -1141,7 +1146,7 @@
 
         <a href="#studio"
           class="rounded-full border border-white/15 bg-slate-950/70 px-4 py-2 text-xs font-semibold text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition">
-          まず無料で試す（Basic）
+          無料で歌ってみる ▶
         </a>
       </div>
 
@@ -1162,7 +1167,7 @@
             </ul>
             <a href="#studio"
               class="mt-auto inline-flex w-full items-center justify-center rounded-xl bg-slate-100/10 px-4 py-2 text-xs font-semibold text-slate-50 border border-white/10 hover:bg-slate-100/15 transition">
-              まず無料で試す
+              無料で歌ってみる ▶
             </a>
           </div>
 
@@ -1763,7 +1768,7 @@
       <div class="flex flex-col md:flex-row md:flex-wrap md:items-center gap-2 md:gap-3">
         <a href="#studio"
           class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition">
-          無料でかな変換を試す
+          好きな歌詞で歌ってみる ▶
         </a>
         <a href="#hero"
           class="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-slate-950/80 px-5 py-2 text-xs font-medium text-slate-100 hover:border-singkana-300/70 hover:text-singkana-100 transition">
@@ -1772,6 +1777,41 @@
       </div>
     </section>
   </main>
+
+  <!-- Mobile Sticky Action Bar -->
+  <div id="mobile-sticky-bar" class="fixed bottom-0 inset-x-0 z-50 md:hidden translate-y-full transition-transform duration-300"
+       style="padding-bottom: env(safe-area-inset-bottom, 0px);">
+    <div class="bg-slate-950/95 backdrop-blur-md border-t border-white/10 px-4 py-3">
+      <!-- 未変換状態 -->
+      <div id="sticky-pre" class="flex items-center justify-center">
+        <a href="#studio"
+          class="inline-flex items-center justify-center gap-2 w-full rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-3 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition"
+          onclick="document.getElementById('lyrics-input')?.focus()">
+          ▶ 歌えるカナを作る
+        </a>
+      </div>
+      <!-- 変換後状態 -->
+      <div id="sticky-post" class="hidden">
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" onclick="copyKanaOnly()"
+            class="flex flex-col items-center justify-center gap-1 rounded-xl bg-slate-800/80 border border-white/10 py-2.5 text-slate-100 hover:bg-slate-700/80 transition active:scale-95">
+            <span class="text-base">📋</span>
+            <span class="text-[10px] font-semibold">コピー</span>
+          </button>
+          <button type="button" onclick="primaryCtaPdf()"
+            class="flex flex-col items-center justify-center gap-1 rounded-xl bg-gradient-to-r from-singkana-500 to-fuchsia-500 py-2.5 text-white hover:brightness-110 transition active:scale-95">
+            <span class="text-base">📄</span>
+            <span class="text-[10px] font-semibold">PDF</span>
+          </button>
+          <button type="button" onclick="startCheckout('pro_month')"
+            class="flex flex-col items-center justify-center gap-1 rounded-xl bg-slate-800/80 border border-singkana-400/40 py-2.5 text-singkana-100 hover:bg-singkana-500/15 transition active:scale-95">
+            <span class="text-base">⚡</span>
+            <span class="text-[10px] font-semibold">Pro</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <footer class="border-t border-white/10 bg-slate-950/80">
     <div class="mx-auto max-w-7xl 2xl:max-w-[1440px] px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-2">
@@ -4153,8 +4193,8 @@
         proCta.innerHTML = `
           <div class="flex flex-col md:flex-row items-center justify-between gap-3">
             <div>
-              <p class="text-sm font-semibold text-singkana-100 mb-1">さらに高品質に変換する</p>
-              <p class="text-xs text-slate-300">Proで歌いやすさ最適化・無制限変換・台本出力を強化</p>
+              <p class="text-sm font-semibold text-singkana-100 mb-1">もっと歌いやすくする</p>
+              <p class="text-xs text-slate-300">Proなら発音を自然に最適化。比較UI・PDF練習シートも使い放題</p>
             </div>
             <button type="button" id="pro-start-btn" onclick="startCheckout('pro_month')" class="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-singkana-500 to-fuchsia-500 px-6 py-2.5 text-sm font-semibold text-white shadow-glow hover:brightness-110 transition whitespace-nowrap">
               <span>今すぐProで歌える</span>
@@ -4191,6 +4231,8 @@
           }),
         }).catch(() => {});
       } catch (e) {}
+
+      if (typeof updateStickyBar === "function") updateStickyBar();
     }
 
 
@@ -5083,6 +5125,83 @@
       }, { passive: true });
 
       wrap.style.webkitTapHighlightColor = "transparent";
+    })();
+  </script>
+
+  <!-- Mobile Sticky Action Bar Logic -->
+  <script>
+    (function () {
+      const bar = document.getElementById("mobile-sticky-bar");
+      const pre = document.getElementById("sticky-pre");
+      const post = document.getElementById("sticky-post");
+      const studio = document.getElementById("studio");
+      if (!bar || !pre || !post) return;
+
+      let shown = false;
+      const mql = window.matchMedia("(min-width: 768px)");
+
+      function showBar() {
+        if (shown || mql.matches) return;
+        shown = true;
+        bar.classList.remove("translate-y-full");
+        bar.classList.add("translate-y-0");
+        document.body.classList.add("has-sticky-bar");
+      }
+
+      function hideBar() {
+        if (!shown) return;
+        shown = false;
+        bar.classList.remove("translate-y-0");
+        bar.classList.add("translate-y-full");
+        document.body.classList.remove("has-sticky-bar");
+      }
+
+      function hasResult() {
+        return Array.isArray(window.currentConvertedLines)
+          && window.currentConvertedLines.length > 0;
+      }
+
+      window.updateStickyBar = function () {
+        if (hasResult()) {
+          pre.classList.add("hidden");
+          post.classList.remove("hidden");
+
+          const proBtn = post.querySelector("[onclick*='startCheckout']");
+          if (proBtn) {
+            proBtn.style.display =
+              (typeof isPro === "function" && isPro()) ? "none" : "";
+          }
+        } else {
+          pre.classList.remove("hidden");
+          post.classList.add("hidden");
+        }
+        showBar();
+      };
+
+      function shouldShow() {
+        if (mql.matches) return false;
+        if (!studio) return (window.scrollY || window.pageYOffset) > 300;
+        return studio.getBoundingClientRect().top < -100;
+      }
+
+      mql.addEventListener("change", function (e) {
+        if (e.matches) hideBar();
+        else if (shouldShow()) showBar();
+      });
+
+      let ticking = false;
+      window.addEventListener("scroll", function () {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(function () {
+          ticking = false;
+          if (shouldShow()) showBar(); else hideBar();
+        });
+      }, { passive: true });
+
+      document.addEventListener("DOMContentLoaded", function () {
+        if (shouldShow()) window.updateStickyBar();
+      });
     })();
   </script>
 </body>
