@@ -96,11 +96,12 @@ a:hover{ color: rgba(203, 213, 225, 0.95); }
 }
 .brand.small{ min-width: 0; }
 .brand-mark{
-  height: 10px;
-  width: 10px;
-  border-radius: 999px;
-  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95), rgba(139,92,246,0.75));
-  box-shadow: 0 0 0 3px rgba(139,92,246,0.18);
+  display: block;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 14px rgba(139, 92, 246, 0.22));
 }
 .brand-name{
   font-weight: 700;
