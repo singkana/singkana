@@ -59,7 +59,7 @@
 
   <!-- 言語（将来 en ページができたら追加） -->
   <link rel="alternate" href="https://singkana.com/" hreflang="ja" />
-  <link rel="alternate" href="https://en.singkana.com/" hreflang="en" />
+  <link rel="alternate" href="https://singkana.com/en/" hreflang="en" />
   <link rel="alternate" href="https://singkana.com/" hreflang="x-default" />
 
   <!-- =========================================================
@@ -723,7 +723,7 @@
         <a href="#how-it-works" class="hover:text-singkana-200 transition">使い方</a>
         <a href="#pricing" class="hover:text-singkana-200 transition">料金</a>
         <a href="#faq" class="hover:text-singkana-200 transition">FAQ</a>
-        <a href="https://en.singkana.com" target="_blank" rel="noopener" class="hover:text-singkana-200 transition border-l border-white/10 pl-4 ml-2">
+        <a href="/en/" class="hover:text-singkana-200 transition border-l border-white/10 pl-4 ml-2">
           English Version
         </a>
         <a href="#studio" class="rounded-full border border-singkana-400/70 bg-slate-950/80 px-4 py-1.5 text-xs font-semibold text-singkana-100 shadow-soft hover:bg-singkana-500/10 hover:shadow-glow transition">
@@ -1835,7 +1835,7 @@
           <a href="/privacy.html" target="_blank" rel="noopener" class="text-[11px] text-slate-400 hover:text-singkana-200 transition">プライバシーポリシー</a>
         </div>
         <div class="flex items-center gap-4">
-          <a href="https://en.singkana.com" target="_blank" rel="noopener" class="text-[11px] text-slate-400 hover:text-singkana-200 transition">
+          <a href="/en/" class="text-[11px] text-slate-400 hover:text-singkana-200 transition">
             Global users? Check English LP here →
           </a>
           <a href="/lp/whitepaper.html" target="_blank" rel="noopener" class="text-[11px] text-slate-500 hover:text-singkana-200 transition underline underline-offset-2 decoration-slate-500/60 px-1 py-0.5">
@@ -1853,7 +1853,7 @@
   ========================================================== -->
   <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
 
-  <!-- Language Detection & Auto-Redirect (英語ユーザーをen.singkana.comへ) -->
+  <!-- Language Detection & Auto-Redirect (英語ユーザーを /en/ へ) -->
   <script>
     (function() {
       // URLパラメータで ?lang=ja があればリダイレクトしない
@@ -1862,13 +1862,13 @@
         return;
       }
       
-      // ブラウザ言語が英語系の場合、en.singkana.comへリダイレクト
+      // ブラウザ言語が英語系の場合、/en/へリダイレクト
       const browserLang = navigator.language || navigator.userLanguage;
       const isEnglish = browserLang.startsWith('en');
       
       // 現在のドメインが singkana.com で、英語ユーザーの場合のみリダイレクト
       if (isEnglish && window.location.hostname === 'singkana.com' && !window.location.hostname.includes('en.')) {
-        window.location.href = 'https://en.singkana.com' + window.location.pathname + window.location.search;
+        window.location.href = '/en/' + window.location.search;
       }
     })();
   </script>

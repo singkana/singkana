@@ -3852,6 +3852,17 @@ def romaji_en() -> Response:
         raise
 
 
+@app.get("/en/romaji")
+@app.get("/en/romaji/")
+def romaji_en_canonical() -> Response:
+    """Canonical EN romaji page under /en/."""
+    try:
+        return send_from_directory(str(BASE_DIR / "romaji"), "index.html")
+    except Exception as e:
+        app.logger.exception("Error serving canonical en romaji page: %s", e)
+        raise
+
+
 @app.get("/en")
 def en_redirect() -> Response:
     """Force trailing slash to avoid relative-path resolution bugs (e.g. ./style.css -> /style.css)."""
