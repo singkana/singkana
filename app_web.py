@@ -267,6 +267,13 @@ def _origin_ok() -> bool:
             if base_url.startswith("https://") and not base_url.startswith("https://www."):
                 www_url = base_url.replace("https://", "https://www.", 1)
                 allowed_origins.add(www_url)
+
+    # 現在のHostも許可する。これでローカル別ポートやプレビューURLでも
+    # 明示設定なしで same-origin POST を通せる。
+    current_host = (request.host or "").strip()
+    if current_host:
+        allowed_origins.add(f"http://{current_host}")
+        allowed_origins.add(f"https://{current_host}")
     
     # 1) Originがあるなら、それを厳格に見る（CORS/CSRFの基本）
     if origin:
@@ -1743,9 +1750,9 @@ def api_feedback():
     if not text:
         return _json_error(400, "empty_feedback", "テキストが空です。")
     meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
-    # 事故を避けるため、サーバは本文を保存しないのがデフォルト。
-    # どうしても必要なら env で明示的に許可する。
-    store_mode = (_env("SINGKANA_FEEDBACK_STORE_MODE", "none") or "none").strip().lower()
+    # デフォルトは本文を保存せず、最小限の要約情報だけ残す。
+    # 本文保存が必要な場合だけ env で明示的に full を指定する。
+    store_mode = (_env("SINGKANA_FEEDBACK_STORE_MODE", "summary") or "summary").strip().lower()
     max_chars = int(_env("SINGKANA_FEEDBACK_MAX_CHARS", "1200") or "1200")
     if len(text) > max(200, min(8000, max_chars)):
         return _json_error(400, "feedback_too_long", "フィードバックが長すぎます。短くしてください。")

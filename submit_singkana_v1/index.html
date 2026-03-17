@@ -841,7 +841,7 @@
           status.textContent = "フィードバックありがとうございました。";
           textBox.value = "";
         } else {
-          status.textContent = "送信に失敗しました。時間をおいて再度お試しください。";
+          status.textContent = data.message || "送信に失敗しました。時間をおいて再度お試しください。";
         }
       } catch (e) {
         console.error(e);

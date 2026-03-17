@@ -236,6 +236,19 @@
       margin-top: 4px;
     }
 
+    .feedback-success-card {
+      border: 1px solid rgba(74, 222, 128, 0.28);
+      background: rgba(34, 197, 94, 0.08);
+    }
+
+    #mobile-sticky-bar {
+      pointer-events: none;
+    }
+
+    #mobile-sticky-bar > div {
+      pointer-events: auto;
+    }
+
     .mini-btn {
       display: inline-flex;
       align-items: center;
@@ -1735,20 +1748,32 @@
               <p class="text-[11px] text-slate-400 mb-2">
                 ※歌詞そのもののコピー＆ペーストはお控えください（行番号＋コメント推奨）。
               </p>
-              <textarea
-                id="feedback-text"
-                placeholder="例）#12 の「believe」のところ、もう少し伸ばした表記だと歌いやすい。"
-                class="w-full min-h-[120px] rounded-xl border border-slate-600 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-singkana-400/80"
-              ></textarea>
-              <button
-                class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-4 py-1.5 text-xs font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
-                type="button"
-                onclick="sendFeedback()"
-              >
-                <span class="icon text-xs">✉</span>
-                <span>フィードバックを送信</span>
-              </button>
-              <div id="feedback-status" class="feedback-status text-[11px] text-slate-300 mt-1"></div>
+              <div id="feedback-form" class="space-y-2">
+                <textarea
+                  id="feedback-text"
+                  placeholder="例）#12 の「believe」のところ、もう少し伸ばした表記だと歌いやすい。"
+                  class="w-full min-h-[120px] rounded-xl border border-slate-600 bg-slate-950/60 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-singkana-400/80"
+                ></textarea>
+                <button
+                  id="feedback-submit-btn"
+                  class="inline-flex items-center justify-center gap-2 rounded-full bg-slate-100/10 px-4 py-1.5 text-xs font-semibold text-slate-50 border border-slate-500 hover:bg-slate-100/20 transition"
+                  type="button"
+                >
+                  <span class="icon text-xs">✉</span>
+                  <span id="feedback-submit-label">フィードバックを送信</span>
+                </button>
+                <div id="feedback-status" class="feedback-status text-[11px] text-slate-300 mt-1"></div>
+              </div>
+              <div id="feedback-success" class="feedback-success-card hidden rounded-xl px-3 py-3">
+                <p id="feedback-success-text" class="text-[12px] font-medium text-emerald-100">フィードバックありがとうございました。</p>
+                <button
+                  id="feedback-reset-btn"
+                  type="button"
+                  class="mt-2 text-[11px] font-semibold text-emerald-200 underline underline-offset-2 hover:text-emerald-100 transition"
+                >
+                  別のフィードバックを送る
+                </button>
+              </div>
 
               <div class="text-[11px] text-slate-400 mt-3">
                 <a href="/tokusho.html" target="_blank" rel="noopener" class="underline">特定商取引法に基づく表記</a> ・
@@ -1885,6 +1910,87 @@
     window.__lastGptApplied = false;
     window.__lastConvertMeta = null;
     let currentActiveBlock = null;
+    const feedbackState = {
+      phase: "idle", // idle | typing | sending | sent | error
+      text: "",
+      message: "",
+      resultId: null,
+    };
+
+    function getFeedbackElements() {
+      return {
+        form: document.getElementById("feedback-form"),
+        textBox: document.getElementById("feedback-text"),
+        submitBtn: document.getElementById("feedback-submit-btn"),
+        submitLabel: document.getElementById("feedback-submit-label"),
+        status: document.getElementById("feedback-status"),
+        success: document.getElementById("feedback-success"),
+        successText: document.getElementById("feedback-success-text"),
+      };
+    }
+
+    function feedbackPhaseFromText(text) {
+      return (text || "").trim() ? "typing" : "idle";
+    }
+
+    function renderFeedback() {
+      const els = getFeedbackElements();
+      if (!els.textBox || !els.submitBtn || !els.status || !els.success || !els.form) return;
+
+      const isSending = feedbackState.phase === "sending";
+      const isSent = feedbackState.phase === "sent";
+      const canSubmit = !isSending && !isSent && feedbackState.text.trim().length > 0;
+
+      if (els.textBox.value !== feedbackState.text) {
+        els.textBox.value = feedbackState.text;
+      }
+
+      els.form.classList.toggle("hidden", isSent);
+      els.success.classList.toggle("hidden", !isSent);
+      els.textBox.readOnly = isSending;
+      els.textBox.disabled = isSent;
+      els.submitBtn.disabled = !canSubmit;
+      els.submitBtn.classList.toggle("opacity-60", !canSubmit);
+      els.submitBtn.classList.toggle("cursor-not-allowed", !canSubmit);
+      els.submitBtn.classList.toggle("pointer-events-none", !canSubmit);
+
+      if (els.submitLabel) {
+        els.submitLabel.textContent = isSending ? "送信中..." : "フィードバックを送信";
+      }
+
+      els.status.textContent = feedbackState.phase === "error" ? (feedbackState.message || "送信に失敗しました。") : "";
+      if (els.successText) {
+        els.successText.textContent = feedbackState.message || "フィードバックありがとうございました。";
+      }
+    }
+
+    function resetFeedbackState(resultId = null) {
+      feedbackState.phase = "idle";
+      feedbackState.text = "";
+      feedbackState.message = "";
+      feedbackState.resultId = resultId;
+      renderFeedback();
+    }
+
+    function hydrateFeedbackStateFromUI() {
+      const els = getFeedbackElements();
+      if (!els.textBox) return;
+      feedbackState.text = (els.textBox.value || "").toString();
+      feedbackState.phase = feedbackPhaseFromText(feedbackState.text);
+      feedbackState.message = "";
+      renderFeedback();
+    }
+
+    function reopenFeedbackForm() {
+      feedbackState.phase = feedbackPhaseFromText(feedbackState.text);
+      feedbackState.message = "";
+      renderFeedback();
+      saveStudioState(true);
+      const els = getFeedbackElements();
+      if (els.textBox) els.textBox.focus();
+    }
+
+    window.sendFeedback = sendFeedback;
 
     // =========================
     // Plan Gate (Free / Pro)
@@ -2374,12 +2480,15 @@
 
       // 起動時に復元（localStorage）
       restoreStudioState(true);
+      hydrateFeedbackStateFromUI();
       setResultPlaceholderState();
 
       // 自動保存
       const songEl = document.getElementById("song-title");
       const lyrEl  = document.getElementById("lyrics-input");
       const fbEl   = document.getElementById("feedback-text");
+      const fbBtn  = document.getElementById("feedback-submit-btn");
+      const fbResetBtn = document.getElementById("feedback-reset-btn");
 
       let t = null;
       function scheduleAutoSave(){
@@ -2391,6 +2500,25 @@
         el.addEventListener("input", scheduleAutoSave);
         el.addEventListener("change", scheduleAutoSave);
       });
+
+      if (fbEl) {
+        fbEl.addEventListener("input", () => {
+          feedbackState.text = (fbEl.value || "").toString();
+          if (feedbackState.phase !== "sending" && feedbackState.phase !== "sent") {
+            feedbackState.phase = feedbackPhaseFromText(feedbackState.text);
+            feedbackState.message = "";
+          }
+          renderFeedback();
+        });
+      }
+
+      if (fbBtn) {
+        fbBtn.addEventListener("click", sendFeedback);
+      }
+
+      if (fbResetBtn) {
+        fbResetBtn.addEventListener("click", reopenFeedbackForm);
+      }
 
     });
 
@@ -2759,6 +2887,7 @@
         if (!raw) { if (!silent) setStudioStatus("保存データなし"); return; }
         const st = JSON.parse(raw);
         writeStudioStateToUI(st);
+        hydrateFeedbackStateFromUI();
         if (!silent) setStudioStatus("復元しました");
       } catch (e) {
         if (!silent) setStudioStatus("復元に失敗");
@@ -2769,10 +2898,9 @@
       try { localStorage.removeItem(LS_KEY); } catch (e) {}
       const songEl = document.getElementById("song-title");
       const lyrEl  = document.getElementById("lyrics-input");
-      const fbEl   = document.getElementById("feedback-text");
       if (songEl) songEl.value = "";
       if (lyrEl) lyrEl.value = "";
-      if (fbEl) fbEl.value = "";
+      resetFeedbackState(null);
       setStudioStatus("クリアしました");
     }
 
@@ -4243,6 +4371,7 @@
       setResultPlaceholderState();
 
       setActiveIndex(0);
+      resetFeedbackState(`result:${Date.now()}`);
       saveStudioState(true);
 
       // 計測: convert_success（歌詞は送らず、成功イベントだけ送る）
@@ -4636,15 +4765,25 @@
     // Feedback → /api/feedback (JSONL + Discord webhook)
     // =========================
     async function sendFeedback() {
-      const textBox = document.getElementById("feedback-text");
-      const status = document.getElementById("feedback-status");
-      const text = (textBox.value || "").trim();
-      status.textContent = "";
+      if (feedbackState.phase === "sending") return;
+      const text = (feedbackState.text || "").trim();
+      feedbackState.message = "";
 
-      if (!text) { status.textContent = "フィードバック内容を入力してください。"; return; }
+      if (!text) {
+        feedbackState.phase = "error";
+        feedbackState.message = "フィードバック内容を入力してください。";
+        renderFeedback();
+        return;
+      }
 
       // NOTE: 歌詞/本文が混入しやすいので、曲名などの自由入力は送らない
-      const meta = { client_side: true, engine_version: "js-core-v1.9" };
+      const meta = {
+        client_side: true,
+        engine_version: "js-core-v1.9",
+        result_id: feedbackState.resultId || "",
+      };
+      feedbackState.phase = "sending";
+      renderFeedback();
 
       try {
         const res = await fetch("/api/feedback", {
@@ -4655,14 +4794,20 @@
 
         const data = await res.json().catch(() => ({ ok: false }));
         if (data.ok) {
-          status.textContent = "フィードバックありがとうございました。";
-          textBox.value = "";
+          feedbackState.phase = "sent";
+          feedbackState.text = "";
+          feedbackState.message = "フィードバックありがとうございました。";
+          renderFeedback();
           saveStudioState(true);
         } else {
-          status.textContent = "送信に失敗しました（API未接続の可能性）。";
+          feedbackState.phase = "error";
+          feedbackState.message = data.message || "送信に失敗しました（API未接続の可能性）。";
+          renderFeedback();
         }
       } catch (e) {
-        status.textContent = "送信に失敗しました（ネットワーク/API未接続）。";
+        feedbackState.phase = "error";
+        feedbackState.message = "送信に失敗しました（ネットワーク/API未接続）。";
+        renderFeedback();
       }
     }
 
