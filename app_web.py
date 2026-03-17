@@ -1689,6 +1689,7 @@ def _post_feedback_to_discord(record: dict) -> None:
         app.logger.info("Discord webhook skipped: SINGKANA_FEEDBACK_WEBHOOK is empty")
         return
     import urllib.request
+    import urllib.error
     include_text = (_env("SINGKANA_FEEDBACK_WEBHOOK_INCLUDE_TEXT", "0") == "1")
     # デフォルトは本文を外部へ送らない（歌詞混入リスク回避）
     song = (record.get("song") or "").strip() if include_text else ""
@@ -1716,11 +1717,21 @@ def _post_feedback_to_discord(record: dict) -> None:
         if note_hash:
             desc_lines.append(f"NoteHash: {note_hash}")
     embeds = [{"title": "SingKANA Feedback", "description": "\n".join(desc_lines), "color": 0x6366F1}] if desc_lines else []
-    payload_json = json.dumps({"content": "", "embeds": embeds or None}, ensure_ascii=False).encode("utf-8")
+    payload_json = json.dumps(
+        {"content": "SingKANA feedback received", "embeds": embeds or None},
+        ensure_ascii=False,
+    ).encode("utf-8")
     req = urllib.request.Request(url, data=payload_json, headers={"Content-Type": "application/json"}, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             app.logger.info("Discord webhook response: status=%s", getattr(resp, "status", "unknown"))
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            pass
+        app.logger.error("Discord feedback webhook failed: status=%s body=%s", e.code, body)
     except Exception as e:
         app.logger.error("Discord feedback webhook failed: %s", e)
 
